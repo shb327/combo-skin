@@ -1,6 +1,6 @@
 # 007: Admin login
 
-**Status:** Implemented
+**Status:** Audited
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api
@@ -434,4 +434,69 @@ Test ids are relative to `api/`.
 
 ## Audit
 
-Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
+**Date:** 2026-11-03 · **Branch:** 007-admin-login · **Commit:** 0938166
+**Verdict:** Pass with follow-ups
+
+All checks ran on a fresh clone of the branch from GitHub, with a Compose stack started from `api/.env.example`. Test ids are relative to `api/`. The tests behind criteria 1 to 33 were read against each criterion. A first read, on commit 1316bd1, found weak assertions and four small code differences. They were fixed before this audit, and are listed under Implementation notes, "Changes after a review before the audit". This table is for commit 0938166.
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | Migration round trip; three revisions; tables known | Pass | `tests/test_migrations.py::test_revision_history`, `::test_upgrade_downgrade_upgrade`, `::test_models_match_migrations`, `::test_head_has_only_known_tables`; `uv run alembic check`: no new operations; `alembic history` ends `0002 -> 0003 (head)` |
+| 2 | Username rule and uniqueness in the database | Pass | `tests/admins/test_models.py::test_username_rule_is_enforced` (all five names from the criterion, plus two more), `::test_usernames_are_unique` |
+| 3 | `create` stores a verifying hash; bad passwords refused, nothing stored | Pass | `tests/admins/test_cli.py::test_create`, `::test_create_refuses_bad_passwords` (mismatch, 14 characters, common list in mixed case, contains username) |
+| 4 | No terminal: exit 1, nothing stored; no password option | Pass | `tests/admins/test_cli.py::test_passwords_need_a_terminal` (existing hash unchanged), `::test_real_pipe_is_refused` (real pipe, subprocess), `::test_help_has_no_password_option`; `docker compose exec -T api python -m combo_api.admins create <name>` exits 1 |
+| 5 | No password or hash printed; unknown and duplicate usernames exit 1 | Pass | `tests/admins/test_cli.py::test_commands_never_print_secrets` (both hashes, all five commands exit 0), `::test_unknown_or_duplicate_usernames_fail` |
+| 6 | `disable` ends 2 sessions, refuses login; `enable` keeps old sessions ended | Pass | `tests/admins/test_cli.py::test_disable_and_enable` |
+| 7 | `set-password` ends sessions; old password refused, new works | Pass | `tests/admins/test_cli.py::test_set_password_ends_sessions` |
+| 8 | `list` columns | Pass | `tests/admins/test_cli.py::test_list` (every column of both rows, compared with the database) |
+| 9 | Login body, one cookie, `/admin/me` same body, `last_login_at` | Pass | `tests/admins/test_login.py::test_login_starts_a_session` |
+| 10 | Same 401 for unknown, wrong, disabled; one verification each | Pass | `tests/admins/test_login.py::test_failures_look_the_same` (body, every header, counting spy) |
+| 11 | Medians within a factor of 1.5 | Pass | `tests/admins/test_login.py::test_failures_take_similar_time` (interleaved rounds, 5 counted logins per case), `::test_dummy_hash_is_ready_at_startup`; passed 3 extra runs locally and in both CI runs |
+| 12 | Case-insensitive username; new token each login | Pass | `tests/admins/test_login.py::test_username_is_case_insensitive_and_sessions_are_new` |
+| 13 | Origin 403 and content type 415, no session | Pass | `tests/admins/test_login.py::test_login_needs_an_allowed_origin`, `::test_login_needs_json`, `::test_origin_and_content_type_are_checked_before_the_body` |
+| 14 | 422 without the password or `input` | Pass | `tests/admins/test_login.py::test_validation_errors_do_not_echo_input` |
+| 15 | Logout ends the session; wrong CSRF 403; no session 204 | Pass | `tests/admins/test_login.py::test_logout_ends_the_session` (replays the old token by hand), `::test_logout_without_a_session` |
+| 16 | Weaker hash replaced at login | Pass | `tests/admins/test_login.py::test_weak_hash_is_replaced_at_login` |
+| 17 | `require_admin` reads: 401 cases, 200 with id and username | Pass | `tests/admins/test_require_admin.py::test_reads_need_a_live_session` |
+| 18 | Writes: CSRF and Origin 403 cases; 401 before 403 | Pass | `tests/admins/test_require_admin.py::test_writes_need_origin_and_csrf_token` (no session with good, bad and missing Origin all 401) |
+| 19 | Idle and absolute lifetimes | Pass | `tests/admins/test_require_admin.py::test_idle_and_absolute_lifetimes` (fake clock) |
+| 20 | Disabled in the database: next request 401 | Pass | `tests/admins/test_require_admin.py::test_disabled_admin_session_stops_at_once` |
+| 21 | Route guard, and it catches an unprotected write | Pass | `tests/admins/test_require_admin.py::test_every_write_route_requires_an_admin`, `::test_the_guard_finds_an_unprotected_write` |
+| 22 | `Cache-Control: no-store` | Pass | `tests/admins/test_require_admin.py::test_admin_responses_are_not_cached` (including the logout 204 and refusals) |
+| 23 | Cookie attributes; insecure mode and its warning | Pass | `tests/admins/test_http.py::test_secure_cookie`, `::TestInsecureCookie::test_plain_http_cookie`, `::TestInsecureCookie::test_startup_warns` |
+| 24 | CORS only for listed origins, including other `localhost` ports | Pass | `tests/admins/test_http.py::test_cors_allows_only_listed_origins`, `::TestLocalhostPorts::test_only_the_listed_port`, `::TestNoOrigins::test_no_origin_gets_cors_headers` |
+| 25 | Settings refused with the variable named | Pass | `tests/test_settings.py::test_invalid_admin_origins_are_refused` (the four values from the criterion), `::test_invalid_trusted_proxies_are_refused`, `::test_idle_lifetime_cannot_exceed_absolute`, `::test_session_lifetimes_are_bounded` |
+| 26 | Client IP and forwarded headers; Uvicorn proxy headers off | Pass | `tests/admins/test_http.py::test_forwarded_header_ignored_without_trusted_proxies`, `::TestTrustedProxy::test_right_most_untrusted_address`, `::test_uvicorn_proxy_headers_are_off`; the running container's command ends with `--no-proxy-headers` |
+| 27 | Per-IP limit, no verification, window | Pass | `tests/admins/test_limits.py::test_limit_per_ip` |
+| 28 | Per-username limit, also for unknown usernames, same response | Pass | `tests/admins/test_limits.py::test_limit_per_username` |
+| 29 | Concurrent attempts: at most 10 verifications | Pass | `tests/admins/test_limits.py::test_limit_holds_under_concurrent_requests` (30 at once, separate connections); passed 3 extra runs |
+| 30 | No clear-text username; 24-hour retention | Pass | `tests/admins/test_limits.py::test_failures_store_no_username_and_expire` |
+| 31 | No secret in logs, output or responses | Pass | `tests/admins/test_secrets.py::test_no_secret_leaves_the_api` (both hashes, session token, CSRF tokens) |
+| 32 | Unknown usernames not logged; events and fields | Pass | `tests/admins/test_secrets.py::test_unknown_usernames_are_not_logged`, `::test_log_events` |
+| 33 | `.env.example` lists exactly the settings | Pass | `tests/test_settings.py::test_env_example_lists_every_setting`; read `api/.env.example`: placeholders only |
+| 34 | OpenAPI routes, IDs, tag, responses; snapshot current | Pass | `tests/admins/test_schema.py::test_admin_routes_in_schema`; `uv run python -m combo_api.openapi --check` exit 0 |
+| 35 | README section and credit | Pass | `api/README.md` "Admin accounts" (first admin with `uv run` and `docker compose exec`, commands, endpoints, login and write with `X-CSRF-Token`), Configuration and Endpoints tables; `THIRD_PARTY_NOTICES.md` "SecLists" with the full MIT text, identical to the source licence |
+| 36 | Compose stack: `/admin/me` 401; workflow checks it | Pass | Fresh clone: `docker compose up -d --wait` exit 0, `migrate` and `catalog` exited 0, `/health/ready` 200 all `ok`, `/knives` 20, `/admin/me` 401, `down -v` clean; `.github/workflows/api.yml` has the 401 step; actionlint 1.7.12 exit 0 |
+| 37 | Lint, types, tests, checks, image under 250 MB | Pass | Commands below all exit 0; 220 passed, 0 skipped; image 228,456,554 bytes, UID 10001, no `.env` and no uv inside |
+| 38 | `api` workflow succeeds for the latest commit | Pass | Commit 0938166: push run 41543602405 and pull request run 41543605838, jobs `check` (220 passed) and `docker` succeeded |
+| 39 | gitleaks finds nothing | Pass | `gitleaks dir . --no-banner --redact` and `gitleaks git --log-opts="origin/main..HEAD"` on the fresh clone: no leaks |
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Install | `uv sync --locked` (fresh clone, Python 3.14.3) | Pass |
+| Lint | `uv run ruff format --check .`, `uv run ruff check .` | Pass |
+| Type check | `uv run mypy` | Pass |
+| Tests | `uv run pytest` (220 passed, 0 skipped), locally and in CI | Pass |
+| OpenAPI and export | `uv run python -m combo_api.openapi --check`, `uv run python -m combo_api.catalog export-website --check` | Pass |
+| Build | `docker build -t combo-skin-api api`; `docker compose up -d --wait` | Pass |
+| Secret scan | `gitleaks git --log-opts="origin/main..HEAD"`, `gitleaks dir .` | Pass |
+| Public exposure | Manual review of the diff and log: only placeholder usernames and passwords, reserved example hosts, `localhost`, private and documentation IP ranges in tests, and the public SecLists repository URL; the common-password list contains no emails, URLs or non-ASCII entries; local tool configuration is ignored and no `.env` is tracked; all 17 commits are authored by the owner with one-line messages and no trailers | Pass |
+| Design conformance | Manual review against Design, Security and API / data model | Pass; every difference is recorded in Implementation notes |
+
+**Findings**
+
+- (follow-up) The OpenAPI `ValidationError` component, generated by FastAPI, still lists the optional `input` and `ctx` fields, which 422 responses no longer contain.
+- (follow-up) `last_seen_at` is written at most once a minute, so a session can stay usable up to a minute past `SESSION_IDLE_MINUTES`.
+- (follow-up) Local `api/.env` files from before this spec lack the new settings. Login then needs the new lines from `api/.env.example`.
+- (follow-up) `require_admin` sets `no-store` only on the response FastAPI builds. A later route that returns its own `Response` must set the header itself (documented in `api/README.md`). The route guard test does not check this.
+- (follow-up) The timing test (criterion 11) compares wall-clock medians. Interleaving removes drift during the test, but a very noisy runner could still fail it now and then. If it does, rerun it before suspecting a timing difference.
