@@ -2,7 +2,7 @@
 
 [![api](https://github.com/shb327/combo-skin/actions/workflows/api.yml/badge.svg)](https://github.com/shb327/combo-skin/actions/workflows/api.yml)
 
-The backend for Combo Skin: a FastAPI service on PostgreSQL, with SQLAlchemy 2 (async) and Alembic migrations. It serves health checks, its OpenAPI docs and the knife and glove catalog; admin and combo endpoints come in later specs (see [`docs/specs/`](../docs/specs)).
+The backend for Combo Skin: a FastAPI service on PostgreSQL, with SQLAlchemy 2 (async) and Alembic migrations. It serves health checks, its OpenAPI docs, the knife and glove catalog and admin login; combo endpoints come in later specs (see [`docs/specs/`](../docs/specs)).
 
 ## Prerequisites
 
@@ -113,6 +113,61 @@ Only `refresh` uses the network. `import` needs the database; `export-website` n
 
 `import` is safe to re-run. It never deletes a row or changes a row's id or slug: new types and finishes are inserted, changed fields are updated in place, and retired entries are stored inactive, inserted if needed so their slugs are taken in the database too. It refuses a type whose codename is stored under another definition index. It writes everything or nothing.
 
+## Admin accounts
+
+Admins log in with a username and password. There is no sign-up and no HTTP route that creates or changes an admin: accounts are managed only with the command below, run by the owner on the server or locally. Admins are never deleted, only disabled.
+
+**Creating the first admin.** On the host, from `api/`, with the database running and migrated:
+
+```bash
+uv run python -m combo_api.admins create <username>
+```
+
+In Compose, from the repository root, with the stack up:
+
+```bash
+docker compose exec api python -m combo_api.admins create <username>
+```
+
+The command asks for the password twice at a hidden prompt. It never takes a password as an argument, an option or an environment variable, and refuses to run without an interactive terminal, so a password never ends up in shell history, a process list or a script.
+
+Usernames are 3 to 32 characters: lowercase letters, digits, `.`, `-` and `_`. Login matches them case-insensitively. Passwords follow current NIST guidance: 15 to 256 characters (counted after Unicode NFKC normalisation), any characters including spaces, not on the bundled list of common passwords (see [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md)), and not containing the username. There are no composition rules and no expiry. Passwords are hashed with Argon2id.
+
+The other commands, from `api/` (or through `docker compose exec api python -m combo_api.admins ...`):
+
+```bash
+uv run python -m combo_api.admins set-password <username>   # new password; ends all its sessions
+uv run python -m combo_api.admins disable <username>        # can no longer log in; ends all its sessions
+uv run python -m combo_api.admins enable <username>         # can log in again; old sessions stay ended
+uv run python -m combo_api.admins list                      # username, enabled, created, last login, live sessions
+```
+
+**Logging in from a client.** The admin dashboard, served from an origin listed in `ADMIN_ORIGINS`, calls the API with credentials included (`fetch(..., {credentials: "include"})`):
+
+1. `POST /admin/login` with `Content-Type: application/json` and `{"username": ..., "password": ...}`. The response sets the session cookie and returns `{"admin": {"username": ...}, "csrf_token": ..., "expires_at": ...}`.
+2. Keep `csrf_token` in memory, and send it in the `X-CSRF-Token` header with every `POST`, `PUT`, `PATCH` and `DELETE`. After a page reload, `GET /admin/me` returns it again.
+3. `POST /admin/logout` with the `X-CSRF-Token` header ends the session.
+
+From the command line, against the local stack (whose `api/.env` must set `SESSION_COOKIE_SECURE=false` for plain http):
+
+```bash
+curl -c cookies.txt -H 'Origin: http://localhost:5174' -H 'Content-Type: application/json' \
+  -d '{"username": "<username>", "password": "<password>"}' http://localhost:8000/admin/login
+curl -b cookies.txt http://localhost:8000/admin/me
+curl -b cookies.txt -X POST -H 'Origin: http://localhost:5174' -H 'X-CSRF-Token: <csrf_token>' \
+  http://localhost:8000/admin/logout
+```
+
+Typing a password on a command line puts it in shell history; use a throwaway local account for this.
+
+**Sessions** live in PostgreSQL. A session ends after `SESSION_IDLE_MINUTES` without a request, `SESSION_MAX_HOURS` after login, at logout, or as soon as its admin is disabled or gets a new password. Each login starts a new session.
+
+**Protection.** The session cookie is HttpOnly, `SameSite=Strict`, host-only and, unless `SESSION_COOKIE_SECURE=false`, Secure. Writes need the session's CSRF token and an `Origin` listed in `ADMIN_ORIGINS`; only those origins get CORS headers. Failed logins are limited to 10 per client IP and 20 per username in 15 minutes; over a limit, login returns 429 with `Retry-After`. The client IP is the connecting address, or, when that is a proxy listed in `TRUSTED_PROXIES`, the right-most address in `X-Forwarded-For` that is not a trusted proxy. Uvicorn's own forwarded-header handling is off (`--no-proxy-headers`).
+
+**For later routes.** Every admin route depends on `require_admin` from `combo_api.admins.deps` (or the `AdminDep` type) and declares `ADMIN_RESPONSES`. A test fails if a `POST`, `PUT`, `PATCH` or `DELETE` route is added without it.
+
+Logins, failed and rate-limited logins, logouts and account changes are logged by the `combo_api.admins` logger, without passwords or tokens.
+
 ## OpenAPI snapshot
 
 `openapi.json` is a committed copy of the API schema, used to generate TypeScript types for the website and admin. After changing any route, regenerate it from `api/`:
@@ -136,6 +191,11 @@ Settings come from environment variables. For local use they are read from `api/
 | `POSTGRES_DB` | yes | | Database name. Tests append `_test`. |
 | `LOG_LEVEL` | no | `info` | `debug`, `info`, `warning` or `error`. Applies to the API's logs and to uvicorn's error and access logs. |
 | `DOCS_ENABLED` | no | `true` | When `false`, `/docs` and `/openapi.json` return 404. |
+| `ADMIN_ORIGINS` | no | empty | Comma-separated exact origins (`scheme://host[:port]`) allowed to send logged-in requests and writes, such as the admin dashboard. No wildcards. The example lists the dashboard's local origin. |
+| `SESSION_COOKIE_SECURE` | no | `true` | When `false`, the session cookie is sent over plain http, and the API logs a warning at startup. Local use only; the example sets `false`. |
+| `SESSION_IDLE_MINUTES` | no | `60` | A session ends after this many minutes without a request. 5 to 1440, and not more than `SESSION_MAX_HOURS`. |
+| `SESSION_MAX_HOURS` | no | `12` | A session ends this many hours after login. 1 to 24. |
+| `TRUSTED_PROXIES` | no | empty | Comma-separated IPs or CIDR ranges of reverse proxies whose `X-Forwarded-For` header is used for the client IP. |
 
 A missing or invalid setting stops startup with an error that names the variable but never shows its value.
 
@@ -148,6 +208,9 @@ A missing or invalid setting stops startup with an error that names the variable
 | `GET /knives`, `GET /gloves` | Active knife or glove types, in display order, with their finish counts. |
 | `GET /knives/{type}`, `GET /gloves/{type}` | One active type with its active finishes, in display order. 404 if unknown. |
 | `GET /knives/{type}/{finish}`, `GET /gloves/{type}/{finish}` | One finish, including a retired one (`active: false`); `item_type.active` says whether its type is still in the game. 404 if unknown. |
+| `POST /admin/login` | Log in; sets the session cookie. 401, 403, 415, 422 or 429 otherwise. |
+| `GET /admin/me` | The logged-in admin and the session's CSRF token, or 401. |
+| `POST /admin/logout` | Ends the session and clears the cookie; 204. |
 | `GET /docs`, `GET /openapi.json` | Interactive docs and the schema, unless `DOCS_ENABLED=false`. |
 
 ## Layout
@@ -160,6 +223,7 @@ A missing or invalid setting stops startup with an error that names the variable
 | `src/combo_api/health.py` | Health endpoints |
 | `src/combo_api/openapi.py` | Snapshot export and check |
 | `src/combo_api/catalog/` | Catalog data, commands, tables, import and endpoints |
+| `src/combo_api/admins/` | Admin tables, accounts command, passwords, sessions, rate limits, `require_admin` and login endpoints |
 | `migrations/` | Alembic environment and revisions |
 | `tests/` | pytest suite |
 | `Dockerfile` | Production image: non-root, runtime dependencies only |
