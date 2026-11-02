@@ -1,6 +1,6 @@
 # 006: Catalog follow-ups
 
-**Status:** Draft
+**Status:** Approved
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api, website
