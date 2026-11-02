@@ -80,7 +80,8 @@ Create the `api/` section: a FastAPI service with PostgreSQL, Alembic migrations
 | Migrations | Alembic with an async-aware `env.py` on the same psycopg 3 driver; sequential revision IDs (`0001`, `0002`, ...) with file names `NNNN_slug.py`; a SQLAlchemy naming convention for keys, indexes and constraints set on the shared metadata | Random revision hashes: harder to read in review. No naming convention: auto-generated constraint names differ between databases and break later downgrades. |
 | Baseline migration | `0001_baseline`: no tables, empty `upgrade` and `downgrade`; it only creates Alembic's version table | A placeholder table: schema that nobody needs. No migration at all: readiness and tests could not check "at head". |
 | Running migrations | A one-shot `migrate` Compose service (same image, `alembic upgrade head`); the API starts only after it succeeds. The API never migrates on its own startup | Migrating in the API's entrypoint: races when several API containers start, and hides failures. Production migration is left to `deploy/`. |
-| Health routes | `GET /health/live` and `GET /health/ready`, not versioned or prefixed | `/healthz` and `/readyz`: fine, but less self-explanatory in the docs. One `/health`: cannot tell "process up" from "can serve traffic". |
+| API versioning | None. No `/v1`-style prefix now or in later specs; routes live at plain paths such as `/health/live`. The website and admin in this repo are the only clients and regenerate their types from the snapshot, so a breaking change is fixed in the same pull request | A `/v1` prefix: only pays off with outside clients that upgrade on their own schedule, and this API has none. |
+| Health routes | `GET /health/live` and `GET /health/ready` | `/healthz` and `/readyz`: fine, but less self-explanatory in the docs. One `/health`: cannot tell "process up" from "can serve traffic". |
 | Readiness checks | `SELECT 1` and a comparison of the database's Alembic revision with the code's head revision, together bounded by a 2-second timeout | Database ping only: the API would report ready against an unmigrated schema. No timeout: a hung database hangs the probe. |
 | Server | Uvicorn, one process, port 8000 inside the container, behind whatever `deploy/` chooses | Gunicorn with Uvicorn workers: process management belongs to the deployment, and one process is enough locally. |
 | OpenAPI docs | `/openapi.json` and Swagger UI at `/docs`; ReDoc off; `DOCS_ENABLED` setting (default `true`) turns both off | Docs always on: production may want them off; that choice belongs to `deploy/`. |
@@ -242,7 +243,6 @@ docker compose down -v
 
 ## Open questions
 
-- Should later resource routes carry a version prefix such as `/v1`? Recommendation: no prefix. The only clients are the website and admin in this repo, which regenerate their types from the snapshot, so breaking changes are caught in the same pull request. Health routes stay unprefixed either way.
 - Should `/docs` and `/openapi.json` be on in production? Recommendation: decide in the `deploy/` spec; this spec only adds the `DOCS_ENABLED` switch.
 
 ## Implementation notes
