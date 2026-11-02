@@ -201,7 +201,7 @@ Test ids are relative to `api/`.
 | 18 | `npm run preview`: `/knives/karambit` 35 finishes, all images loaded, both chunks requested; `/gloves/specialist/mogul/combos` finish image loaded (`naturalWidth` 512) |
 | 19 | `api/README.md` Catalog section: refresh step 2, "Retired entries", import paragraph, Endpoints table |
 | 20 | Fresh clone: format check, lint, mypy, pytest (112 passed, 0 skipped), OpenAPI check, `export-website --check`, `npm ci`, `npm run lint`, `npm run build`: all exit 0 |
-| 21 | Not yet checked: needs the branch pushed |
+| 21 | Workflow runs on commit 4e5e016: `api` 41514746535 (jobs `check` and `docker` succeeded) and `website` 41514746406 (job `build` succeeded) |
 | 22 | `gitleaks dir .` on a clean clone and `gitleaks git` over the branch: no leaks |
 
 Also checked: with the Compose database holding spec 005's rows, `docker compose up -d --build --wait` imports the converted snapshot as `698 unchanged`, and the single-finish endpoint serves `item_type.active`.
