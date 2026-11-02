@@ -1,6 +1,6 @@
 # 003: Bundle combo images in production builds
 
-**Status:** Draft
+**Status:** Approved
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** website
