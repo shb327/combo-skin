@@ -35,11 +35,13 @@ The most recently added knives with the fewest available finishes:
 - Classic Knife
 - Kukri Knife
 
-## Asset Totals
+## Catalog Totals
 
-- **Gloves**: 8 types, 72 total skins
-- **Knives**: 20 types, 576 total skins (10×35 + 8×25 + 2×13)
-- **Grand Total**: 648 assets
+The site's catalog (`src/data/catalog.json`) is generated from the game's item data, so these counts follow the game:
+
+- **Gloves**: 8 types, 94 finishes (Driver, Specialist and Sport Gloves 20, 19 and 19; Hand Wraps and Moto Gloves 12 each; Bloodhound, Hydra and Broken Fang Gloves 4 each)
+- **Knives**: 20 types, 576 finishes, Vanilla included (10×35 + 8×25 + 2×13)
+- **Total**: 670 finishes
 
 ## Finish Lists by Tier
 
