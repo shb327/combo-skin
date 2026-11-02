@@ -357,6 +357,7 @@ None that change a requirement. Smaller additions:
 - **Tool retries.** The tool asks for a password up to 3 times, then exits 1 with nothing changed. End of input or Ctrl-C also exits 1 with nothing changed.
 - **Test sessions.** `tests/support.py::rolled_back_session` now uses `expire_on_commit=False`, as the app's own sessionmaker does, because login commits in the middle of a request.
 - **Lint.** Tests may use placeholder passwords: ruff's `S105` and `S106` are ignored in `tests/`, next to `S101`.
+- **Timing test (2026-11-03).** The first version of `test_failures_take_similar_time` timed the three cases one after another. On the `api` push run for commit 5f5106e (run 41542260053) it failed with medians of 81, 79 and 53 ms, while the pull request run of the same commit passed: the runner sped up during the test, and the last case (disabled admin, which does the same work as a wrong password) looked fastest. The test now takes one attempt of each case per round, after one uncounted warm-up round, so drift affects all three alike. It still compares the medians of 5 counted logins per case, as criterion 11 says.
 
 ### Follow-ups
 
