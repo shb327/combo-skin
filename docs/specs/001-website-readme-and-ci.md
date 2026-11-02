@@ -1,0 +1,140 @@
+# 001: Website README and CI
+
+**Status:** Draft
+<!-- Lifecycle: Draft → Approved → Implemented → Audited -->
+
+**Section:** website
+**Branch:** 001-website-readme-and-ci
+
+## Summary
+
+Replace the website's Vite template README with a real one that explains what Combo Skin does, shows it, and tells a newcomer how to run it. Add a GitHub Actions workflow that runs the website's lint and build on every push and pull request, with a status badge, so a broken build is visible before it is merged.
+
+## Goals and non-goals
+
+**Goals**
+
+- A website README that a visitor or contributor can read top to bottom: what the site is, screenshots, how to run it locally, how the code and data are organised.
+- A CI workflow that runs `npm run lint` and `npm run build` for `website/` on every push and every pull request.
+- A status badge for that workflow in the root and website READMEs.
+
+**Non-goals**
+
+- Adding a test runner or tests for the website. CI runs only what exists today: lint and build.
+- Deploying the site, or any CI for `api/`, `admin/` or `deploy/` (they do not exist yet).
+- Linking to a live deployment. Hosting is not settled yet.
+- Changing application code, data, or the Vite or ESLint configuration.
+- Automated dependency updates for the pinned actions.
+
+## Context
+
+- `website/README.md` is the unmodified Vite React TypeScript template README. It says nothing about Combo Skin.
+- `README.md` (root) has a project table and short "Running the website" instructions.
+- There is no `.github/` directory and no CI of any kind.
+- `website/package.json` defines `dev`, `build` (`tsc -b && vite build`), `lint` (`eslint .`) and `preview`. There is no `test` script. `website/package-lock.json` is committed, so `npm ci` works.
+- `npm run lint` and `npm run build` both pass today. The build also passes on a clean checkout with no `website/.env` file.
+- `website/.env.example` declares one variable, `VITE_ASSET_BASE_URL`, with a placeholder value. It is declared in `website/src/vite-env.d.ts` and read in `website/src/data/gloves.ts`, `website/src/data/knives.ts`, `website/src/pages/GloveFinishes.tsx` and `website/src/pages/KnifeFinishes.tsx` to build finish image URLs (`<base>/gloves/<type>/<finish>.png`, `<base>/knives/<type>/<finish>.png`). Without it the site runs, but finish images do not load.
+- Routes are defined in `website/src/App.tsx`: home, glove search, glove finishes, knife search, knife finishes, and a combos page per glove or knife finish.
+- Site data lives in `website/src/data/`: `gloves.ts` (glove types and finishes), `knives.ts` (knife types and finishes), `combos.ts` (curated glove + knife combos per glove finish, with images under `website/src/assets/combos/`). Knife-to-glove combos are not implemented yet (`website/src/pages/Combos.tsx` returns an empty list for knives).
+- `website/CS2_FINISHES.md` explains how knife finishes are distributed in CS2.
+- Local development uses Node 24 and npm 11.
+
+## Requirements
+
+- R1. `website/README.md` describes Combo Skin: a site that helps CS2 players find good-looking glove and knife combinations, and what a visitor can do on it today.
+- R2. `website/README.md` shows at least three screenshots of the running site, stored in the repository.
+- R3. `website/README.md` explains how to run the site locally from a fresh clone: prerequisites, install, environment setup, dev server, and the other npm scripts.
+- R4. `website/README.md` explains `VITE_ASSET_BASE_URL` using only a placeholder value, and states that finish images do not load without it.
+- R5. `website/README.md` describes the project layout (`src/pages`, `src/components`, `src/data`, `src/assets`) and how to add a glove finish, knife finish or combo in `src/data`.
+- R6. A GitHub Actions workflow runs `npm ci`, `npm run lint` and `npm run build` in `website/` on every push to any branch and on every pull request.
+- R7. The workflow's status badge appears near the top of both `README.md` and `website/README.md` and links to the workflow's runs.
+- R8. The root `README.md` points to `website/README.md` for website details instead of duplicating its setup steps.
+
+## Design
+
+| Decision | Chosen | Alternatives rejected, and why |
+| --- | --- | --- |
+| Workflow file | `.github/workflows/website.yml`, workflow name `website` | One repo-wide `ci.yml`: per-section workflows give one badge per section and stay independent as `api/` and `admin/` arrive. |
+| Triggers | `push` (all branches) and `pull_request`, no path filters | Path filters on `website/**`: a skipped required check blocks merges, and the build is fast. Revisit when the repo has more sections. |
+| Action versions | Pinned to full commit SHAs, with the version tag as a trailing comment | Major version tags: a moved tag would change what runs without a commit in this repo. |
+| Node version | Node 24 via the official setup-node action, npm cache keyed on `website/package-lock.json` | Node 22: local development already uses 24. A version matrix: unnecessary for a static site. |
+| Install | `npm ci` | `npm install`: can rewrite the lockfile and hides lockfile drift. |
+| Working directory | `defaults.run.working-directory: website` | `cd website` in every step: repetitive and easy to miss. |
+| Concurrency | One run per branch or pull request; a new push cancels the older in-progress run | No concurrency group: wastes runner time on superseded commits. |
+| Environment in CI | No `.env`, no secrets; the build runs without `VITE_ASSET_BASE_URL` | Injecting the real asset URL as a secret: the build does not need it, and CI should not depend on private configuration. |
+| Screenshots | PNGs captured from the local dev server at 1440 px wide, stored in `website/docs/screenshots/` | Live site: hosting is not settled. Images hosted elsewhere: links rot and depend on outside services. |
+| Screenshot pages | Home, glove finishes for one glove type, combos for one glove finish | Every page: more weight in the repo for little extra information. |
+| Badge placement | Root `README.md` and `website/README.md` | Root only: the website README is what people land on from the `website/` folder. |
+| Live site link | None for now | Linking the domain: hosting is not settled. |
+| Asset URL in docs | Placeholder only, as in `.env.example` | Publishing the real asset URL: not needed to build, and keeps infrastructure out of the public repo. |
+
+## API / data model
+
+None.
+
+## Security
+
+- S1. The workflow has read-only access to repository contents (`permissions: contents: read`) and no other permissions.
+- S2. The workflow uses no repository or organisation secrets and does not need any to pass.
+- S3. The workflow runs on `pull_request`, not `pull_request_target`, so code from forks never runs with elevated permissions.
+- S4. Every third-party action is pinned to a full commit SHA.
+- S5. The READMEs and screenshots contain no real hostnames, asset URLs, IP addresses, credentials, personal email addresses or local file paths. Screenshots show only the site's own pages, with no browser chrome, bookmarks or other tabs.
+- S6. `website/.env.example` keeps a placeholder value.
+
+## Acceptance criteria
+
+1. `.github/workflows/website.yml` exists and `actionlint .github/workflows/website.yml` exits 0.
+2. The workflow triggers on `push` and `pull_request` with no branch or path filters, and does not use `pull_request_target`.
+3. The workflow sets `permissions: contents: read` at the top level and grants nothing else.
+4. Every `uses:` line in the workflow references a 40-character commit SHA: `grep -E '^\s*-?\s*uses:' .github/workflows/website.yml | grep -vE '@[0-9a-f]{40}( |$)'` prints nothing.
+5. The workflow references no secrets: `grep -n 'secrets\.' .github/workflows/website.yml` prints nothing.
+6. The workflow sets up Node 24, runs `npm ci`, `npm run lint` and `npm run build` in `website/`, and cancels superseded in-progress runs for the same ref.
+7. On a fresh clone with no `website/.env`, `cd website && npm ci && npm run lint && npm run build` exits 0.
+8. After the branch is pushed, the `website` workflow run for its latest commit succeeds on GitHub.
+9. `website/README.md` contains no text from the Vite template (`grep -c 'This template provides' website/README.md` prints 0) and has these sections: what the site does, screenshots, getting started, scripts, configuration, project structure, and data.
+10. `website/README.md` embeds at least three screenshots by relative path, every referenced image file exists in `website/docs/screenshots/`, each has alt text, and each file is under 500 KB.
+11. The `website` badge appears in the first five lines of both `README.md` and `website/README.md`, using `https://github.com/shb327/combo-skin/actions/workflows/website.yml/badge.svg` and linking to `https://github.com/shb327/combo-skin/actions/workflows/website.yml`.
+12. `website/README.md` documents `VITE_ASSET_BASE_URL` with the same placeholder as `website/.env.example`, and states that finish images do not load without a real value.
+13. Following the getting-started steps in `website/README.md` literally on a fresh clone starts the dev server, and the home page renders.
+14. The root `README.md` links to `website/README.md` and no longer contains its own copy of the website setup commands.
+15. The only URLs in the changed files point to `github.com/shb327/combo-skin`, public documentation (Node.js, npm, Vite), or the `example.com` placeholder from `website/.env.example`, and `gitleaks dir . --no-banner --redact` reports no findings.
+
+## Test plan
+
+The website has no test runner, and this spec does not add one. Each criterion is checked by a command or a precise manual step.
+
+| Criterion | How it is checked |
+| --- | --- |
+| 1 | `actionlint .github/workflows/website.yml` (local tool, not a repo dependency) |
+| 2, 3, 6 | Read the workflow; `grep -n 'pull_request_target' .github/workflows/website.yml` prints nothing |
+| 4 | The grep in criterion 4 prints nothing |
+| 5 | The grep in criterion 5 prints nothing |
+| 7 | `git clone` into a temporary directory, then the commands in criterion 7 |
+| 8 | The workflow run page for the branch's latest commit shows success (checked after the owner pushes) |
+| 9 | The grep in criterion 9 prints 0; read the README headings |
+| 10 | A shell loop over the image paths in `website/README.md`: `test -f` and a size check for each; read the alt text |
+| 11 | `head -5 README.md website/README.md` |
+| 12 | `grep -n VITE_ASSET_BASE_URL website/README.md website/.env.example` |
+| 13 | Manual: fresh clone, follow the README, open the dev server URL |
+| 14 | Read `README.md` |
+| 15 | `grep -noE 'https?://[^ )>"]+' README.md website/README.md .github/workflows/website.yml`; `gitleaks dir . --no-banner --redact` |
+
+Section commands, run in `website/`:
+
+```bash
+npm ci
+npm run lint
+npm run build
+```
+
+## Open questions
+
+- The repository has no LICENSE file. Should the README state a license (and should one be added in a separate spec), or say nothing about licensing for now? Recommendation: say nothing in this spec; decide licensing separately.
+
+## Implementation notes
+
+Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+
+## Audit
+
+Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
