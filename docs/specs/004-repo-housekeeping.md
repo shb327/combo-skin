@@ -1,6 +1,6 @@
 # 004: Repo housekeeping
 
-**Status:** Implemented
+**Status:** Audited
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** repo
@@ -171,4 +171,39 @@ No deviations from the design. Two details:
 
 ## Audit
 
-Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
+**Date:** 2026-11-02 · **Branch:** 004-repo-housekeeping · **Commit:** 54e40c1
+**Verdict:** Pass with follow-ups
+
+All local checks ran on a fresh clone of the branch, except criterion 5, which needs the owner's working copy and a temporary checkout of `main`.
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | Committed tunnel hostname gone | Pass | The value removed in this branch's diff of `website/vite.config.ts` is not found by `git grep -nF` at HEAD; the config has no hostname literal and reads `DEV_ALLOWED_HOSTS` |
+| 2 | Dev server honours `DEV_ALLOWED_HOSTS` | Pass | Dev server, `Host: tunnel.example.com`: 403 unset; 200 with that host set (a second host stays 403); 200 for both with two comma-separated hosts |
+| 3 | Variable not in the bundle | Pass | With the variable in `website/.env`, `npm run build` exits 0; `grep -rlF -e DEV_ALLOWED_HOSTS -e tunnel.example.com dist` finds nothing |
+| 4 | Documented with a placeholder | Pass | `website/README.md` Configuration table and tunnel paragraph use `tunnel.example.com` and say `.env` is never committed; `website/.env.example` has the line commented out |
+| 5 | Local tool entries moved to `.git/info/exclude` | Pass | On a temporary checkout of `main`, `git check-ignore -v` reports `.gitignore` for all three paths; on this branch it reports `.git/info/exclude`; `.gitignore` no longer has the entries; `git status --porcelain --ignored` shows the paths only as ignored; none is tracked |
+| 6 | uv 0.13.6 everywhere | Pass | `api/Dockerfile` uses the uv `0.13.6` image by digest (the image reports uv 0.13.6); the workflow sets `version: 0.13.6`; `uv_build>=0.13,<0.14`; `required-version = ">=0.13.6"`; local `uv --version` is 0.13.6; uv 0.11.2 is refused with a message to update |
+| 7 | Lockfile and api checks under uv 0.13.6 | Pass | `uv lock --check`, `uv sync --locked`, `ruff format --check`, `ruff check`, `mypy`, `pytest` (31 passed), `openapi --check`: all exit 0 |
+| 8 | Image and Compose stack | Pass | `docker build -t combo-skin-api api` exits 0; `docker compose up -d --wait --build` exits 0, `migrate` exits 0, `/health/ready` returns 200 with all checks `ok` |
+| 9 | `LOG_LEVEL` reaches uvicorn's loggers | Pass | `api/tests/test_settings.py::test_log_level_applies_to_app_and_uvicorn_loggers` checks `combo_api`, `uvicorn`, `uvicorn.error` and `uvicorn.access` at `WARNING`; passes |
+| 10 | Stale notes corrected | Pass | `grep -n "Not yet checked"` over specs 001 and 003 prints nothing; the rows cite runs 41478083919 and 41489515514, matching each Audit |
+| 11 | Merged branches listed; none deleted by the implementer | Pass | The implementation report listed `spec-workflow`, `001-website-readme-and-ci`, `002-api-foundation` and `003-website-combo-images` with local and remote delete commands. All four remote branches were still present after the work: the owner's own `git push origin --delete` afterwards reported each one as deleted. Local copies were deleted only after the owner confirmed |
+| 12 | CI succeeds on GitHub | Pass | Run 41496590653 (`api`: jobs `check` and `docker`, setup-uv `version: 0.13.6`, 31 tests passed) and run 41496590907 (`website`: `npm ci`, lint, build, `/src/` check) succeeded on 54e40c1 |
+| 13 | No secrets | Pass | `gitleaks dir .` on a clean clone and `gitleaks git --log-opts="origin/main..004-repo-housekeeping"`: no leaks |
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Lint | `npm run lint`; `uv run ruff format --check .`, `uv run ruff check .`, `uv run mypy` | Pass |
+| Tests | `uv run pytest` (31 passed), locally and in CI | Pass |
+| Build | `npm run build`; `docker build -t combo-skin-api api`; `docker compose up -d --wait --build` | Pass |
+| Secret scan | gitleaks, history and clean clone | Pass |
+| Public exposure | Manual review of the diff and log: no hostname, address or local path added; the only new host is the `example.com` placeholder; the removed hostname and local tool entries appear only as deleted lines; nothing private or `.env` is tracked; all commits are authored by the owner with one-line messages and no trailers | Pass |
+| Design conformance | Manual review against Design; the lockfile needed no change, as recorded | Pass |
+
+**Findings**
+
+- (follow-up) Spec 004's own Implementation notes list criterion 12 as not yet checked, the same pattern this spec fixed for 001 and 003; this audit verified it. A CI criterion can only be checked after a push, so future Implementation notes could say "verified by the audit" instead.
+- (follow-up) Spec 002's Implementation notes still list the uv bump and uvicorn's log level as open follow-ups; this spec resolved both.
+- (follow-up) By design, the removed tunnel hostname remains in git history.
+- (follow-up) The API image is 225.5 MB of its 250 MB budget after the uv bump; keep watching it.
