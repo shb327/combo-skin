@@ -27,7 +27,9 @@ async def rolled_back_session(engine: AsyncEngine) -> AsyncIterator[AsyncSession
     """A session inside a transaction that is always rolled back."""
     async with engine.connect() as connection:
         transaction = await connection.begin()
-        session = AsyncSession(bind=connection, join_transaction_mode="create_savepoint")
+        session = AsyncSession(
+            bind=connection, join_transaction_mode="create_savepoint", expire_on_commit=False
+        )
         try:
             yield session
         finally:

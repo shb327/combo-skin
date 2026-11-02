@@ -38,7 +38,7 @@ cd api
 uv sync
 uv run alembic upgrade head
 uv run python -m combo_api.catalog import
-uv run uvicorn combo_api.main:app --reload
+uv run uvicorn combo_api.main:app --reload --no-proxy-headers
 ```
 
 Stop the Compose `api` service first (`docker compose stop api`) if it is running, since both use port 8000.

@@ -6,24 +6,73 @@ from contextlib import asynccontextmanager
 from importlib.metadata import version
 from typing import Any
 
+import anyio
 from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.openapi.docs import get_swagger_ui_html
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.routing import APIRoute
 from sqlalchemy.ext.asyncio import async_sessionmaker
+from starlette.middleware.cors import CORSMiddleware
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from combo_api import health
+from combo_api.admins import routes as admins
+from combo_api.admins.deps import CSRF_HEADER
 from combo_api.catalog import routes as catalog
 from combo_api.db import create_engine, head_revision
 from combo_api.settings import Settings, load_settings
 
 # LOG_LEVEL applies to the API's own logs and to uvicorn's error and access logs.
 LOGGERS = ("combo_api", "uvicorn", "uvicorn.error", "uvicorn.access")
+# Password hashes computed at once; each takes tens of MiB of memory.
+HASH_SLOTS = 2
+
+logger = logging.getLogger("combo_api.admins")
 
 
 def operation_id(route: APIRoute) -> str:
     """Each route's OpenAPI operationId is its function name."""
     return route.name
+
+
+class AdminCors:
+    """CORS for the admin origins in settings, which are only known once the app has started.
+
+    Requests from any other origin skip CORS entirely and get no CORS headers.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+        self.cors: dict[tuple[str, ...], ASGIApp] = {}
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http":
+            origins = tuple(scope["app"].state.settings.admin_origins)
+            origin = dict(scope["headers"]).get(b"origin", b"").decode("latin-1")
+            if origin in origins:
+                if origins not in self.cors:
+                    self.cors[origins] = CORSMiddleware(
+                        self.app,
+                        allow_origins=list(origins),
+                        allow_credentials=True,
+                        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+                        allow_headers=["Content-Type", CSRF_HEADER],
+                        expose_headers=["Retry-After"],
+                        max_age=600,
+                    )
+                await self.cors[origins](scope, receive, send)
+                return
+        await self.app(scope, receive, send)
+
+
+async def validation_error(request: Request, error: Exception) -> JSONResponse:
+    """422 without the submitted values, which on login can be a password."""
+    if not isinstance(error, RequestValidationError):
+        raise error
+    errors = [{"loc": e["loc"], "msg": e["msg"], "type": e["type"]} for e in error.errors()]
+    return JSONResponse({"detail": jsonable_encoder(errors)}, status_code=422)
 
 
 def create_app(settings: Settings | None = None, env_file: str | None = ".env") -> FastAPI:
@@ -36,6 +85,11 @@ def create_app(settings: Settings | None = None, env_file: str | None = ".env") 
         app.state.engine = create_engine(app.state.settings)
         app.state.sessionmaker = async_sessionmaker(app.state.engine, expire_on_commit=False)
         app.state.head_revision = head_revision()
+        app.state.hash_limiter = anyio.CapacityLimiter(HASH_SLOTS)
+        if not app.state.settings.session_cookie_secure:
+            logger.warning(
+                "SESSION_COOKIE_SECURE is false: the session cookie is sent over plain http"
+            )
         try:
             yield
         finally:
@@ -53,6 +107,9 @@ def create_app(settings: Settings | None = None, env_file: str | None = ".env") 
     )
     app.include_router(health.router)
     app.include_router(catalog.router)
+    app.include_router(admins.router)
+    app.add_middleware(AdminCors)
+    app.add_exception_handler(RequestValidationError, validation_error)
 
     def require_docs(request: Request) -> None:
         if not request.app.state.settings.docs_enabled:
