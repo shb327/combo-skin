@@ -1,6 +1,6 @@
 # 006: Catalog follow-ups
 
-**Status:** Implemented
+**Status:** Audited
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api, website
@@ -212,4 +212,54 @@ Also checked: with the Compose database holding spec 005's rows, `docker compose
 
 ## Audit
 
-Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
+**Date:** 2026-11-02 · **Branch:** 006-catalog-follow-ups · **Commit:** 8c5e653
+**Verdict:** Pass with follow-ups
+
+All checks ran on a fresh clone of the branch, with `api/.env` copied from `api/.env.example` and no `website/.env`. Test ids are relative to `api/`. Every test named in Implementation notes exists and passes (28 ids). Where a committed test is weaker than its criterion, the behaviour was also checked with throwaway tests run in the clone and not committed ("probe" below).
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | `retired` on every entry, all `false`; refresh reproduces | Pass | `tests/catalog/test_snapshot.py::test_every_entry_has_a_retired_flag`, `::test_snapshot_is_written_canonically`; `refresh --commit cbe5eec…` in the clone, then `git diff --exit-code`: exit 0 |
+| 2 | Missing entries kept retired; returning entries restored | Pass | `tests/catalog/test_source.py::test_missing_finish_is_kept_retired`, `::test_missing_type_is_kept_retired_with_all_finishes`, `::test_returning_entries_are_no_longer_retired` (round trip equals the original snapshot) |
+| 3 | Retired slugs cannot be taken | Pass | `tests/catalog/test_source.py::test_new_finish_cannot_take_a_retired_slug`, `::test_new_type_cannot_take_a_retired_type_slug`, both asserting both names |
+| 4 | Refresh reports retired and returning entries | Pass | `tests/catalog/test_source.py::test_refresh_reports_retired_and_returning_entries` (a finish); probe: a whole type retired and back is listed, before the unplaced list |
+| 5 | Display order may list retired slugs | Pass | `tests/catalog/test_validate.py::test_display_order_may_list_retired_finishes`, `tests/catalog/test_source.py::test_display_order_may_list_retired_finishes` |
+| 6 | Retired entries left out of ordering, `unlisted` and export | Pass | `tests/catalog/test_snapshot.py::test_retired_entries_are_left_out_of_order_and_export`, `::test_retired_type_needs_retired_finishes`; probe: a retired unlisted finish (Driver Gloves Wave Chaser) and a retired unlisted type (Kukri) are left out of `unlisted` (see findings) |
+| 7 | Retired rows inserted or deactivated in place, then restored | Pass | `tests/catalog/test_importer.py::test_retired_entries_without_rows_are_inserted_inactive`, `::test_retiring_and_returning_keep_ids` |
+| 8 | Reused codename refused, naming both | Pass | `tests/catalog/test_importer.py::test_reused_codename_is_refused`: `CatalogError` naming Kukri II (9999) and Kukri Knife (526); rows unchanged |
+| 9 | Every entry matches its row | Pass | `tests/catalog/test_importer.py::test_every_entry_matches_its_row` |
+| 10 | Row counts only grow | Pass | `tests/catalog/test_importer.py::test_newer_snapshot_updates_in_place_and_never_deletes` (671 finishes, 28 types) |
+| 11 | Reused inactive slug names the new finish | Pass | `tests/catalog/test_importer.py::test_inactive_slug_is_never_reused` asserts `Karambit \| Test Finish (507:9999)` |
+| 12 | List count, retired type's finish | Pass | `tests/catalog/test_routes.py::test_list_finish_count_after_deactivation`, `::test_finish_of_retired_type`, `::test_one_finish` |
+| 13 | 404 only on slug routes | Pass | `tests/catalog/test_routes.py::test_schema_lists_404_only_on_slug_routes` on the committed schema, plus `uv run python -m combo_api.openapi --check` exit 0; clone's `openapi.json`: `/knives` and `/gloves` list only 200 |
+| 14 | Validation messages | Pass | `tests/catalog/test_validate.py::test_equal_float_bounds`, `::test_duplicate_definition_index_names_both_types`, `::test_duplicate_finish_slug_names_its_type` |
+| 15 | Exactly 8, 7, 7 unplaced, none elsewhere | Pass | `tests/catalog/test_routes.py::test_every_type_lists_finishes_in_display_order`, `tests/catalog/test_export.py::test_export_places_new_finishes_last` |
+| 16 | Export check fails on a changed snapshot | Pass | `tests/catalog/test_export.py::test_check_fails_when_the_snapshot_changes` |
+| 17 | No chunk-size warning; separate catalog chunk | Pass | Clone: `npm run build` exit 0, no "larger than 500 kB" line; `catalog-*.js` 214.64 kB, `index-*.js` 360.63 kB; `index.html` preloads the catalog chunk |
+| 18 | Pages load from the build | Pass | `npm run preview` of the clone's build: `/knives/karambit` 35 finishes, 35 images loaded, none failed, both chunks requested; `/gloves/specialist/mogul/combos` image `naturalWidth` 512 |
+| 19 | README refresh procedure | Pass | `api/README.md` Catalog section: step 2 keeps retired slugs in `display_order.json`; "Retired entries" paragraph; import paragraph; Endpoints row |
+| 20 | Section checks | Pass | Clone: `uv sync --locked`, format check, lint, mypy, pytest (112 passed, 0 skipped), OpenAPI check, `export-website --check`, `npm ci`, `npm run lint`, `npm run build`: all exit 0 |
+| 21 | CI on GitHub | Pass | Commit 8c5e653: `api` and `website` runs succeeded (also on 4e5e016, recorded in Implementation notes) |
+| 22 | No secrets | Pass | `gitleaks dir .` on the clean clone and `gitleaks git` over the branch: no leaks |
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Lint | `uv run ruff format --check .`, `uv run ruff check .`; `npm run lint` | Pass |
+| Type check | `uv run mypy` (strict) | Pass |
+| Tests | `uv run pytest` (112 passed, 0 skipped), locally and in CI | Pass |
+| Snapshot checks | `uv run python -m combo_api.openapi --check`, `uv run python -m combo_api.catalog export-website --check` | Pass |
+| Build | `npm ci && npm run build` | Pass |
+| Secret scan | `gitleaks git --log-opts="main..006-catalog-follow-ups"`, `gitleaks dir .` on the clean clone | Pass |
+| Public exposure | Manual review of the diff and log: no URLs, hosts, addresses or local paths added; local tool configuration is ignored and nothing private or `.env` is tracked; all 9 commits authored by the owner with one-line messages and no trailers | Pass |
+| Design conformance | Manual review and an independent read of the code against Requirements, Design, API / data model and Security | Pass, with minor unrecorded details (see findings) |
+
+**Findings**
+
+- (follow-up) Criterion 6: the `unlisted` assertion in `tests/catalog/test_snapshot.py::test_retired_entries_are_left_out_of_order_and_export` cannot fail, because the retired entries it uses (Talon Knife and Karambit Fade) are all listed in `display_order.json` and would never be reported anyway. The probe with a retired unlisted finish and type shows the behaviour is right; the committed test should retire something unlisted.
+- (follow-up) Criterion 4: the committed test retires and restores only a finish. The probe covers a whole type and the report's place before the unplaced list; add that case to the test.
+- (follow-up) `tests/catalog/test_snapshot.py::test_every_entry_has_a_retired_flag` asserts every entry is `false`, so it will fail on the first real retirement. It should check that the flag is a boolean, and that all are `false` only at the spec 005 source commit.
+- (follow-up) A new type that reuses a retired type's codename now fails at `refresh` with `Duplicate type codename '…'` (`api/src/combo_api/catalog/validate.py:85`), which names neither type. The named check in `import` never gets the chance to run on that path. Name both types there too.
+- (follow-up) Type slugs have no override: `slug_overrides.json` is keyed by `<def_index>:<paint_index>`, so a new type whose derived slug clashes with an existing or retired type can only be resolved by editing `snapshot.json` by hand, and the message (`api/src/combo_api/catalog/source.py:192`) offers no remedy.
+- (follow-up) If every painted finish of a knife type leaves the dataset but its Vanilla entry stays, `refresh` fails with "no painted finish names its type" (`api/src/combo_api/catalog/source.py:112`), although the previous snapshot could supply the type. Inherited from spec 005; unlikely.
+- (follow-up) Unrecorded, minor: the refresh report prints the previous commit shortened to 12 characters, where the spec writes "<old commit>"; a retired entry inserted with no row gets a position after the rows in the game, which the spec does not state.
+- (follow-up) Still open from Implementation notes: the 22 glove finishes new to the site are not placed in `display_order.json` yet (owner's edit).
