@@ -1,6 +1,6 @@
 # 004: Repo housekeeping
 
-**Status:** Draft
+**Status:** Approved
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** repo
