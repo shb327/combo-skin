@@ -1,6 +1,6 @@
 # 004: Repo housekeeping
 
-**Status:** Approved
+**Status:** Implemented
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** repo
@@ -142,7 +142,32 @@ None.
 
 ## Implementation notes
 
-Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+No deviations from the design. Two details:
+
+- `uv lock` under uv 0.13.6 left `api/uv.lock` unchanged, and `uv lock --check` passes, so the lockfile needed no new content.
+- While both `.gitignore` and `.git/info/exclude` list an entry, `git check-ignore -v` reports `.gitignore`, which takes precedence. The entries were added to `.git/info/exclude` first and removed from `.gitignore` in the working tree before anything was committed; `git check-ignore -v` then reported `.git/info/exclude` for every path, and no path was ever shown as untracked.
+
+### Criterion coverage
+
+| Criterion | Covered by |
+| --- | --- |
+| 1 | The removed value, taken from this branch's diff of `website/vite.config.ts`, is not found by `git grep -nF`; `website/vite.config.ts` reads hosts from `DEV_ALLOWED_HOSTS` and holds no hostname |
+| 2 | Clean clone, dev server with a `Host: tunnel.example.com` request: 403 unset; 200 with `DEV_ALLOWED_HOSTS=tunnel.example.com` (a second host still 403); 200 for both with two comma-separated hosts |
+| 3 | With the variable set, `npm run build` exits 0 and `grep -rlF -e DEV_ALLOWED_HOSTS -e tunnel.example.com dist` finds nothing |
+| 4 | `website/README.md` Configuration table and tunnel paragraph; commented line in `website/.env.example` |
+| 5 | Before: `git check-ignore -v` reported `.gitignore` for all three paths; after: `.git/info/exclude`; `git status --porcelain --ignored` shows them as ignored only; `.gitignore` no longer lists them |
+| 6 | `api/Dockerfile` uv `0.13.6@sha256:`, workflow `version: "0.13.6"`, `uv_build>=0.13,<0.14`, `required-version = ">=0.13.6"`; `uv --version` prints 0.13.6; uv 0.11.2 is refused with a message asking to update |
+| 7 | `uv lock --check`, `uv sync --locked`, ruff format and lint, mypy, `uv run pytest` (31 passed), `openapi --check`: all exit 0 |
+| 8 | `docker build -t combo-skin-api api` exits 0; `docker compose up -d --wait --build` exits 0; `/health/ready` returns 200 with all checks `ok` |
+| 9 | `api/tests/test_settings.py::test_log_level_applies_to_app_and_uvicorn_loggers` |
+| 10 | `grep -n "Not yet checked"` over specs 001 and 003 prints nothing; the rows cite runs 41478083919 and 41489515514, as their Audits do |
+| 11 | Merged into `main`, locally and on the remote: `spec-workflow`, `001-website-readme-and-ci`, `002-api-foundation`, `003-website-combo-images`; delete commands given to the owner; no branch deleted. Remote heads recorded before the work for comparison |
+| 12 | Not yet checked: needs the branch pushed |
+| 13 | `gitleaks dir .` on a clean clone and `gitleaks git` over the branch: no leaks |
+
+### Follow-ups
+
+- The API image is 226 MB of its 250 MB budget, unchanged by the uv bump.
 
 ## Audit
 
