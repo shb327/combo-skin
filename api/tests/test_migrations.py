@@ -1,0 +1,49 @@
+import pytest
+from alembic import command
+from alembic.config import Config
+from alembic.script import ScriptDirectory
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncEngine
+
+from combo_api.db import Base
+from tests.support import API_DIR, rolled_back_session
+
+
+def test_single_baseline_revision() -> None:
+    script = ScriptDirectory.from_config(Config(API_DIR / "alembic.ini"))
+    revisions = list(script.walk_revisions())
+    assert [r.revision for r in revisions] == ["0001"]
+    assert revisions[0].down_revision is None
+
+
+def test_upgrade_downgrade_upgrade(migrations: Config) -> None:
+    command.upgrade(migrations, "head")
+    command.downgrade(migrations, "base")
+    command.upgrade(migrations, "head")
+
+
+def test_models_match_migrations(migrations: Config) -> None:
+    command.check(migrations)
+
+
+def test_metadata_has_naming_convention() -> None:
+    assert {"ix", "uq", "ck", "fk", "pk"} <= set(Base.metadata.naming_convention)
+
+
+@pytest.mark.anyio
+async def test_session_changes_are_rolled_back(engine: AsyncEngine) -> None:
+    async with rolled_back_session(engine) as session:
+        await session.execute(text("CREATE TABLE rollback_probe (id integer)"))
+        await session.commit()
+    async with engine.connect() as connection:
+        exists = await connection.scalar(text("SELECT to_regclass('rollback_probe')"))
+    assert exists is None
+
+
+@pytest.mark.anyio
+async def test_baseline_creates_only_version_table(engine: AsyncEngine) -> None:
+    async with engine.connect() as connection:
+        tables = await connection.scalars(
+            text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+        )
+        assert set(tables) == {"alembic_version"}
