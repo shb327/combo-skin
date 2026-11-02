@@ -55,7 +55,7 @@ The site reads one variable from `website/.env` (see [`.env.example`](.env.examp
 | --- | --- | --- |
 | `VITE_ASSET_BASE_URL` | `https://your-minio-server.example.com/bucket` | Base URL of the server that hosts finish images. |
 
-Finish images are loaded from `<VITE_ASSET_BASE_URL>/gloves/<glove-type>/<finish>.png` and `<VITE_ASSET_BASE_URL>/knives/<knife-type>/<finish>.png`. Without a real value the site still works, but finish images do not load. Glove and knife type images, combo screenshots and the home page artwork are stored in the repository and always load.
+Finish images are loaded from `<VITE_ASSET_BASE_URL>/gloves/<glove-type>/<finish>.png` and `<VITE_ASSET_BASE_URL>/knives/<knife-type>/<finish>.png`. Without a real value the site still works, but finish images do not load. Glove and knife type images, combo screenshots and the home page artwork are stored in the repository, imported in code and bundled by the build, so they always load.
 
 `VITE_` variables are built into the client bundle, so never put a secret in `.env`.
 
@@ -79,12 +79,18 @@ All content lives in `src/data/`. There is no backend yet.
 
 **Add a knife finish.** Knives share finish lists by tier in `src/data/knives.ts` (see `CS2_FINISHES.md`): `baseFinishes` for every knife, `tier2Finishes` for newer knives, `tier1Finishes` for the original knives. Add the finish to the tier where it belongs; each knife type in `knifeTypes` points at one tier. The image goes at `knives/<knife-type>/<id>.png` on the asset server.
 
-**Add a combo.** In `src/data/combos.ts`, find the `gloveCombos` entry for the glove type and finish (or add one with `gloveTypeId` and `gloveFinishId`), then add a combo to its `combos`:
+**Add a combo.** Put the screenshot in `src/assets/combos/<finish>/`, then in `src/data/combos.ts` import it at the top of the file:
+
+```ts
+import mogul5 from '@/assets/combos/mogul/5.jpeg'
+```
+
+Find the `gloveCombos` entry for the glove type and finish (or add one with `gloveTypeId` and `gloveFinishId`), and add a combo to its `combos`, using the import as the image:
 
 ```ts
 {
   id: 'mogul-5',
-  image: '/src/assets/combos/mogul/5.jpeg',
+  image: mogul5,
   knifeId: '',
   knifeName: 'Karambit | Doppler (Ruby)',
   rating: 8.5,
@@ -93,4 +99,4 @@ All content lives in `src/data/`. There is no backend yet.
 }
 ```
 
-Put the screenshot in `src/assets/combos/<finish>/`. The `Combos` page lists every combo for the glove finish in the URL.
+Always import images: a string path such as `'/src/...'` works on the dev server but is missing from the build, and CI fails the build check if one slips in. The `Combos` page lists every combo for the glove finish in the URL.
