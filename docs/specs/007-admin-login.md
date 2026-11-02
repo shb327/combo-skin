@@ -429,7 +429,7 @@ Test ids are relative to `api/`.
 | 35 | `api/README.md` section "Admin accounts", Configuration and Endpoints tables; `THIRD_PARTY_NOTICES.md` section "SecLists" |
 | 36 | Fresh clone, `cp api/.env.example api/.env && docker compose up -d --wait`: `migrate` and `catalog` exited 0, `/health/ready` 200 with all checks `ok`, `GET /knives` 20 types, `GET /admin/me` 401; `docker compose down -v`. `.github/workflows/api.yml` checks the 401; actionlint 1.7.12 exits 0 |
 | 37 | `uv run ruff format --check .`, `uv run ruff check .`, `uv run mypy`, `uv run pytest` (220 passed, 0 skipped), the OpenAPI and export checks all exit 0; `docker build -t combo-skin-api api` exits 0; image size recorded in the Audit |
-| 38 | To be recorded after the `api` workflow runs for the latest commit |
+| 38 | Commit 0938166: `api` push run 41543602405 and pull request run 41543605838 both succeeded, jobs `check` (220 passed) and `docker`. The push run for 5f5106e (41542260053) failed on the earlier timing test, see Deviations |
 | 39 | `gitleaks git --log-opts="main..007-admin-login" --no-banner --redact` and `gitleaks dir docs/specs/007-admin-login.md`: no leaks |
 
 ## Audit
