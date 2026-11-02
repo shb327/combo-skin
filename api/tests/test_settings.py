@@ -55,13 +55,14 @@ def test_password_not_in_repr(full_env: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.anyio
-async def test_startup_fails_without_settings(full_env: pytest.MonkeyPatch) -> None:
-    full_env.delenv("POSTGRES_HOST")
+@pytest.mark.parametrize("name", REQUIRED)
+async def test_startup_fails_without_settings(full_env: pytest.MonkeyPatch, name: str) -> None:
+    full_env.delenv(name)
     app = create_app(env_file=None)
     with pytest.raises(SettingsError) as error:
         async with app.router.lifespan_context(app):
             pass
-    assert "POSTGRES_HOST" in str(error.value)
+    assert name in str(error.value)
     assert SAMPLE_VALUE not in str(error.value)
 
 
