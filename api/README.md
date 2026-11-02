@@ -6,7 +6,7 @@ The backend for Combo Skin: a FastAPI service on PostgreSQL, with SQLAlchemy 2 (
 
 ## Prerequisites
 
-- [uv](https://docs.astral.sh/uv/). It installs the pinned Python version (see `.python-version`) itself, so the system Python does not matter.
+- [uv](https://docs.astral.sh/uv/) 0.13.6 or newer (older versions are refused). It installs the pinned Python version (see `.python-version`) itself, so the system Python does not matter.
 - [Docker](https://docs.docker.com/get-started/) with Compose v2, for PostgreSQL and the full local stack.
 
 ## Getting started
