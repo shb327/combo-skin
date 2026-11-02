@@ -49,15 +49,24 @@ CI runs `npm ci`, `npm run lint` and `npm run build` on every push and pull requ
 
 ## Configuration
 
-The site reads one variable from `website/.env` (see [`.env.example`](.env.example)):
+Settings live in `website/.env`, which is never committed (see [`.env.example`](.env.example)):
 
 | Variable | Example | Meaning |
 | --- | --- | --- |
 | `VITE_ASSET_BASE_URL` | `https://your-minio-server.example.com/bucket` | Base URL of the server that hosts finish images. |
+| `DEV_ALLOWED_HOSTS` | `tunnel.example.com` | Optional. Comma-separated extra hosts the dev server accepts, for example a tunnel to your machine. Dev server only. |
 
 Finish images are loaded from `<VITE_ASSET_BASE_URL>/gloves/<glove-type>/<finish>.png` and `<VITE_ASSET_BASE_URL>/knives/<knife-type>/<finish>.png`. Without a real value the site still works, but finish images do not load. Glove and knife type images, combo screenshots and the home page artwork are stored in the repository, imported in code and bundled by the build, so they always load.
 
 `VITE_` variables are built into the client bundle, so never put a secret in `.env`.
+
+To reach the dev server through a tunnel, add the tunnel's host to `website/.env` and restart `npm run dev`:
+
+```bash
+DEV_ALLOWED_HOSTS=tunnel.example.com
+```
+
+Without it, Vite answers requests for any other host with 403. `DEV_ALLOWED_HOSTS` has no `VITE_` prefix, so it never reaches the browser bundle. Keep real tunnel hosts in `.env` only, never in committed files.
 
 ## Project structure
 
