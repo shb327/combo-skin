@@ -1,6 +1,6 @@
 # 002: API foundation
 
-**Status:** Implemented
+**Status:** Audited
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api
@@ -292,4 +292,54 @@ Test ids are relative to `api/`.
 
 ## Audit
 
-Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
+**Date:** 2026-11-02 · **Branch:** 002-api-foundation · **Commit:** 4517c40
+**Verdict:** Pass with follow-ups
+
+All checks ran on a fresh clone of the branch, with the Compose stack started from `api/.env.example`. Test ids are relative to `api/`.
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | Locked install on uv-managed Python 3.14 | Pass | `uv sync --locked` exit 0; `uv run python --version` prints 3.14.3 while the system Python is 3.9 |
+| 2 | Format check and lint | Pass | `uv run ruff format --check .` and `uv run ruff check .` exit 0 |
+| 3 | Strict mypy | Pass | `uv run mypy` exit 0; `pyproject.toml` `[tool.mypy]` sets `strict = true`, `files = ["src", "tests"]` |
+| 4 | Tests pass against the Compose database, none skipped | Pass | `uv run pytest -rA`: 28 passed, 0 skipped |
+| 5 | Tests fail, not skip, without the database | Pass | `docker compose stop db`, then `uv run pytest`: 16 passed, 12 errors, 0 skipped, exit 1 |
+| 6 | Missing settings named at startup; password never shown | Pass | `tests/test_settings.py::test_missing_required_setting_names_it` (all four required variables), `::test_invalid_setting_names_it_without_values`, `::test_password_not_in_repr`, `::test_startup_fails_without_settings` |
+| 7 | `.env.example` lists exactly the settings | Pass | `tests/test_settings.py::test_env_example_lists_every_setting` |
+| 8 | Liveness, with and without the database | Pass | `tests/test_health.py::test_live`, `::test_live_without_database` |
+| 9 | Readiness: ok, pending, unavailable within 5 s | Pass | `tests/test_health.py::test_ready`, `::test_ready_with_pending_migrations`, `::test_ready_without_database` (asserts under 5 s) |
+| 10 | Migration round trip; no model drift | Pass | `tests/test_migrations.py::test_upgrade_downgrade_upgrade`, `::test_models_match_migrations`; `uv run alembic check` prints "No new upgrade operations detected" |
+| 11 | One revision, `0001`, no down revision | Pass | `uv run alembic history`: `<base> -> 0001 (head)`; `tests/test_migrations.py::test_single_baseline_revision` |
+| 12 | Schema and docs served; 404 when disabled | Pass | `tests/test_openapi.py::test_schema_is_served`, `::test_docs_are_served`, `::test_docs_can_be_turned_off` |
+| 13 | Unique operation ids equal to function names | Pass | `tests/test_openapi.py::test_operation_ids_are_unique_function_names` |
+| 14 | Snapshot check without `.env` or database; fails when stale | Pass | With `api/.env` moved aside and the database stopped, `--check` exit 0; after adding a route to the health router, exit 1; after regenerating, exit 0. Also `tests/test_openapi.py::test_check_fails_on_stale_snapshot`, `::test_check_needs_no_settings_or_database` |
+| 15 | Image builds, non-root, under 250 MB, no `.env` or uv | Pass | `docker build -t combo-skin-api api` exit 0; `id -u` prints 10001; size 225,516,971 bytes; the `sh -c` check exits 0 |
+| 16 | Every image pinned by digest | Pass | The digest grep over `api/Dockerfile`, `compose.yaml` and the workflow prints nothing |
+| 17 | One-command local stack from a fresh clone | Pass | `docker compose up -d --wait` exit 0; `migrate` exited 0; `/health/ready` returned 200 with all checks `ok`; `docker compose down -v` removed the stack |
+| 18 | Clear error without `api/.env` | Pass | `docker compose up` reports that `api/.env` was not found |
+| 19 | Ports bound to loopback only | Pass | `docker compose config`: both published ports (8000, 54320) have a loopback `host_ip` |
+| 20 | Workflow lint, triggers, permissions, pins, no secrets | Pass | actionlint 1.7.12 exit 0; the SHA, `secrets.` and `pull_request_target` greps print nothing; `on: push, pull_request` with no filters; `permissions: contents: read` only |
+| 21 | Workflow runs every check, the build and the smoke test | Pass | `.github/workflows/api.yml`: job `check` runs the commands of criteria 2, 3, 4 and 14 against a PostgreSQL 18 service; job `docker` builds the image and runs the Compose smoke test; `concurrency` cancels superseded runs |
+| 22 | `api` workflow succeeds on GitHub | Pass | Run 41472936219 on commit 4517c40: jobs `check` and `docker` both succeeded; the log shows 28 tests passed and `/health/ready` returning all checks `ok` |
+| 23 | README sections; getting started works literally | Pass | `api/README.md` has every required section; criterion 17 followed its steps; the host-run steps (`uvicorn --reload` against the Compose database) served `/health/ready` with 200 |
+| 24 | Badges and root README | Pass | `head -5 README.md api/README.md` shows the `api` badge and link in both; the root table lists `api/` and links `api/README.md` |
+| 25 | Only allowed URLs; no secrets | Pass | URLs: the repo's GitHub URLs, uv and Docker docs, the local API address, and `http://test`, the in-process test client's base URL (not a host). gitleaks: no findings |
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Lint | `uv run ruff format --check .`, `uv run ruff check .` | Pass |
+| Type check | `uv run mypy` | Pass |
+| Tests | `uv run pytest` (28 passed), locally and in CI | Pass |
+| OpenAPI snapshot | `uv run python -m combo_api.openapi --check` | Pass |
+| Build | `docker build -t combo-skin-api api`, `docker compose up -d --wait` | Pass |
+| Secret scan | `gitleaks git --log-opts="main..002-api-foundation"`, `gitleaks dir .` on a clean clone | Pass |
+| Public exposure | Manual review of the diff and log; local tool configuration is ignored and nothing private or `.env` is tracked; all 16 commits are authored by the owner with one-line messages and no trailers | Pass |
+| Design conformance | Manual review against Design and API / data model | Pass, two unrecorded minor differences (see findings) |
+
+**Findings**
+
+- (follow-up) Unrecorded difference: the Design table says `api/.dockerignore` also excludes `.git`. It does not. No effect today, since the build context `api/` has no `.git`, but the file should match the Design.
+- (follow-up) Unrecorded difference: the Design table says each test runs in a rolled-back transaction. Only sessions from `get_session` are rolled back. Tests that use the engine or Alembic directly (readiness, migration round trip) change the shared test database, and fixture teardown restores it to head. No test writes application data yet; revisit when 003 adds tables.
+- (follow-up) Criterion 6: only `POSTGRES_HOST` is tested through app startup. The other required variables are tested through `load_settings`, which startup calls. Parametrizing the startup test would make the coverage literal.
+- (follow-up) The comment in `api/.env.example` says Compose passes the file to the db and api containers. The `migrate` container gets it too.
+- (follow-up) Recorded in Implementation notes, still open: bump uv (pinned at 0.11.2) locally, in the Dockerfile and in CI together; the image is 226 MB of a 250 MB budget; `LOG_LEVEL` does not change uvicorn's own log level.
