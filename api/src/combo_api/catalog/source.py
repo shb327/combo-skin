@@ -82,7 +82,9 @@ def normalise(
     """Knives and gloves from the dataset as a snapshot.
 
     A type or finish already in `previous` keeps its slug. A new finish takes its slug from
-    `overrides` (keyed `<def_index>:<paint_index>`) if listed, otherwise from its name.
+    `overrides` (keyed `<def_index>:<paint_index>`) if listed, otherwise from its name. Types
+    and finishes of `previous` missing from the dataset are kept, retired, so their slugs stay
+    taken.
     """
     entries = RAW_ENTRIES.validate_json(raw)
     skins: list[tuple[Kind, RawSkin]] = []
@@ -91,7 +93,7 @@ def normalise(
         if kind is not None:
             skins.append((kind, RawSkin.model_validate(entry)))
 
-    old_types = {t.def_index: t.slug for t in previous.item_types} if previous else {}
+    old_types = {t.def_index: t for t in previous.item_types} if previous else {}
     old_finishes = (
         {(t.def_index, f.paint_index): f.slug for t in previous.item_types for f in t.finishes}
         if previous
@@ -130,30 +132,89 @@ def normalise(
             float_min=skin.min_float if painted else None,
             float_max=skin.max_float if painted else None,
             image_url=skin.image,
+            retired=False,
         )
 
-    item_types = []
-    for def_index, (kind, codename, name) in sorted(headers.items()):
-        by_slug: dict[str, Finish] = {}
-        for finish in finishes[def_index].values():
-            other = by_slug.setdefault(finish.slug, finish)
-            if other is not finish:
-                raise CatalogError(
-                    f"{name}: {other.display_name} ({other.paint_index}) and "
-                    f"{finish.display_name} ({finish.paint_index}) both have slug "
-                    f"{finish.slug!r}; add an override to slug_overrides.json"
-                )
-        item_types.append(
-            ItemType(
-                kind=kind,
-                def_index=def_index,
-                codename=codename,
-                name=name,
-                slug=old_types.get(def_index) or type_slug(name),
-                finishes=tuple(sorted(finishes[def_index].values(), key=lambda f: f.paint_index)),
-            )
+    item_types: dict[int, ItemType] = {}
+    for def_index, (kind, codename, name) in headers.items():
+        old = old_types.get(def_index)
+        current = finishes[def_index]
+        for finish in old.finishes if old else ():
+            if finish.paint_index not in current:
+                current[finish.paint_index] = finish.model_copy(update={"retired": True})
+        item_types[def_index] = ItemType(
+            kind=kind,
+            def_index=def_index,
+            codename=codename,
+            name=name,
+            slug=old.slug if old else type_slug(name),
+            finishes=tuple(sorted(current.values(), key=lambda f: f.paint_index)),
+            retired=False,
         )
+    for def_index, old in old_types.items():
+        if def_index not in item_types:
+            retired = tuple(f.model_copy(update={"retired": True}) for f in old.finishes)
+            item_types[def_index] = old.model_copy(update={"retired": True, "finishes": retired})
+
+    for item_type in item_types.values():
+        check_finish_slugs(item_type)
+    check_type_slugs(list(item_types.values()))
     return Snapshot(
         source=Source(repository=REPOSITORY, commit=commit, file=FILE, license=LICENSE),
-        item_types=tuple(item_types),
+        item_types=tuple(item_types[d] for d in sorted(item_types)),
     )
+
+
+def described(name: str, game_id: int, retired: bool) -> str:
+    return f"{name} ({game_id}{', retired' if retired else ''})"
+
+
+def check_finish_slugs(item_type: ItemType) -> None:
+    by_slug: dict[str, Finish] = {}
+    for finish in item_type.finishes:
+        other = by_slug.setdefault(finish.slug, finish)
+        if other is not finish:
+            first = described(other.display_name, other.paint_index, other.retired)
+            second = described(finish.display_name, finish.paint_index, finish.retired)
+            raise CatalogError(
+                f"{item_type.name}: {first} and {second} both have slug {finish.slug!r}; "
+                "add an override to slug_overrides.json"
+            )
+
+
+def check_type_slugs(item_types: list[ItemType]) -> None:
+    by_slug: dict[tuple[Kind, str], ItemType] = {}
+    for item_type in item_types:
+        other = by_slug.setdefault((item_type.kind, item_type.slug), item_type)
+        if other is not item_type:
+            first = described(other.name, other.def_index, other.retired)
+            second = described(item_type.name, item_type.def_index, item_type.retired)
+            raise CatalogError(f"{first} and {second} both have slug {item_type.slug!r}")
+
+
+def retirement_changes(
+    previous: Snapshot | None, snapshot: Snapshot
+) -> tuple[list[str], list[str]]:
+    """Names of types and finishes retired since `previous`, and of those back in the game."""
+    if previous is None:
+        return [], []
+    before: dict[tuple[int, int | None], bool] = {}
+    for item_type in previous.item_types:
+        before[(item_type.def_index, None)] = item_type.retired
+        for finish in item_type.finishes:
+            before[(item_type.def_index, finish.paint_index)] = finish.retired
+    retired: list[str] = []
+    back: list[str] = []
+    for item_type in snapshot.item_types:
+        entries: list[tuple[int | None, str, bool]] = [(None, item_type.name, item_type.retired)]
+        entries += [
+            (f.paint_index, f"{item_type.name} | {f.display_name}", f.retired)
+            for f in item_type.finishes
+        ]
+        for paint_index, name, is_retired in entries:
+            was_retired = before.get((item_type.def_index, paint_index))
+            if is_retired and was_retired is False:
+                retired.append(name)
+            elif not is_retired and was_retired is True:
+                back.append(name)
+    return retired, back

@@ -135,3 +135,121 @@ def test_refresh_writes_nothing_when_validation_fails(
     ]
     assert main(args) == 1
     assert not snapshot.exists()
+
+
+def raw_without(def_index: int, paint_index: str | None = "any") -> bytes:
+    """The fixture without one finish (`paint_index`), or without a whole type (`"any"`)."""
+    entries = [
+        e
+        for e in json.loads(RAW)
+        if not (
+            e["weapon"]["weapon_id"] == def_index
+            and (paint_index == "any" or e.get("paint_index") == paint_index)
+        )
+    ]
+    return json.dumps(entries).encode()
+
+
+def karambit_finish(snapshot: Snapshot, paint_index: int) -> Any:
+    return next(
+        f for f in find(snapshot, "knife", "karambit").finishes if f.paint_index == paint_index
+    )
+
+
+def test_missing_finish_is_kept_retired() -> None:
+    previous = normalise()
+    snapshot = normalise(raw_without(507, "38"), previous=previous)
+    fade = karambit_finish(snapshot, 38)
+    assert fade == karambit_finish(previous, 38).model_copy(update={"retired": True})
+    assert not find(snapshot, "knife", "karambit").retired
+
+
+def test_missing_type_is_kept_retired_with_all_finishes() -> None:
+    previous = normalise()
+    snapshot = normalise(raw_without(523), previous=previous)
+    talon = find(snapshot, "knife", "talon")
+    assert talon.retired
+    assert talon.finishes and all(f.retired for f in talon.finishes)
+    assert talon.slug == find(previous, "knife", "talon").slug
+
+
+def test_returning_entries_are_no_longer_retired() -> None:
+    first = normalise()
+    retired = normalise(
+        raw_without(523), previous=normalise(raw_without(507, "38"), previous=first)
+    )
+    back = normalise(previous=retired)
+    assert not find(back, "knife", "talon").retired
+    assert not karambit_finish(back, 38).retired
+    assert karambit_finish(back, 38).slug == "fade"
+    assert back == first
+
+
+def test_new_finish_cannot_take_a_retired_slug() -> None:
+    retired = normalise(raw_without(507, "38"), previous=normalise())
+    entries = json.loads(RAW)
+    for entry in entries:
+        if entry["weapon"]["weapon_id"] == 507 and entry.get("paint_index") == "38":
+            entry["paint_index"] = "777"
+    raw = json.dumps(entries).encode()
+    with pytest.raises(CatalogError) as error:
+        normalise(raw, previous=retired)
+    message = str(error.value)
+    assert "Fade (38, retired)" in message
+    assert "Fade (777)" in message
+
+
+def test_new_type_cannot_take_a_retired_type_slug() -> None:
+    retired = normalise(raw_without(523), previous=normalise())
+    entries = json.loads(raw_without(523))
+    talon = [e for e in json.loads(RAW) if e["weapon"]["weapon_id"] == 523]
+    for entry in talon:
+        entry["weapon"]["weapon_id"] = 599
+        entry["weapon"]["id"] = "weapon_knife_talon_2"
+    with pytest.raises(CatalogError) as error:
+        normalise(json.dumps(entries + talon).encode(), previous=retired)
+    message = str(error.value)
+    assert "Talon Knife (523, retired)" in message
+    assert "Talon Knife (599)" in message
+
+
+def run_refresh(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, raw: bytes, order: Path) -> int:
+    monkeypatch.setattr(source, "download", lambda commit: raw)
+    snapshot = tmp_path / "snapshot.json"
+    args = [
+        "refresh",
+        "--commit",
+        COMMIT,
+        "--snapshot",
+        str(snapshot),
+        "--display-order",
+        str(order),
+    ]
+    return main(args)
+
+
+def test_refresh_reports_retired_and_returning_entries(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    order = write_order(tmp_path / "order.json", {"types": {}, "finishes": {}})
+    assert run_refresh(tmp_path, monkeypatch, RAW, order) == 0
+    assert run_refresh(tmp_path, monkeypatch, raw_without(507, "38"), order) == 0
+    err = capsys.readouterr().err
+    assert f"Retired since {COMMIT[:12]}:\n  Karambit | Fade\n" in err
+    assert run_refresh(tmp_path, monkeypatch, RAW, order) == 0
+    err = capsys.readouterr().err
+    assert f"Back since {COMMIT[:12]}:\n  Karambit | Fade\n" in err
+    assert "Retired since" not in err
+
+
+def test_display_order_may_list_retired_finishes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    order = write_order(
+        tmp_path / "order.json",
+        {"types": {"knife": ["karambit"]}, "finishes": {"knife/karambit": ["vanilla", "fade"]}},
+    )
+    assert run_refresh(tmp_path, monkeypatch, RAW, order) == 0
+    assert run_refresh(tmp_path, monkeypatch, raw_without(507, "38"), order) == 0
+    snapshot = load_snapshot(tmp_path / "snapshot.json")
+    assert karambit_finish(snapshot, 38).retired

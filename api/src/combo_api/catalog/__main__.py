@@ -50,6 +50,17 @@ def refresh(args: argparse.Namespace) -> int:
     types = len(snapshot.item_types)
     finishes = sum(len(t.finishes) for t in snapshot.item_types)
     print(f"Wrote {args.snapshot.name}: {types} types, {finishes} finishes")
+    if previous is not None:
+        retired, back = source.retirement_changes(previous, snapshot)
+        since = previous.source.commit[:12]
+        for heading, names in (
+            (f"Retired since {since}:", retired),
+            (f"Back since {since}:", back),
+        ):
+            if names:
+                print(heading, file=sys.stderr)
+                for name in names:
+                    print(f"  {name}", file=sys.stderr)
     report_unlisted(snapshot, order)
     return 0
 
@@ -75,7 +86,7 @@ def import_(_: argparse.Namespace) -> int:
 
 
 def export_website(args: argparse.Namespace) -> int:
-    snapshot, order = load_snapshot(), load_display_order()
+    snapshot, order = load_snapshot(args.snapshot), load_display_order()
     validate(snapshot, order)
     expected = export.render(snapshot, order)
     report_unlisted(snapshot, order)
@@ -111,6 +122,7 @@ def main(argv: list[str] | None = None) -> int:
     command = commands.add_parser("export-website", help="write the website's copy")
     command.add_argument("--check", action="store_true", help="fail if the copy is stale")
     command.add_argument("--output", type=Path, default=export.WEBSITE_EXPORT, help="file path")
+    command.add_argument("--snapshot", type=Path, default=SNAPSHOT, help=argparse.SUPPRESS)
     command.set_defaults(run=export_website)
 
     args = parser.parse_args(argv)

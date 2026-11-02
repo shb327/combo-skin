@@ -40,6 +40,7 @@ class Finish(Model):
     float_min: float | None
     float_max: float | None
     image_url: str
+    retired: bool
 
     @property
     def display_name(self) -> str:
@@ -53,6 +54,7 @@ class ItemType(Model):
     name: str
     slug: str
     finishes: tuple[Finish, ...]
+    retired: bool
 
 
 class Source(Model):
@@ -105,8 +107,9 @@ def _in_order[T](
 
 
 def ordered_types(snapshot: Snapshot, order: DisplayOrder, kind: Kind) -> list[ItemType]:
+    """Types still in the game, in display order. Retired types are left out."""
     return _in_order(
-        (t for t in snapshot.item_types if t.kind == kind),
+        (t for t in snapshot.item_types if t.kind == kind and not t.retired),
         order.types.get(kind, ()),
         lambda t: t.slug,
         lambda t: t.def_index,
@@ -114,8 +117,9 @@ def ordered_types(snapshot: Snapshot, order: DisplayOrder, kind: Kind) -> list[I
 
 
 def ordered_finishes(item_type: ItemType, order: DisplayOrder) -> list[Finish]:
+    """Finishes still in the game, in display order. Retired finishes are left out."""
     return _in_order(
-        item_type.finishes,
+        (f for f in item_type.finishes if not f.retired),
         order.finishes.get(finish_key(item_type), ()),
         lambda f: f.slug,
         lambda f: f.paint_index,
