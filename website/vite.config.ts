@@ -19,6 +19,16 @@ export default defineConfig(({ mode }) => {
     server: {
       allowedHosts,
     },
+    build: {
+      rollupOptions: {
+        output: {
+          // The generated catalog is most of the app's data: give it its own chunk.
+          manualChunks(id) {
+            if (id.endsWith('/src/data/catalog.json')) return 'catalog'
+          },
+        },
+      },
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

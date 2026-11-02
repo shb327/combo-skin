@@ -16,7 +16,7 @@ NOT_FOUND: dict[int | str, dict[str, Any]] = {
     status.HTTP_404_NOT_FOUND: {"description": "Not found"}
 }
 
-router = APIRouter(tags=["catalog"], responses=NOT_FOUND)
+router = APIRouter(tags=["catalog"])
 
 
 class Rarity(BaseModel):
@@ -56,6 +56,7 @@ class ItemTypeRef(BaseModel):
     name: str
     def_index: int
     kind: Kind
+    active: bool
 
 
 class FinishDetail(Finish):
@@ -139,7 +140,11 @@ async def get_finish(
         raise HTTPException(status.HTTP_404_NOT_FOUND)
     finish, item_type = found
     ref = ItemTypeRef(
-        slug=item_type.slug, name=item_type.name, def_index=item_type.def_index, kind=kind
+        slug=item_type.slug,
+        name=item_type.name,
+        def_index=item_type.def_index,
+        kind=kind,
+        active=item_type.active,
     )
     return FinishDetail(**finish_out(finish), item_type=ref)
 
@@ -150,15 +155,16 @@ async def list_knife_types(session: Session) -> list[TypeSummary]:
     return await list_types(session, "knife")
 
 
-@router.get("/knives/{type_slug}")
+@router.get("/knives/{type_slug}", responses=NOT_FOUND)
 async def get_knife_type(type_slug: str, session: Session) -> TypeDetail:
     """One knife type with its finishes in display order."""
     return await get_type(session, "knife", type_slug)
 
 
-@router.get("/knives/{type_slug}/{finish_slug}")
+@router.get("/knives/{type_slug}/{finish_slug}", responses=NOT_FOUND)
 async def get_knife_finish(type_slug: str, finish_slug: str, session: Session) -> FinishDetail:
-    """One knife finish, including one no longer in the game (`active: false`)."""
+    """One knife finish, including one no longer in the game (`active: false`) or whose type
+    is not (`item_type.active: false`)."""
     return await get_finish(session, "knife", type_slug, finish_slug)
 
 
@@ -168,13 +174,14 @@ async def list_glove_types(session: Session) -> list[TypeSummary]:
     return await list_types(session, "glove")
 
 
-@router.get("/gloves/{type_slug}")
+@router.get("/gloves/{type_slug}", responses=NOT_FOUND)
 async def get_glove_type(type_slug: str, session: Session) -> TypeDetail:
     """One glove type with its finishes in display order."""
     return await get_type(session, "glove", type_slug)
 
 
-@router.get("/gloves/{type_slug}/{finish_slug}")
+@router.get("/gloves/{type_slug}/{finish_slug}", responses=NOT_FOUND)
 async def get_glove_finish(type_slug: str, finish_slug: str, session: Session) -> FinishDetail:
-    """One glove finish, including one no longer in the game (`active: false`)."""
+    """One glove finish, including one no longer in the game (`active: false`) or whose type
+    is not (`item_type.active: false`)."""
     return await get_finish(session, "glove", type_slug, finish_slug)

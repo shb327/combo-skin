@@ -1,5 +1,12 @@
+import json
+
+from combo_api.catalog import export
 from combo_api.catalog.slugs import finish_slug, slugify, type_slug
 from combo_api.catalog.snapshot import (
+    SNAPSHOT as SNAPSHOT_PATH,
+)
+from combo_api.catalog.snapshot import (
+    Snapshot,
     dump_snapshot,
     load_display_order,
     load_snapshot,
@@ -33,9 +40,7 @@ def test_snapshot_records_its_source() -> None:
 
 
 def test_snapshot_is_written_canonically() -> None:
-    from combo_api.catalog.snapshot import SNAPSHOT as PATH
-
-    assert dump_snapshot(SNAPSHOT) == PATH.read_text()
+    assert dump_snapshot(SNAPSHOT) == SNAPSHOT_PATH.read_text()
 
 
 def test_snapshot_passes_validation() -> None:
@@ -129,3 +134,50 @@ def test_slug_rule() -> None:
     assert finish_slug("Pandora's Box", None) == "pandoras-box"
     assert slugify("CAUTION!") == "caution"
     assert slugify("Lt. Commander") == "lt-commander"
+
+
+def test_every_entry_has_a_retired_flag() -> None:
+    data = json.loads(SNAPSHOT_PATH.read_text())
+    for item_type in data["item_types"]:
+        assert item_type["retired"] is False
+        assert all(finish["retired"] is False for finish in item_type["finishes"])
+
+
+def with_retired(snapshot: Snapshot) -> Snapshot:
+    """Karambit Fade and the whole Talon Knife retired."""
+    types = []
+    for item_type in snapshot.item_types:
+        if item_type.slug == "karambit":
+            finishes = tuple(
+                f.model_copy(update={"retired": f.slug == "fade"}) for f in item_type.finishes
+            )
+            item_type = item_type.model_copy(update={"finishes": finishes})
+        if item_type.slug == "talon":
+            finishes = tuple(f.model_copy(update={"retired": True}) for f in item_type.finishes)
+            item_type = item_type.model_copy(update={"retired": True, "finishes": finishes})
+        types.append(item_type)
+    return snapshot.model_copy(update={"item_types": tuple(types)})
+
+
+def test_retired_entries_are_left_out_of_order_and_export() -> None:
+    retired = with_retired(SNAPSHOT)
+    assert problems(retired, ORDER) == []
+    assert "talon" not in [t.slug for t in ordered_types(retired, ORDER, "knife")]
+    karambit = find(retired, "knife", "karambit")
+    assert "fade" not in [f.slug for f in ordered_finishes(karambit, ORDER)]
+    assert len(ordered_finishes(karambit, ORDER)) == 34
+    talon = find(retired, "knife", "talon")
+    assert ordered_finishes(talon, ORDER) == []
+    names = unlisted(retired, ORDER)
+    assert not any(name.startswith("Talon Knife") or name == "Karambit | Fade" for name in names)
+    data = json.loads(export.render(retired, ORDER))
+    assert "talon" not in [t["id"] for t in data["knives"]]
+    exported = next(t for t in data["knives"] if t["id"] == "karambit")
+    assert "fade" not in [f["id"] for f in exported["finishes"]]
+
+
+def test_retired_type_needs_retired_finishes() -> None:
+    talon = find(SNAPSHOT, "knife", "talon").model_copy(update={"retired": True})
+    types = tuple(talon if t.slug == "talon" else t for t in SNAPSHOT.item_types)
+    found = problems(SNAPSHOT.model_copy(update={"item_types": types}), ORDER)
+    assert found == ["Talon Knife (523): retired type with finishes still in the game"]

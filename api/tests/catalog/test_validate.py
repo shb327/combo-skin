@@ -121,3 +121,30 @@ def test_display_order_entry_without_type() -> None:
 def test_real_snapshot_is_valid() -> None:
     validate(SNAPSHOT, ORDER)
     assert finish(0).name == "Vanilla"
+
+
+def test_equal_float_bounds() -> None:
+    fails(
+        replace_finish(SNAPSHOT, "karambit", 38, float_min=0.08, float_max=0.08),
+        "Karambit | Fade (507:38): float range 0.08 to 0.08",
+    )
+
+
+def test_duplicate_definition_index_names_both_types() -> None:
+    fails(
+        replace_type(SNAPSHOT, "bayonet", def_index=507),
+        "Duplicate definition index 507: Bayonet and Karambit",
+    )
+
+
+def test_duplicate_finish_slug_names_its_type() -> None:
+    fails(
+        replace_finish(SNAPSHOT, "karambit", 38, slug="vanilla"),
+        "Karambit (507): duplicate finish slug 'vanilla'",
+    )
+
+
+def test_display_order_may_list_retired_finishes() -> None:
+    retired = replace_finish(SNAPSHOT, "karambit", 38, retired=True)
+    assert "fade" in ORDER.finishes["knife/karambit"]
+    validate(retired, ORDER)

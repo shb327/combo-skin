@@ -14,12 +14,19 @@ from combo_api.catalog.snapshot import (
     load_display_order,
     load_snapshot,
 )
+from tests.catalog.test_snapshot import with_retired
 
 pytestmark = pytest.mark.anyio
 
 SNAPSHOT = load_snapshot()
 ORDER = load_display_order()
 ROWS = 28 + 670
+ORDER_NO_KUKRI = ORDER.model_copy(
+    update={
+        "types": {**ORDER.types, "knife": tuple(s for s in ORDER.types["knife"] if s != "kukri")},
+        "finishes": {k: v for k, v in ORDER.finishes.items() if k != "knife/kukri"},
+    }
+)
 IMAGE = "https://community.akamai.steamstatic.com/economy/image/changed"
 
 
@@ -129,6 +136,8 @@ async def test_newer_snapshot_updates_in_place_and_never_deletes(db_session: Asy
     assert after[419] == (before[419][0], "doppler-phase-2", IMAGE, True)
     assert after[9999][1:] == ("test-finish", before[38][2], True)
     assert set(after) == {*before, 9999}
+    assert await db_session.scalar(select(func.count()).select_from(models.Finish)) == 671
+    assert await db_session.scalar(select(func.count()).select_from(models.ItemType)) == 28
 
     await import_snapshot(db_session, SNAPSHOT, ORDER)
     again = await karambit_finishes(db_session)
@@ -156,5 +165,105 @@ async def test_inactive_slug_is_never_reused(db_session: AsyncSession) -> None:
     reused = with_karambit(SNAPSHOT, drop=38, add=new_finish(slug="fade"))
     with pytest.raises(CatalogError) as error:
         await import_snapshot(db_session, reused, order_for(without_fade))
-    assert "slug 'fade' is already used by Fade (38)" in str(error.value)
+    message = str(error.value)
+    assert "Karambit | Test Finish (507:9999): slug 'fade' is already used by Fade (38)" in message
     assert await all_rows(db_session) == before
+
+
+async def rows_by_key(session: AsyncSession) -> dict[tuple[int, int | None], tuple[Any, ...]]:
+    """(def_index, paint_index or None for the type) -> (id, slug, position, active)."""
+    types = {row.id: row.def_index for row in await session.scalars(select(models.ItemType))}
+    result: dict[tuple[int, int | None], tuple[Any, ...]] = {}
+    for row in await session.scalars(select(models.ItemType)):
+        result[(row.def_index, None)] = (row.id, row.slug, row.position, row.active)
+    for finish in await session.scalars(select(models.Finish)):
+        key = (types[finish.item_type_id], finish.paint_index)
+        result[key] = (finish.id, finish.slug, finish.position, finish.active)
+    return result
+
+
+async def test_retired_entries_without_rows_are_inserted_inactive(db_session: AsyncSession) -> None:
+    counts = await import_snapshot(db_session, with_retired(SNAPSHOT), ORDER)
+    rows = await rows_by_key(db_session)
+    assert counts.inserted == ROWS
+    assert rows[(507, 38)][1:] == ("fade", 34, False)
+    assert rows[(523, None)][3] is False
+    assert not any(row[3] for key, row in rows.items() if key[0] == 523)
+    assert rows[(507, 419)][3] is True
+
+
+async def test_retiring_and_returning_keep_ids(db_session: AsyncSession) -> None:
+    await import_snapshot(db_session, SNAPSHOT, ORDER)
+    before = await rows_by_key(db_session)
+    counts = await import_snapshot(db_session, with_retired(SNAPSHOT), ORDER)
+    retired = await rows_by_key(db_session)
+    assert counts.deactivated == 1 + 1 + 25
+    assert counts.inserted == 0
+    assert retired[(507, 38)] == (*before[(507, 38)][:3], False)
+    assert retired[(523, None)] == (*before[(523, None)][:3], False)
+    await import_snapshot(db_session, SNAPSHOT, ORDER)
+    assert await rows_by_key(db_session) == before
+
+
+async def test_reused_codename_is_refused(db_session: AsyncSession) -> None:
+    await import_snapshot(db_session, SNAPSHOT, ORDER)
+    before = await all_rows(db_session)
+    kukri = next(t for t in SNAPSHOT.item_types if t.slug == "kukri")
+    moved = kukri.model_copy(update={"def_index": 9999, "slug": "kukri-2", "name": "Kukri II"})
+    types = (*(t for t in SNAPSHOT.item_types if t.slug != "kukri"), moved)
+    with pytest.raises(CatalogError) as error:
+        await import_snapshot(
+            db_session, SNAPSHOT.model_copy(update={"item_types": types}), ORDER_NO_KUKRI
+        )
+    message = str(error.value)
+    assert "Kukri II (9999)" in message
+    assert "Kukri Knife (526)" in message
+    assert "weapon_knife_kukri" in message
+    assert await all_rows(db_session) == before
+
+
+async def test_every_entry_matches_its_row(db_session: AsyncSession) -> None:
+    await import_snapshot(db_session, SNAPSHOT, ORDER)
+    types = {row.def_index: row for row in await db_session.scalars(select(models.ItemType))}
+    finishes = {
+        (row.item_type_id, row.paint_index): row
+        for row in await db_session.scalars(select(models.Finish))
+    }
+    assert len(types) == len(SNAPSHOT.item_types)
+    assert len(finishes) == sum(len(t.finishes) for t in SNAPSHOT.item_types)
+    for item_type in SNAPSHOT.item_types:
+        row = types[item_type.def_index]
+        assert (row.kind, row.codename, row.slug, row.name, row.active) == (
+            item_type.kind,
+            item_type.codename,
+            item_type.slug,
+            item_type.name,
+            not item_type.retired,
+        )
+        for finish in item_type.finishes:
+            stored = finishes[(row.id, finish.paint_index)]
+            assert (
+                stored.paint_codename,
+                stored.slug,
+                stored.name,
+                stored.phase,
+                stored.rarity_code,
+                stored.rarity_name,
+                stored.rarity_color,
+                stored.float_min,
+                stored.float_max,
+                stored.image_url,
+                stored.active,
+            ) == (
+                finish.paint_codename,
+                finish.slug,
+                finish.name,
+                finish.phase,
+                finish.rarity.code,
+                finish.rarity.name,
+                finish.rarity.color,
+                finish.float_min,
+                finish.float_max,
+                finish.image_url,
+                not finish.retired,
+            ), f"{item_type.name} | {finish.display_name}"

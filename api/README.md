@@ -106,10 +106,12 @@ Only `refresh` uses the network. `import` needs the database; `export-website` n
 **After a game update:**
 
 1. Find the dataset's latest commit on GitHub and run `refresh --commit <full sha>`. It fails without writing anything if the data does not validate.
-2. Review the `snapshot.json` diff. Place any finishes it lists as not yet ordered in `display_order.json`, or leave them last. If a finish left the game, remove it from `display_order.json`.
+2. Review the `snapshot.json` diff and what `refresh` printed: the types and finishes retired since the previous snapshot, those back in the game, and the finishes not placed in `display_order.json` yet. Place new finishes in `display_order.json`, or leave them last. Retired ones can stay listed there: they are skipped.
 3. Run `export-website`, then `import`, and commit the three files together.
 
-`import` is safe to re-run. It never deletes a row or changes a row's id or slug: new types and finishes are inserted, changed fields are updated in place, and anything no longer in the snapshot is marked inactive. It writes everything or nothing.
+**Retired entries.** A type or finish that leaves the game is not removed from `snapshot.json`: `refresh` keeps it as it was last seen, with `"retired": true` (every entry has the flag). Its slug stays taken, so no later finish can take over its URL, and it comes back with the same slug if the game brings it back. Retired entries are left out of the website export, the type lists and the type pages; the single-finish endpoint still returns them, with `active: false`, and says whether their type is still in the game (`item_type.active`).
+
+`import` is safe to re-run. It never deletes a row or changes a row's id or slug: new types and finishes are inserted, changed fields are updated in place, and retired entries are stored inactive, inserted if needed so their slugs are taken in the database too. It refuses a type whose codename is stored under another definition index. It writes everything or nothing.
 
 ## OpenAPI snapshot
 
@@ -145,7 +147,7 @@ A missing or invalid setting stops startup with an error that names the variable
 | `GET /health/ready` | 200 when the database answers and is at the latest migration, 503 otherwise. |
 | `GET /knives`, `GET /gloves` | Active knife or glove types, in display order, with their finish counts. |
 | `GET /knives/{type}`, `GET /gloves/{type}` | One active type with its active finishes, in display order. 404 if unknown. |
-| `GET /knives/{type}/{finish}`, `GET /gloves/{type}/{finish}` | One finish, including one no longer in the game (`active: false`). 404 if unknown. |
+| `GET /knives/{type}/{finish}`, `GET /gloves/{type}/{finish}` | One finish, including a retired one (`active: false`); `item_type.active` says whether its type is still in the game. 404 if unknown. |
 | `GET /docs`, `GET /openapi.json` | Interactive docs and the schema, unless `DOCS_ENABLED=false`. |
 
 ## Layout

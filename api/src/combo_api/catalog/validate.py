@@ -79,7 +79,9 @@ def order_problems(snapshot: Snapshot, order: DisplayOrder) -> list[str]:
 def problems(snapshot: Snapshot, order: DisplayOrder) -> list[str]:
     found = []
     types = snapshot.item_types
-    found += [f"Duplicate definition index {d}" for d in duplicates([t.def_index for t in types])]
+    for def_index in duplicates([t.def_index for t in types]):
+        names = " and ".join(t.name for t in types if str(t.def_index) == def_index)
+        found.append(f"Duplicate definition index {def_index}: {names}")
     found += [f"Duplicate type codename {c!r}" for c in duplicates([t.codename for t in types])]
     for kind in {t.kind for t in types}:
         slugs = [t.slug for t in types if t.kind == kind]
@@ -89,6 +91,8 @@ def problems(snapshot: Snapshot, order: DisplayOrder) -> list[str]:
             found.append(f"{label(item_type)}: slug {item_type.slug!r} is not kebab-case")
         if not item_type.finishes:
             found.append(f"{label(item_type)}: no finishes")
+        if item_type.retired and not all(f.retired for f in item_type.finishes):
+            found.append(f"{label(item_type)}: retired type with finishes still in the game")
         finishes = item_type.finishes
         found += [
             f"{label(item_type)}: duplicate paint index {p}"
