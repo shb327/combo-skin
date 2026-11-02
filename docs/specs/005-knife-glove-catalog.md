@@ -399,7 +399,7 @@ Test ids are relative to `api/`.
 | 23 | `THIRD_PARTY_NOTICES.md` holds the licence text from the dataset at the source commit and the Valve statement; both READMEs link to it |
 | 24 | `api/README.md` Catalog section, Getting started, Running and Endpoints; `website/README.md` Getting started, Configuration and Data; `website/.env.example`; `website/CS2_FINISHES.md` Catalog Totals |
 | 25 | `uv run ruff format --check .`, `uv run ruff check .`, `uv run mypy`, `uv run pytest` (89 passed, 0 skipped), the OpenAPI check: all exit 0; image 226,025,709 bytes |
-| 26 | Not yet checked: needs the branch pushed |
+| 26 | Workflow runs on commit 39aa267: `api` 41509823993 (jobs `check` and `docker` succeeded) and `website` 41509823985 (job `build` succeeded) |
 | 27 | URLs added outside the generated files: the dataset repository and its raw file URL template, the Steam image host, the local API address in CI, and `example.com` placeholders in validation tests. `gitleaks dir .` on a clean clone and `gitleaks git` over the branch: no leaks |
 
 ### Follow-ups
