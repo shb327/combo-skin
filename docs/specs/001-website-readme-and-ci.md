@@ -1,6 +1,6 @@
 # 001: Website README and CI
 
-**Status:** Draft
+**Status:** Approved
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** website
@@ -66,6 +66,7 @@ Replace the website's Vite template README with a real one that explains what Co
 | Screenshot pages | Home, glove finishes for one glove type, combos for one glove finish | Every page: more weight in the repo for little extra information. |
 | Badge placement | Root `README.md` and `website/README.md` | Root only: the website README is what people land on from the `website/` folder. |
 | Live site link | None for now | Linking the domain: hosting is not settled. |
+| Licensing | The README says nothing about a license; licensing is decided in a separate spec | Stating a license now: the repository has no LICENSE file, and choosing one is a separate decision. |
 | Asset URL in docs | Placeholder only, as in `.env.example` | Publishing the real asset URL: not needed to build, and keeps infrastructure out of the public repo. |
 
 ## API / data model
@@ -129,7 +130,7 @@ npm run build
 
 ## Open questions
 
-- The repository has no LICENSE file. Should the README state a license (and should one be added in a separate spec), or say nothing about licensing for now? Recommendation: say nothing in this spec; decide licensing separately.
+None.
 
 ## Implementation notes
 
