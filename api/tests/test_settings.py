@@ -73,8 +73,9 @@ def test_env_example_lists_every_setting() -> None:
 
 
 @pytest.mark.anyio
-async def test_log_level_applies_to_app_logger(full_env: pytest.MonkeyPatch) -> None:
+async def test_log_level_applies_to_app_and_uvicorn_loggers(full_env: pytest.MonkeyPatch) -> None:
     full_env.setenv("LOG_LEVEL", "warning")
     app = create_app(env_file=None)
     async with app.router.lifespan_context(app):
-        assert logging.getLogger("combo_api").level == logging.WARNING
+        for name in ("combo_api", "uvicorn", "uvicorn.error", "uvicorn.access"):
+            assert logging.getLogger(name).level == logging.WARNING, name

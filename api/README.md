@@ -99,7 +99,7 @@ Settings come from environment variables. For local use they are read from `api/
 | `POSTGRES_USER` | yes | | Database user. |
 | `POSTGRES_PASSWORD` | yes | | Database password. |
 | `POSTGRES_DB` | yes | | Database name. Tests append `_test`. |
-| `LOG_LEVEL` | no | `info` | `debug`, `info`, `warning` or `error`. |
+| `LOG_LEVEL` | no | `info` | `debug`, `info`, `warning` or `error`. Applies to the API's logs and to uvicorn's error and access logs. |
 | `DOCS_ENABLED` | no | `true` | When `false`, `/docs` and `/openapi.json` return 404. |
 
 A missing or invalid setting stops startup with an error that names the variable but never shows its value.
