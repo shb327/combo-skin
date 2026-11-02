@@ -90,6 +90,18 @@ async def test_cors_allows_only_listed_origins(admin_client: AsyncClient, admin:
     assert not [k for k in other.headers if k.startswith("access-control-")]
 
 
+class TestLocalhostPorts:
+    @pytest.fixture
+    def admin_settings(self, test_settings: Settings) -> Settings:
+        return test_settings.model_copy(update={"admin_origins": ["http://localhost:5174"]})
+
+    async def test_only_the_listed_port(self, admin_client: AsyncClient) -> None:
+        allowed = await preflight(admin_client, "http://localhost:5174")
+        assert allowed["access-control-allow-origin"] == "http://localhost:5174"
+        for origin in ("http://localhost:5173", "http://localhost:8000", "http://localhost"):
+            assert await preflight(admin_client, origin) == {}
+
+
 class TestNoOrigins:
     @pytest.fixture
     def admin_settings(self, test_settings: Settings) -> Settings:

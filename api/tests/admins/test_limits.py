@@ -49,6 +49,7 @@ async def test_limit_per_ip(
 async def test_limit_per_username(
     clients: ClientFactory, admin: int, fake_clock: Clock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    first_of_each = []
     for username in (USERNAME, "nobody-here"):
         for attempt in range(limits.USERNAME_LIMIT):
             client = clients(f"10.3.{len(username)}.{attempt}")
@@ -62,6 +63,12 @@ async def test_limit_per_username(
         for response in limited:
             assert_limited(response)
         assert limited[0].content == limited[1].content
+        first_of_each.append(limited[0])
+    existing, unknown = first_of_each
+    assert existing.content == unknown.content
+    assert [k for k, _ in existing.headers.multi_items()] == [
+        k for k, _ in unknown.headers.multi_items()
+    ]
     fake_clock.advance(minutes=16)
     assert (await login(clients("10.3.255.3"))).status_code == 200
 

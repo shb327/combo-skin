@@ -89,16 +89,25 @@ async def test_reads_need_a_live_session(probe_client: AsyncClient, admin: int) 
     assert response.status_code == 200
     assert response.json() == {"id": admin, "username": USERNAME}
 
-    await probe_client.post("/admin/logout", headers=write_headers(csrf_token))
+    logout = await probe_client.post("/admin/logout", headers=write_headers(csrf_token))
+    assert logout.status_code == 204
     probe_client.cookies.clear()
     logged_out = await probe_client.get("/probe", headers={"Cookie": f"{name}={token}"})
     assert logged_out.status_code == 401
+    assert logged_out.json() == {"detail": "not_authenticated"}
 
 
 async def test_writes_need_origin_and_csrf_token(
     probe_client: AsyncClient, clients: ClientFactory, admin: int
 ) -> None:
-    assert (await probe_client.post("/probe", headers=write_headers("x"))).status_code == 401
+    for headers in (
+        write_headers("x"),
+        {"Origin": "https://evil.example.test", "X-CSRF-Token": "x"},
+        {},
+    ):
+        response = await probe_client.post("/probe", headers=headers)
+        assert response.status_code == 401, headers
+        assert response.json() == {"detail": "not_authenticated"}
     csrf_token = await logged_in(probe_client)
     other_token = await logged_in(clients("127.0.0.2"))
 
@@ -194,8 +203,13 @@ async def test_admin_responses_are_not_cached(
         await probe_client.post("/probe", headers=write_headers(csrf_token)),
         await probe_client.post("/probe", headers={"Origin": ADMIN_ORIGIN}),
         await probe_client.get("/admin/me"),
-        await login(probe_client),
         await probe_client.post("/admin/logout", headers={"Origin": ADMIN_ORIGIN}),
     ]
+    again = await login(probe_client)
+    logout = await probe_client.post(
+        "/admin/logout", headers=write_headers(again.json()["csrf_token"])
+    )
+    assert logout.status_code == 204
+    responses += [again, logout]
     for response in responses:
         assert response.headers.get("cache-control") == "no-store", response.request.url

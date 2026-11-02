@@ -109,19 +109,25 @@ async def test_create_asks_again_after_a_refused_password(
     assert row is not None and passwords.verify(row.password_hash, PASSWORD)
 
 
-@pytest.mark.parametrize("command", ["create", "set-password"])
 async def test_passwords_need_a_terminal(
     db_session: AsyncSession,
     test_settings: Settings,
     capsys: pytest.CaptureFixture[str],
-    command: str,
+    admin: int,
 ) -> None:
-    code = await run(
-        db_session, test_settings, command, USERNAME, entries=[PASSWORD] * 2, interactive=False
-    )
-    assert code == 1
-    assert "terminal" in capsys.readouterr().err
-    assert await stored(db_session, USERNAME) is None
+    before = await stored(db_session, USERNAME)
+    assert before is not None
+    old_hash = before.password_hash
+    for argv in (["create", OTHER_USERNAME], ["set-password", USERNAME]):
+        code = await run(
+            db_session, test_settings, *argv, entries=[NEW_PASSWORD] * 2, interactive=False
+        )
+        assert code == 1
+        assert "terminal" in capsys.readouterr().err
+    assert await stored(db_session, OTHER_USERNAME) is None
+    after = await stored(db_session, USERNAME)
+    assert after is not None and after.password_hash == old_hash
+    assert passwords.verify(after.password_hash, PASSWORD)
 
 
 @pytest.mark.parametrize("command", ["create", "set-password"])
@@ -154,15 +160,21 @@ def test_help_has_no_password_option() -> None:
 async def test_commands_never_print_secrets(
     db_session: AsyncSession, test_settings: Settings, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    await run(db_session, test_settings, "create", USERNAME, entries=[PASSWORD] * 2)
-    await run(db_session, test_settings, "set-password", USERNAME, entries=[NEW_PASSWORD] * 2)
-    await run(db_session, test_settings, "disable", USERNAME)
-    await run(db_session, test_settings, "enable", USERNAME)
-    await run(db_session, test_settings, "list")
+    hashes = []
+    assert await run(db_session, test_settings, "create", USERNAME, entries=[PASSWORD] * 2) == 0
     row = await stored(db_session, USERNAME)
     assert row is not None
+    hashes.append(row.password_hash)
+    code = await run(
+        db_session, test_settings, "set-password", USERNAME, entries=[NEW_PASSWORD] * 2
+    )
+    assert code == 0
+    hashes.append(row.password_hash)
+    assert hashes[0] != hashes[1]
+    for argv in (["disable", USERNAME], ["enable", USERNAME], ["list"]):
+        assert await run(db_session, test_settings, *argv) == 0
     out = capsys.readouterr()
-    for secret in (PASSWORD, NEW_PASSWORD, row.password_hash):
+    for secret in (PASSWORD, NEW_PASSWORD, *hashes):
         assert secret not in out.out + out.err
 
 
@@ -186,6 +198,7 @@ async def two_sessions(clients: ClientFactory) -> list[AsyncClient]:
     sessions = [clients("127.0.0.1"), clients("127.0.0.2")]
     for client in sessions:
         assert (await login(client)).status_code == 200
+        assert (await client.get("/admin/me")).status_code == 200
     return sessions
 
 
@@ -239,9 +252,24 @@ async def test_list(
     assert await run(db_session, test_settings, "list") == 0
     lines = capsys.readouterr().out.splitlines()
     assert lines[0].split() == ["username", "enabled", "created", "last", "login", "sessions"]
-    first = lines[1].split()
-    assert first[0] == USERNAME and first[1] == "yes" and first[-1] == "2"
-    assert first[3] != "never"
-    second = lines[2].split()
-    assert second[0] == OTHER_USERNAME and second[1] == "no"
-    assert second[-2] == "never" and second[-1] == "0"
+    rows = {
+        admin: await db_session.get(Admin, admin),
+        other_admin: await db_session.get(Admin, other_admin),
+    }
+    first_row, second_row = rows[admin], rows[other_admin]
+    assert first_row is not None and second_row is not None
+    assert first_row.last_login_at is not None
+    assert lines[1].split() == [
+        USERNAME,
+        "yes",
+        first_row.created_at.strftime("%Y-%m-%dT%H:%MZ"),
+        first_row.last_login_at.strftime("%Y-%m-%dT%H:%MZ"),
+        "2",
+    ]
+    assert lines[2].split() == [
+        OTHER_USERNAME,
+        "no",
+        second_row.created_at.strftime("%Y-%m-%dT%H:%MZ"),
+        "never",
+        "0",
+    ]
