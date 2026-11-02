@@ -150,3 +150,13 @@ def test_idle_lifetime_cannot_exceed_absolute(full_env: pytest.MonkeyPatch) -> N
     with pytest.raises(SettingsError) as error:
         load_settings(env_file=None)
     assert "SESSION_IDLE_MINUTES" in str(error.value)
+
+
+@pytest.mark.anyio
+async def test_app_logs_reach_standard_error(full_env: pytest.MonkeyPatch) -> None:
+    app = create_app(env_file=None)
+    async with app.router.lifespan_context(app):
+        handlers = logging.getLogger("combo_api").handlers
+        assert [h for h in handlers if isinstance(h, logging.StreamHandler)]
+    async with app.router.lifespan_context(app):
+        assert logging.getLogger("combo_api").handlers == handlers

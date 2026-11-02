@@ -30,6 +30,9 @@ LOGGERS = ("combo_api", "uvicorn", "uvicorn.error", "uvicorn.access")
 HASH_SLOTS = 2
 
 logger = logging.getLogger("combo_api.admins")
+# Uvicorn configures only its own loggers; without this, the API's info lines are dropped.
+LOG_HANDLER = logging.StreamHandler()
+LOG_HANDLER.setFormatter(logging.Formatter("%(levelname)s:     %(name)s %(message)s"))
 
 
 def operation_id(route: APIRoute) -> str:
@@ -82,6 +85,8 @@ def create_app(settings: Settings | None = None, env_file: str | None = ".env") 
         level = app.state.settings.log_level.upper()
         for name in LOGGERS:
             logging.getLogger(name).setLevel(level)
+        if LOG_HANDLER not in logging.getLogger("combo_api").handlers:
+            logging.getLogger("combo_api").addHandler(LOG_HANDLER)
         app.state.engine = create_engine(app.state.settings)
         app.state.sessionmaker = async_sessionmaker(app.state.engine, expire_on_commit=False)
         app.state.head_revision = head_revision()
