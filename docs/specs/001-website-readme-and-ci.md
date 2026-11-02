@@ -63,7 +63,7 @@ Replace the website's Vite template README with a real one that explains what Co
 | Concurrency | One run per branch or pull request; a new push cancels the older in-progress run | No concurrency group: wastes runner time on superseded commits. |
 | Environment in CI | No `.env`, no secrets; the build runs without `VITE_ASSET_BASE_URL` | Injecting the real asset URL as a secret: the build does not need it, and CI should not depend on private configuration. |
 | Screenshots | PNGs captured from the local dev server at 1440 px wide, stored in `website/docs/screenshots/` | Live site: hosting is not settled. Images hosted elsewhere: links rot and depend on outside services. |
-| Screenshot pages | Home, glove finishes for one glove type, combos for one glove finish | Every page: more weight in the repo for little extra information. |
+| Screenshot pages | Home, search by gloves, and the combos page for one glove finish cropped to its combo cards; all use images stored in the repository | Every page: more weight in the repo for little extra information. Glove finishes: its images come from the asset host, which is offline, so it would show broken images. |
 | Badge placement | Root `README.md` and `website/README.md` | Root only: the website README is what people land on from the `website/` folder. |
 | Live site link | None for now | Linking the domain: hosting is not settled. |
 | Licensing | The README says nothing about a license; licensing is decided in a separate spec | Stating a license now: the repository has no LICENSE file, and choosing one is a separate decision. |
@@ -134,7 +134,9 @@ None.
 
 ## Implementation notes
 
-Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+### Deviations
+
+**2026-11-02, screenshot pages (agreed with the owner).** The Design table picks home, glove finishes for one glove type, and combos for one glove finish. Finish images load from `VITE_ASSET_BASE_URL`, and the configured asset host does not currently resolve, so the glove-finishes page shows only alt text and the combos page header shows a broken thumbnail. Home, the glove and knife search pages, and the combo cards use images stored in the repository and render fully. Instead: home, search by gloves, and the combos page for one glove finish cropped to its combo cards, all captured at 1440 px wide. The Design table was updated to match.
 
 ## Audit
 
