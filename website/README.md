@@ -30,11 +30,10 @@ Prerequisites: [Node.js](https://nodejs.org/) 24 and [npm](https://docs.npmjs.co
 ```bash
 cd website
 npm ci
-cp .env.example .env   # then set VITE_ASSET_BASE_URL, see Configuration
 npm run dev
 ```
 
-Open the local address Vite prints (port 5173 by default). The site runs without a `.env` file, but finish images will not load.
+Open the local address Vite prints (port 5173 by default). No `.env` file is needed; see Configuration for the optional settings.
 
 ## Scripts
 
@@ -49,14 +48,13 @@ CI runs `npm ci`, `npm run lint` and `npm run build` on every push and pull requ
 
 ## Configuration
 
-Settings live in `website/.env`, which is never committed (see [`.env.example`](.env.example)):
+Optional settings live in `website/.env`, which is never committed (see [`.env.example`](.env.example)):
 
 | Variable | Example | Meaning |
 | --- | --- | --- |
-| `VITE_ASSET_BASE_URL` | `https://your-minio-server.example.com/bucket` | Base URL of the server that hosts finish images. |
 | `DEV_ALLOWED_HOSTS` | `tunnel.example.com` | Optional. Comma-separated extra hosts the dev server accepts, for example a tunnel to your machine. Dev server only. |
 
-Finish images are loaded from `<VITE_ASSET_BASE_URL>/gloves/<glove-type>/<finish>.png` and `<VITE_ASSET_BASE_URL>/knives/<knife-type>/<finish>.png`. Without a real value the site still works, but finish images do not load. Glove and knife type images, combo screenshots and the home page artwork are stored in the repository, imported in code and bundled by the build, so they always load.
+Finish images load from Steam's image servers, using the URLs in `src/data/catalog.json` (see Data); the browser sends them no referrer. Glove and knife type images, combo screenshots and the home page artwork are stored in the repository, imported in code and bundled by the build.
 
 `VITE_` variables are built into the client bundle, so never put a secret in `.env`.
 
@@ -74,7 +72,7 @@ Without it, Vite answers requests for any other host with 403. `DEV_ALLOWED_HOST
 | --- | --- |
 | `src/pages/` | One component per route: `Home`, `SearchGloves`, `GloveFinishes`, `SearchKnives`, `KnifeFinishes`, `Combos`. Routes are defined in `src/App.tsx`. |
 | `src/components/` | Shared UI: app bar with search, hero, item cards, footer. |
-| `src/data/` | The site's content as typed TypeScript: glove types, knife types, finishes and combos. |
+| `src/data/` | The site's content: the generated knife and glove catalog (`catalog.json`, read by `gloves.ts` and `knives.ts`) and the curated combos (`combos.ts`). |
 | `src/assets/` | Images bundled with the site: logos, glove and knife type images, combo screenshots. |
 | `CS2_FINISHES.md` | Why knife finish counts differ between knives in CS2. |
 
@@ -82,11 +80,11 @@ The `@` import alias points to `src/`.
 
 ## Data
 
-All content lives in `src/data/`. There is no backend yet.
+All content lives in `src/data/`.
 
-**Add a glove finish.** In `src/data/gloves.ts`, add `{ id, name }` to the glove type's `finishes`. The `id` is kebab-case and must match the image file name on the asset server: `gloves/<glove-type>/<id>.png`.
+**Knife and glove finishes** come from `catalog.json`: every knife and glove type in CS2 and every finish it can have, with its display name and a Steam image URL. It is generated from the game's item data by the API's catalog tooling, so never edit it by hand. To change the catalog, or the order types and finishes are shown in, see the Catalog section of [`api/README.md`](../api/README.md). The data comes from [ByMykel/CSGO-API](https://github.com/ByMykel/CSGO-API) under the MIT licence; see [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md).
 
-**Add a knife finish.** Knives share finish lists by tier in `src/data/knives.ts` (see `CS2_FINISHES.md`): `baseFinishes` for every knife, `tier2Finishes` for newer knives, `tier1Finishes` for the original knives. Add the finish to the tier where it belongs; each knife type in `knifeTypes` points at one tier. The image goes at `knives/<knife-type>/<id>.png` on the asset server.
+Type and finish slugs (`bloodhound`, `doppler-phase-2`) are the ones in the site's URLs, and they never change once assigned.
 
 **Add a combo.** Put the screenshot in `src/assets/combos/<finish>/`, then in `src/data/combos.ts` import it at the top of the file:
 
@@ -94,7 +92,7 @@ All content lives in `src/data/`. There is no backend yet.
 import mogul5 from '@/assets/combos/mogul/5.jpeg'
 ```
 
-Find the `gloveCombos` entry for the glove type and finish (or add one with `gloveTypeId` and `gloveFinishId`), and add a combo to its `combos`, using the import as the image:
+Find the `gloveCombos` entry for the glove type and finish (or add one with `gloveTypeId` and `gloveFinishId`), and add a combo to its `combos`, using the import as the image. `gloveTypeId` and `gloveFinishId` are the catalog slugs from the finish's URL: `/gloves/specialist/mogul` is `specialist` and `mogul`.
 
 ```ts
 {

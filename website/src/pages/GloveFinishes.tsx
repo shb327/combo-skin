@@ -2,11 +2,6 @@ import { useParams, Link } from 'react-router-dom'
 import { gloveTypes } from '@/data/gloves'
 import { getAllKnives } from '@/data/knives'
 
-const getGloveImageUrl = (gloveId: string, finishId: string): string => {
-  const baseUrl = import.meta.env.VITE_ASSET_BASE_URL
-  return `${baseUrl}/gloves/${gloveId}/${finishId}.png`
-}
-
 const totalKnives = getAllKnives().length
 
 export function GloveFinishes() {
@@ -36,10 +31,12 @@ export function GloveFinishes() {
             <div className="absolute inset-0 bg-radial-[circle_at_center] from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
             <div className="aspect-square">
               <img
-                src={getGloveImageUrl(glove.id, finish.id)}
+                src={finish.image}
                 alt={`${glove.name} | ${finish.name}`}
                 className="w-full h-full object-contain p-4 select-none transition-transform duration-300 group-hover:scale-110"
                 draggable={false}
+                loading="lazy"
+                referrerPolicy="no-referrer"
               />
             </div>
             <div className="p-2 md:p-4 pt-0">

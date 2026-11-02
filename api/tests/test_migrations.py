@@ -9,11 +9,10 @@ from combo_api.db import Base
 from tests.support import API_DIR, rolled_back_session
 
 
-def test_single_baseline_revision() -> None:
+def test_revision_history() -> None:
     script = ScriptDirectory.from_config(Config(API_DIR / "alembic.ini"))
-    revisions = list(script.walk_revisions())
-    assert [r.revision for r in revisions] == ["0001"]
-    assert revisions[0].down_revision is None
+    revisions = {r.revision: r.down_revision for r in script.walk_revisions()}
+    assert revisions == {"0001": None, "0002": "0001"}
 
 
 def test_upgrade_downgrade_upgrade(migrations: Config) -> None:
@@ -41,9 +40,9 @@ async def test_session_changes_are_rolled_back(engine: AsyncEngine) -> None:
 
 
 @pytest.mark.anyio
-async def test_baseline_creates_only_version_table(engine: AsyncEngine) -> None:
+async def test_head_has_only_known_tables(engine: AsyncEngine) -> None:
     async with engine.connect() as connection:
         tables = await connection.scalars(
             text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
         )
-        assert set(tables) == {"alembic_version"}
+        assert set(tables) == {"alembic_version", "item_types", "finishes"}

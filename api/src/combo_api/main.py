@@ -13,6 +13,7 @@ from fastapi.routing import APIRoute
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from combo_api import health
+from combo_api.catalog import routes as catalog
 from combo_api.db import create_engine, head_revision
 from combo_api.settings import Settings, load_settings
 
@@ -51,6 +52,7 @@ def create_app(settings: Settings | None = None, env_file: str | None = ".env") 
         redoc_url=None,
     )
     app.include_router(health.router)
+    app.include_router(catalog.router)
 
     def require_docs(request: Request) -> None:
         if not request.app.state.settings.docs_enabled:
