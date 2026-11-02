@@ -1,6 +1,6 @@
 # 007: Admin login
 
-**Status:** Draft
+**Status:** Approved
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api
