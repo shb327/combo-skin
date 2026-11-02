@@ -6,7 +6,7 @@ from typing import Annotated
 
 import anyio.to_thread
 from fastapi import APIRouter, Depends, Request, Response, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 
 from combo_api.admins import accounts, clock, limits, passwords, sessions
 from combo_api.admins.deps import (
@@ -27,7 +27,8 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 class Credentials(BaseModel):
     username: str = Field(min_length=1, max_length=64)
-    password: str = Field(min_length=1, max_length=1024)
+    # A secret, so the password never shows in repr() or tracebacks.
+    password: SecretStr = Field(min_length=1, max_length=1024)
 
 
 class AdminOut(BaseModel):
@@ -48,6 +49,12 @@ def session_out(live: LiveSession) -> AdminSession:
     )
 
 
+def check_login_request(request: Request) -> None:
+    """The checks login makes before reading its body, also applied when the body is invalid."""
+    check_origin(request)
+    json_only(request)
+
+
 def json_only(request: Request) -> None:
     media_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
     if media_type != "application/json":
@@ -60,7 +67,7 @@ def known(username: str | None) -> str:
 
 @router.post(
     "/login",
-    dependencies=[Depends(check_origin), Depends(json_only)],
+    dependencies=[Depends(check_login_request)],
     responses={
         status.HTTP_401_UNAUTHORIZED: error_response("`invalid_credentials`"),
         status.HTTP_403_FORBIDDEN: error_response("`origin_not_allowed`"),
@@ -90,8 +97,9 @@ async def admin_login(
         )
 
     limiter = request.app.state.hash_limiter
+    password = credentials.password.get_secret_value()
     matches = await anyio.to_thread.run_sync(
-        passwords.verify, stored_hash, credentials.password, limiter=limiter
+        passwords.verify, stored_hash, password, limiter=limiter
     )
     if admin is None or not matches or not admin.active:
         reason = (
@@ -103,7 +111,7 @@ async def admin_login(
     await limits.succeeded(db, attempt)
     if passwords.needs_rehash(admin.password_hash):
         admin.password_hash = await anyio.to_thread.run_sync(
-            passwords.hash_password, credentials.password, limiter=limiter
+            passwords.hash_password, password, limiter=limiter
         )
     await sessions.prune(db, settings)
     token, row = await sessions.start(db, admin, settings)

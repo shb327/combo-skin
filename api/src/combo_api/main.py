@@ -18,8 +18,9 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from combo_api import health
+from combo_api.admins import passwords
 from combo_api.admins import routes as admins
-from combo_api.admins.deps import CSRF_HEADER
+from combo_api.admins.deps import CSRF_HEADER, NO_STORE
 from combo_api.catalog import routes as catalog
 from combo_api.db import create_engine, head_revision
 from combo_api.settings import Settings, load_settings
@@ -71,11 +72,29 @@ class AdminCors:
 
 
 async def validation_error(request: Request, error: Exception) -> JSONResponse:
-    """422 without the submitted values, which on login can be a password."""
+    """422 without the submitted values, which on login can be a password.
+
+    FastAPI decodes a JSON body before running route dependencies, so login's Origin and
+    content type checks run here too: a malformed body never skips them.
+    """
     if not isinstance(error, RequestValidationError):
         raise error
+    headers = dict(NO_STORE)
+    if request.scope.get("route") is admin_login_route():
+        try:
+            admins.check_login_request(request)
+        except HTTPException as refused:
+            return JSONResponse(
+                {"detail": refused.detail}, status_code=refused.status_code, headers=headers
+            )
     errors = [{"loc": e["loc"], "msg": e["msg"], "type": e["type"]} for e in error.errors()]
-    return JSONResponse({"detail": jsonable_encoder(errors)}, status_code=422)
+    return JSONResponse({"detail": jsonable_encoder(errors)}, status_code=422, headers=headers)
+
+
+def admin_login_route() -> APIRoute:
+    return next(
+        r for r in admins.router.routes if isinstance(r, APIRoute) and r.name == "admin_login"
+    )
 
 
 def create_app(settings: Settings | None = None, env_file: str | None = ".env") -> FastAPI:
@@ -91,6 +110,7 @@ def create_app(settings: Settings | None = None, env_file: str | None = ".env") 
         app.state.sessionmaker = async_sessionmaker(app.state.engine, expire_on_commit=False)
         app.state.head_revision = head_revision()
         app.state.hash_limiter = anyio.CapacityLimiter(HASH_SLOTS)
+        await anyio.to_thread.run_sync(passwords.prepare)
         if not app.state.settings.session_cookie_secure:
             logger.warning(
                 "SESSION_COOKIE_SECURE is false: the session cookie is sent over plain http"

@@ -164,7 +164,7 @@ Typing a password on a command line puts it in shell history; use a throwaway lo
 
 **Protection.** The session cookie is HttpOnly, `SameSite=Strict`, host-only and, unless `SESSION_COOKIE_SECURE=false`, Secure. Writes need the session's CSRF token and an `Origin` listed in `ADMIN_ORIGINS`; only those origins get CORS headers. Failed logins are limited to 10 per client IP and 20 per username in 15 minutes; over a limit, login returns 429 with `Retry-After`. The client IP is the connecting address, or, when that is a proxy listed in `TRUSTED_PROXIES`, the right-most address in `X-Forwarded-For` that is not a trusted proxy. Uvicorn's own forwarded-header handling is off (`--no-proxy-headers`).
 
-**For later routes.** Every admin route depends on `require_admin` from `combo_api.admins.deps` (or the `AdminDep` type) and declares `ADMIN_RESPONSES`. A test fails if a `POST`, `PUT`, `PATCH` or `DELETE` route is added without it.
+**For later routes.** Every admin route depends on `require_admin` from `combo_api.admins.deps` (or the `AdminDep` type) and declares `ADMIN_RESPONSES`. A test fails if a `POST`, `PUT`, `PATCH` or `DELETE` route is added without it. `require_admin` adds `Cache-Control: no-store` to the route's response; a route that returns a `Response` object of its own must set that header itself.
 
 Logins, failed and rate-limited logins, logouts and account changes are logged by the `combo_api.admins` logger, without passwords or tokens.
 

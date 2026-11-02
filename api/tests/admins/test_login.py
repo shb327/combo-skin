@@ -10,6 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from combo_api.admins import passwords
 from combo_api.admins.models import Admin, AdminSession
+from combo_api.admins.routes import Credentials
+from combo_api.main import create_app
+from combo_api.settings import Settings
 from tests.admins.support import (
     OTHER_PASSWORD,
     OTHER_USERNAME,
@@ -170,13 +173,16 @@ async def test_validation_errors_do_not_echo_input(admin_client: AsyncClient) ->
     )
     for response in (too_long, missing):
         assert response.status_code == 422
+        assert response.headers["cache-control"] == "no-store"
         assert long_password not in response.text
         for error in response.json()["detail"]:
             assert set(error) == {"loc", "msg", "type"}
 
 
 async def test_logout_ends_the_session(admin_client: AsyncClient, admin: int) -> None:
-    csrf_token = (await login(admin_client)).json()["csrf_token"]
+    logged_in = await login(admin_client)
+    csrf_token = logged_in.json()["csrf_token"]
+    name, token = session_cookie(logged_in)
 
     wrong = await admin_client.post("/admin/logout", headers=write_headers("wrong"))
     assert wrong.status_code == 403
@@ -185,8 +191,13 @@ async def test_logout_ends_the_session(admin_client: AsyncClient, admin: int) ->
 
     response = await admin_client.post("/admin/logout", headers=write_headers(csrf_token))
     assert response.status_code == 204
-    assert "Max-Age=0" in response.headers["set-cookie"]
+    cleared = response.headers["set-cookie"]
+    assert cleared.startswith(f"{name}=") and "Max-Age=0" in cleared
     assert (await admin_client.get("/admin/me")).status_code == 401
+    # The session itself has ended, not only the browser's copy of the cookie.
+    admin_client.cookies.clear()
+    replayed = await admin_client.get("/admin/me", headers={"Cookie": f"{name}={token}"})
+    assert replayed.status_code == 401
 
 
 async def test_logout_without_a_session(admin_client: AsyncClient) -> None:
@@ -226,3 +237,41 @@ async def test_disabled_admin_cannot_log_in(
     response = await login(admin_client)
     assert response.status_code == 401
     assert response.json() == {"detail": "invalid_credentials"}
+
+
+def test_credentials_repr_hides_the_password() -> None:
+    credentials = Credentials(username=USERNAME, password=PASSWORD)
+    assert PASSWORD not in repr(credentials)
+    assert PASSWORD not in str(credentials)
+
+
+async def test_origin_and_content_type_are_checked_before_the_body(
+    admin_client: AsyncClient,
+) -> None:
+    for headers, status, code in [
+        (
+            {"Origin": "https://evil.example.test", "Content-Type": "application/json"},
+            403,
+            "origin_not_allowed",
+        ),
+        ({"Content-Type": "application/json"}, 403, "origin_not_allowed"),
+        ({"Origin": ADMIN_ORIGIN}, 415, "unsupported_media_type"),
+    ]:
+        request = admin_client.build_request(
+            "POST", "/admin/login", content="{not json", headers=headers
+        )
+        if "Content-Type" not in headers:
+            request.headers.pop("content-type", None)
+        response = await admin_client.send(request)
+        assert response.status_code == status, headers
+        assert response.json() == {"detail": code}
+
+
+async def test_dummy_hash_is_ready_at_startup(
+    admin_settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The first unknown-username login after a restart must not pay for making it."""
+    monkeypatch.setattr(passwords, "_dummy_hash", None)
+    app = create_app(settings=admin_settings)
+    async with app.router.lifespan_context(app):
+        assert passwords._dummy_hash is not None

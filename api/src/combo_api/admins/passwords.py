@@ -26,17 +26,26 @@ def hash_password(password: str) -> str:
     return HASHER.hash(normalise(password))
 
 
+def dummy_hash() -> str:
+    global _dummy_hash
+    if _dummy_hash is None:
+        _dummy_hash = HASHER.hash(secrets.token_urlsafe(32))
+    return _dummy_hash
+
+
+def prepare() -> None:
+    """Make the dummy hash now, so the first unknown-username login takes no longer than others."""
+    dummy_hash()
+
+
 def verify(stored_hash: str | None, password: str) -> bool:
     """Check a password against a stored hash, or against a dummy hash when there is none.
 
     Either way exactly one Argon2 verification runs, so an unknown username takes as long
     as a wrong password.
     """
-    global _dummy_hash
     if stored_hash is None:
-        if _dummy_hash is None:
-            _dummy_hash = HASHER.hash(secrets.token_urlsafe(32))
-        stored_hash = _dummy_hash
+        stored_hash = dummy_hash()
         known = False
     else:
         known = True
