@@ -251,6 +251,8 @@ None.
 
 **2026-11-02, published database port (agreed with the owner).** The Design table published PostgreSQL on host port 5432. On a development machine that already runs PostgreSQL (a system install, or another project's container), 5432 is taken and `docker compose up` fails with "port is already allocated". Instead, the Compose database is published on host port 54320, `api/.env.example` sets `POSTGRES_PORT=54320` for host-run tools and tests, and Compose sets `POSTGRES_PORT=5432` for the containers that reach the database inside the Compose network. The Design table was updated to match.
 
+**2026-11-02, scope of the per-test rollback (found by the audit).** The Design table says each test runs in a transaction that is rolled back. That holds for database sessions handed out by the API (`get_session`), which the test client wraps in a rolled-back transaction. Tests that exercise Alembic or the readiness check need their own connections, because migrations commit DDL and readiness opens a connection from the app's engine. Those tests change the shared test database, and the `migrations` fixture returns it to the head revision afterwards. No test writes application data yet. When spec 003 adds tables, tests that write rows should go through `db_session` or the test client.
+
 ### Criterion coverage
 
 Test ids are relative to `api/`.
@@ -260,9 +262,9 @@ Test ids are relative to `api/`.
 | 1 | Fresh clone: `uv sync --locked` exits 0, `uv run python --version` prints `Python 3.14.3` (system Python is 3.9) |
 | 2 | `uv run ruff format --check .`, `uv run ruff check .` |
 | 3 | `uv run mypy`; `[tool.mypy] strict = true`, `files = ["src", "tests"]` in `pyproject.toml` |
-| 4 | `uv run pytest` with the Compose database up: 28 passed, 0 skipped |
-| 5 | `docker compose stop db && uv run pytest`: 12 errors, 0 skipped, exit non-zero |
-| 6 | `tests/test_settings.py::test_missing_required_setting_names_it`, `::test_invalid_setting_names_it_without_values`, `::test_password_not_in_repr`, `::test_startup_fails_without_settings` |
+| 4 | `uv run pytest` with the Compose database up: 31 passed, 0 skipped |
+| 5 | `docker compose stop db && uv run pytest`: 19 passed, 12 errors, 0 skipped, exit non-zero |
+| 6 | `tests/test_settings.py::test_missing_required_setting_names_it`, `::test_invalid_setting_names_it_without_values`, `::test_password_not_in_repr`, `::test_startup_fails_without_settings` (both missing-setting tests run once per required variable) |
 | 7 | `tests/test_settings.py::test_env_example_lists_every_setting` |
 | 8 | `tests/test_health.py::test_live`, `::test_live_without_database` |
 | 9 | `tests/test_health.py::test_ready`, `::test_ready_with_pending_migrations`, `::test_ready_without_database` |
@@ -278,7 +280,7 @@ Test ids are relative to `api/`.
 | 19 | `docker compose config`: both published ports have `host_ip: 127.0.0.1` |
 | 20 | `actionlint` 1.7.12 (official image, pinned by digest) exits 0 on `.github/workflows/api.yml`; the SHA, `secrets.` and `pull_request_target` greps print nothing |
 | 21 | `.github/workflows/api.yml`: job `check` (sync, format, lint, mypy, snapshot check, pytest against a PostgreSQL 18 service), job `docker` (build, Compose smoke test), `concurrency` with `cancel-in-progress` |
-| 22 | Not yet checked: needs the branch pushed |
+| 22 | Workflow run 41472936219 on commit 4517c40: jobs `check` and `docker` succeeded |
 | 23 | `api/README.md` sections; its getting-started steps followed literally on a fresh clone (criterion 17), and the host-run steps serve `/health/ready` with 200 |
 | 24 | `head -5 README.md api/README.md` shows the `api` badge in both; the root project table lists `api/` and links `api/README.md` |
 | 25 | URL grep: only the repo's GitHub URLs, uv and Docker docs, the local API address, and `http://test` (the in-process test client's base URL, not a host); `gitleaks dir .` on a clean clone and `gitleaks git` over the branch report no leaks |
@@ -289,6 +291,13 @@ Test ids are relative to `api/`.
 - The image is 226 MB, close to the 250 MB limit. A non-editable install would drop the separate source copy if later dependencies push it over.
 - `LOG_LEVEL` sets the level of the `combo_api` loggers. Uvicorn's own access and error logs keep their default level.
 - `actionlint` is not installed locally; it was run from its official Docker image.
+
+### Changes after the audit
+
+- `api/.dockerignore` now excludes `.git`, as the Design table says.
+- `tests/test_settings.py::test_startup_fails_without_settings` runs once per required variable, so criterion 6 is checked through app startup for each one.
+- The comment in `api/.env.example` names the `migrate` container.
+- The per-test rollback scope is recorded under Deviations above.
 
 ## Audit
 
@@ -304,7 +313,7 @@ All checks ran on a fresh clone of the branch, with the Compose stack started fr
 | 3 | Strict mypy | Pass | `uv run mypy` exit 0; `pyproject.toml` `[tool.mypy]` sets `strict = true`, `files = ["src", "tests"]` |
 | 4 | Tests pass against the Compose database, none skipped | Pass | `uv run pytest -rA`: 28 passed, 0 skipped |
 | 5 | Tests fail, not skip, without the database | Pass | `docker compose stop db`, then `uv run pytest`: 16 passed, 12 errors, 0 skipped, exit 1 |
-| 6 | Missing settings named at startup; password never shown | Pass | `tests/test_settings.py::test_missing_required_setting_names_it` (all four required variables), `::test_invalid_setting_names_it_without_values`, `::test_password_not_in_repr`, `::test_startup_fails_without_settings` |
+| 6 | Missing settings named at startup; password never shown | Pass | `tests/test_settings.py::test_missing_required_setting_names_it` (all four required variables), `::test_invalid_setting_names_it_without_values`, `::test_password_not_in_repr`, `::test_startup_fails_without_settings` (both missing-setting tests run once per required variable) |
 | 7 | `.env.example` lists exactly the settings | Pass | `tests/test_settings.py::test_env_example_lists_every_setting` |
 | 8 | Liveness, with and without the database | Pass | `tests/test_health.py::test_live`, `::test_live_without_database` |
 | 9 | Readiness: ok, pending, unavailable within 5 s | Pass | `tests/test_health.py::test_ready`, `::test_ready_with_pending_migrations`, `::test_ready_without_database` (asserts under 5 s) |
