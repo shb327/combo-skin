@@ -28,6 +28,237 @@
         "title": "Checks",
         "type": "object"
       },
+      "Finish": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "float_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Float Max"
+          },
+          "float_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Float Min"
+          },
+          "image_url": {
+            "title": "Image Url",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "paint_codename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paint Codename"
+          },
+          "paint_index": {
+            "title": "Paint Index",
+            "type": "integer"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phase"
+          },
+          "rarity": {
+            "$ref": "#/components/schemas/Rarity"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "phase",
+          "display_name",
+          "paint_index",
+          "paint_codename",
+          "rarity",
+          "float_min",
+          "float_max",
+          "image_url",
+          "active"
+        ],
+        "title": "Finish",
+        "type": "object"
+      },
+      "FinishDetail": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "float_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Float Max"
+          },
+          "float_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Float Min"
+          },
+          "image_url": {
+            "title": "Image Url",
+            "type": "string"
+          },
+          "item_type": {
+            "$ref": "#/components/schemas/ItemTypeRef"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "paint_codename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paint Codename"
+          },
+          "paint_index": {
+            "title": "Paint Index",
+            "type": "integer"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phase"
+          },
+          "rarity": {
+            "$ref": "#/components/schemas/Rarity"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "phase",
+          "display_name",
+          "paint_index",
+          "paint_codename",
+          "rarity",
+          "float_min",
+          "float_max",
+          "image_url",
+          "active",
+          "item_type"
+        ],
+        "title": "FinishDetail",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "ItemTypeRef": {
+        "properties": {
+          "def_index": {
+            "title": "Def Index",
+            "type": "integer"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/Kind"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "def_index",
+          "kind"
+        ],
+        "title": "ItemTypeRef",
+        "type": "object"
+      },
+      "Kind": {
+        "enum": [
+          "knife",
+          "glove"
+        ],
+        "type": "string"
+      },
       "Live": {
         "properties": {
           "status": {
@@ -40,6 +271,29 @@
           "status"
         ],
         "title": "Live",
+        "type": "object"
+      },
+      "Rarity": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "color": {
+            "title": "Color",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "color"
+        ],
+        "title": "Rarity",
         "type": "object"
       },
       "Ready": {
@@ -62,6 +316,120 @@
         ],
         "title": "Ready",
         "type": "object"
+      },
+      "TypeDetail": {
+        "properties": {
+          "codename": {
+            "title": "Codename",
+            "type": "string"
+          },
+          "def_index": {
+            "title": "Def Index",
+            "type": "integer"
+          },
+          "finish_count": {
+            "title": "Finish Count",
+            "type": "integer"
+          },
+          "finishes": {
+            "items": {
+              "$ref": "#/components/schemas/Finish"
+            },
+            "title": "Finishes",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "def_index",
+          "codename",
+          "finish_count",
+          "finishes"
+        ],
+        "title": "TypeDetail",
+        "type": "object"
+      },
+      "TypeSummary": {
+        "properties": {
+          "codename": {
+            "title": "Codename",
+            "type": "string"
+          },
+          "def_index": {
+            "title": "Def Index",
+            "type": "integer"
+          },
+          "finish_count": {
+            "title": "Finish Count",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "def_index",
+          "codename",
+          "finish_count"
+        ],
+        "title": "TypeSummary",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
       }
     }
   },
@@ -71,6 +439,136 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/gloves": {
+      "get": {
+        "description": "Glove types in display order.",
+        "operationId": "list_glove_types",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TypeSummary"
+                  },
+                  "title": "Response List Glove Types",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        },
+        "summary": "List Glove Types",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/gloves/{type_slug}": {
+      "get": {
+        "description": "One glove type with its finishes in display order.",
+        "operationId": "get_glove_type",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "type_slug",
+            "required": true,
+            "schema": {
+              "title": "Type Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TypeDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Glove Type",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/gloves/{type_slug}/{finish_slug}": {
+      "get": {
+        "description": "One glove finish, including one no longer in the game (`active: false`).",
+        "operationId": "get_glove_finish",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "type_slug",
+            "required": true,
+            "schema": {
+              "title": "Type Slug",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "finish_slug",
+            "required": true,
+            "schema": {
+              "title": "Finish Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinishDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Glove Finish",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
     "/health/live": {
       "get": {
         "description": "The process is up and serving requests.",
@@ -122,6 +620,136 @@
         "summary": "Health Ready",
         "tags": [
           "health"
+        ]
+      }
+    },
+    "/knives": {
+      "get": {
+        "description": "Knife types in display order.",
+        "operationId": "list_knife_types",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TypeSummary"
+                  },
+                  "title": "Response List Knife Types",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        },
+        "summary": "List Knife Types",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/knives/{type_slug}": {
+      "get": {
+        "description": "One knife type with its finishes in display order.",
+        "operationId": "get_knife_type",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "type_slug",
+            "required": true,
+            "schema": {
+              "title": "Type Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TypeDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Knife Type",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/knives/{type_slug}/{finish_slug}": {
+      "get": {
+        "description": "One knife finish, including one no longer in the game (`active: false`).",
+        "operationId": "get_knife_finish",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "type_slug",
+            "required": true,
+            "schema": {
+              "title": "Type Slug",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "finish_slug",
+            "required": true,
+            "schema": {
+              "title": "Finish Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinishDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Knife Finish",
+        "tags": [
+          "catalog"
         ]
       }
     }
