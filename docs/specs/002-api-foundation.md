@@ -1,6 +1,6 @@
 # 002: API foundation
 
-**Status:** Draft
+**Status:** Approved
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api
