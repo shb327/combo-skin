@@ -16,6 +16,9 @@ from combo_api import health
 from combo_api.db import create_engine, head_revision
 from combo_api.settings import Settings, load_settings
 
+# LOG_LEVEL applies to the API's own logs and to uvicorn's error and access logs.
+LOGGERS = ("combo_api", "uvicorn", "uvicorn.error", "uvicorn.access")
+
 
 def operation_id(route: APIRoute) -> str:
     """Each route's OpenAPI operationId is its function name."""
@@ -26,7 +29,9 @@ def create_app(settings: Settings | None = None, env_file: str | None = ".env") 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.settings = settings or load_settings(env_file)
-        logging.getLogger("combo_api").setLevel(app.state.settings.log_level.upper())
+        level = app.state.settings.log_level.upper()
+        for name in LOGGERS:
+            logging.getLogger(name).setLevel(level)
         app.state.engine = create_engine(app.state.settings)
         app.state.sessionmaker = async_sessionmaker(app.state.engine, expire_on_commit=False)
         app.state.head_revision = head_revision()
