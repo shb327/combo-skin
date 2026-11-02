@@ -92,16 +92,19 @@ async def test_failures_take_similar_time(
         "wrong": (USERNAME, PASSWORD + " but wrong"),
         "disabled": (OTHER_USERNAME, OTHER_PASSWORD),
     }
-    medians = {}
-    for index, (case, (username, password)) in enumerate(cases.items()):
-        timings = []
-        for attempt in range(5):
+    timings: dict[str, list[float]] = {case: [] for case in cases}
+    # Rounds take one attempt of each case in turn, so a machine that speeds up or slows
+    # down during the test affects every case alike. Round 0 warms up and is not counted.
+    for attempt in range(6):
+        for index, (case, (username, password)) in enumerate(cases.items()):
             client = clients(f"10.1.{index}.{attempt}")
             start = time.perf_counter()
             response = await login(client, username, password)
-            timings.append(time.perf_counter() - start)
+            elapsed = time.perf_counter() - start
             assert response.status_code == 401
-        medians[case] = statistics.median(timings)
+            if attempt:
+                timings[case].append(elapsed)
+    medians = {case: statistics.median(values) for case, values in timings.items()}
     assert max(medians.values()) < 1.5 * min(medians.values()), medians
 
 
