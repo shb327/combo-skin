@@ -1,6 +1,6 @@
 # 003: Bundle combo images in production builds
 
-**Status:** Approved
+**Status:** Implemented
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** website
@@ -104,7 +104,27 @@ None.
 
 ## Implementation notes
 
-Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+No deviations from the design.
+
+### Criterion coverage
+
+| Criterion | Covered by |
+| --- | --- |
+| 1 | `grep -rnE "['\"]/src/" website/src` prints nothing (before the fix it listed the four `image` lines in `src/data/combos.ts`) |
+| 2 | Fresh clone with no `website/.env`: `npm ci`, `npm run lint`, `npm run build` each exit 0 |
+| 3 | After that build, `dist/assets/` holds four `.jpeg` files and `grep -rlF '/src/' website/dist` finds nothing (before the fix: zero JPEGs, and the main bundle referenced `/src/`) |
+| 4 | `npm run preview`, Specialist Gloves \| Mogul combos page: four bundled combo images, each with `naturalWidth` 1280 |
+| 5 | `npm run dev`, same page: the same four images, each with `naturalWidth` 1280 |
+| 6 | `.github/workflows/website.yml` step "Check the build references no /src/ paths" after `npm run build`; `actionlint` exits 0; the diff against `main` only adds that step |
+| 7 | With `src/data/combos.ts` temporarily restored to string paths, `npm run build` then the step's command exits 1; change discarded |
+| 8 | `website/README.md` Data section shows the import and `image: mogul5`; `grep -c "/src/assets" website/README.md` prints 0; the Configuration section says repository images are bundled by the build |
+| 9 | Not yet checked: needs the branch pushed |
+| 10 | `gitleaks dir . --no-banner --redact` on a clean clone: no leaks |
+
+### Follow-ups
+
+- The offline asset host (finish images) is unchanged and out of scope.
+- `website/vite.config.ts` lists a dev tunnel hostname in `allowedHosts`; removing it is separate work.
 
 ## Audit
 
