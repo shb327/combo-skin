@@ -84,7 +84,7 @@ Create the `api/` section: a FastAPI service with PostgreSQL, Alembic migrations
 | Health routes | `GET /health/live` and `GET /health/ready` | `/healthz` and `/readyz`: fine, but less self-explanatory in the docs. One `/health`: cannot tell "process up" from "can serve traffic". |
 | Readiness checks | `SELECT 1` and a comparison of the database's Alembic revision with the code's head revision, together bounded by a 2-second timeout | Database ping only: the API would report ready against an unmigrated schema. No timeout: a hung database hangs the probe. |
 | Server | Uvicorn, one process, port 8000 inside the container, behind whatever `deploy/` chooses | Gunicorn with Uvicorn workers: process management belongs to the deployment, and one process is enough locally. |
-| OpenAPI docs | `/openapi.json` and Swagger UI at `/docs`; ReDoc off; `DOCS_ENABLED` setting (default `true`) turns both off | Docs always on: production may want them off; that choice belongs to `deploy/`. |
+| OpenAPI docs | `/openapi.json` and Swagger UI at `/docs`; ReDoc off; `DOCS_ENABLED` setting (default `true`, for local use) turns both off. Production runs with docs off; the `deploy/` spec sets `DOCS_ENABLED=false` | Docs public in production: they would hand anyone a full map of the API, including admin routes, and nothing needs them there because frontend types come from the committed snapshot. |
 | OpenAPI snapshot | `uv run python -m combo_api.openapi` writes `api/openapi.json` (sorted keys, two-space indent, trailing newline); `--check` exits 1 if the file differs | Generating types from a running server: frontend builds would need the API and a database running. |
 | Operation IDs | Each route's `operationId` is its Python function name; a test enforces uniqueness | FastAPI's default IDs (`name_path_method`): long and unstable, and they produce awkward TypeScript names. |
 | API metadata | Title "Combo Skin API"; version from the package version in `pyproject.toml` | A hard-coded version string: drifts from the package. |
@@ -243,7 +243,7 @@ docker compose down -v
 
 ## Open questions
 
-- Should `/docs` and `/openapi.json` be on in production? Recommendation: decide in the `deploy/` spec; this spec only adds the `DOCS_ENABLED` switch.
+None.
 
 ## Implementation notes
 
