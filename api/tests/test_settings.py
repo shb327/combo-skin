@@ -1,11 +1,9 @@
-from pathlib import Path
-
 import pytest
 
 from combo_api.main import create_app
 from combo_api.settings import Settings, SettingsError, load_settings
+from tests.support import API_DIR
 
-API_DIR = Path(__file__).resolve().parents[1]
 SAMPLE_VALUE = "placeholder-db-credential"
 REQUIRED = ["POSTGRES_HOST", "POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"]
 
