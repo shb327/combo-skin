@@ -1,6 +1,6 @@
 # 005: Knife and glove catalog
 
-**Status:** Draft
+**Status:** Approved
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api, website
