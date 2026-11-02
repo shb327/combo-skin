@@ -12,6 +12,9 @@ from combo_api.catalog.snapshot import (
     KINDS,
     CatalogError,
     DisplayOrder,
+    Finish,
+    ItemType,
+    Kind,
     Snapshot,
     ordered_finishes,
     ordered_types,
@@ -77,23 +80,54 @@ def slug_problems(
     return problems
 
 
+def codename_problems(snapshot: Snapshot, types: dict[int, models.ItemType]) -> list[str]:
+    """A stored codename belongs to its definition index, even if that type is inactive."""
+    by_codename = {row.codename: row for row in types.values()}
+    problems = []
+    for item_type in snapshot.item_types:
+        owner = by_codename.get(item_type.codename)
+        if owner is not None and owner.def_index != item_type.def_index:
+            problems.append(
+                f"{label(item_type)}: codename {item_type.codename!r} is already used by "
+                f"{owner.name} ({owner.def_index})"
+            )
+    return problems
+
+
+def in_import_order(
+    snapshot: Snapshot, order: DisplayOrder, kind: Kind
+) -> list[tuple[ItemType, list[Finish]]]:
+    """Types of a kind with their finishes: those in the game in display order, retired last."""
+    types = ordered_types(snapshot, order, kind)
+    types += [t for t in snapshot.item_types if t.kind == kind and t.retired]
+    return [(t, ordered_finishes(t, order) + [f for f in t.finishes if f.retired]) for t in types]
+
+
 async def import_snapshot(session: AsyncSession, snapshot: Snapshot, order: DisplayOrder) -> Counts:
-    """Upsert the snapshot. Raises CatalogError before writing anything if it cannot."""
+    """Upsert the snapshot. Raises CatalogError before writing anything if it cannot.
+
+    Retired entries are stored inactive, so their slugs stay taken. A retired row keeps the
+    position it had; positions of rows in the game count only rows in the game.
+    """
     validate(snapshot, order)
     types = {row.def_index: row for row in await session.scalars(select(models.ItemType))}
     finishes = {
         (row.item_type_id, row.paint_index): row
         for row in await session.scalars(select(models.Finish))
     }
-    problems = slug_problems(snapshot, types, finishes)
+    problems = slug_problems(snapshot, types, finishes) + codename_problems(snapshot, types)
     if problems:
         raise CatalogError("\n".join(problems))
 
     counts = Counts()
     now = datetime.now(UTC)
 
-    def count(changed: bool) -> None:
-        if changed:
+    def upsert(row: models.ItemType | models.Finish, values: dict[str, Any]) -> None:
+        was_active = row.active
+        changed = apply(row, values, now)
+        if was_active and not row.active:
+            counts.deactivated += 1
+        elif changed:
             counts.updated += 1
         else:
             counts.unchanged += 1
@@ -101,14 +135,16 @@ async def import_snapshot(session: AsyncSession, snapshot: Snapshot, order: Disp
     seen_types: set[int] = set()
     seen_finishes: set[tuple[int, int]] = set()
     for kind in KINDS:
-        for position, item_type in enumerate(ordered_types(snapshot, order, kind)):
+        for position, (item_type, type_finishes) in enumerate(
+            in_import_order(snapshot, order, kind)
+        ):
             values: dict[str, Any] = {
                 "kind": item_type.kind,
                 "codename": item_type.codename,
                 "slug": item_type.slug,
                 "name": item_type.name,
                 "position": position,
-                "active": True,
+                "active": not item_type.retired,
             }
             row = types.get(item_type.def_index)
             if row is None:
@@ -119,10 +155,12 @@ async def import_snapshot(session: AsyncSession, snapshot: Snapshot, order: Disp
                 await session.flush()
                 counts.inserted += 1
             else:
-                count(apply(row, values, now))
+                if item_type.retired:
+                    del values["position"]
+                upsert(row, values)
             seen_types.add(row.id)
 
-            for finish_position, finish in enumerate(ordered_finishes(item_type, order)):
+            for finish_position, finish in enumerate(type_finishes):
                 values = {
                     "paint_codename": finish.paint_codename,
                     "slug": finish.slug,
@@ -135,7 +173,7 @@ async def import_snapshot(session: AsyncSession, snapshot: Snapshot, order: Disp
                     "float_max": finish.float_max,
                     "image_url": finish.image_url,
                     "position": finish_position,
-                    "active": True,
+                    "active": not finish.retired,
                 }
                 key = (row.id, finish.paint_index)
                 seen_finishes.add(key)
@@ -152,15 +190,15 @@ async def import_snapshot(session: AsyncSession, snapshot: Snapshot, order: Disp
                     )
                     counts.inserted += 1
                 else:
-                    count(apply(stored, values, now))
+                    if finish.retired:
+                        del values["position"]
+                    upsert(stored, values)
 
     for type_row in types.values():
         if type_row.id not in seen_types and type_row.active:
-            apply(type_row, {"active": False}, now)
-            counts.deactivated += 1
+            upsert(type_row, {"active": False})
     for key, finish_row in finishes.items():
         if key not in seen_finishes and finish_row.active:
-            apply(finish_row, {"active": False}, now)
-            counts.deactivated += 1
+            upsert(finish_row, {"active": False})
     await session.flush()
     return counts
