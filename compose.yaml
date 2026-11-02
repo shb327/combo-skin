@@ -1,0 +1,48 @@
+# Local development stack. Production configuration lives in deploy/.
+# Needs api/.env: copy it from api/.env.example first.
+name: combo-skin
+
+x-api: &api
+  build: api
+  env_file:
+    - path: api/.env
+      required: true
+  environment:
+    # Containers reach the database on the Compose network, not the published port.
+    POSTGRES_HOST: db
+    POSTGRES_PORT: "5432"
+
+services:
+  db:
+    image: postgres:18@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+    env_file:
+      - path: api/.env
+        required: true
+    ports:
+      - "127.0.0.1:54320:5432"
+    volumes:
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  migrate:
+    <<: *api
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    <<: *api
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  db-data:
