@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engin
 from combo_api.db import get_session
 from combo_api.main import create_app
 from combo_api.settings import Settings, load_settings
-from tests.support import alembic_config, rolled_back_session, running
+from tests.support import ADMIN_ORIGIN, alembic_config, rolled_back_session, running
 
 
 @pytest.fixture
@@ -22,7 +22,16 @@ def anyio_backend() -> str:
 def test_settings() -> Settings:
     """Settings for a separate test database, created if missing and migrated to head."""
     settings = load_settings()
-    settings = settings.model_copy(update={"postgres_db": f"{settings.postgres_db}_test"})
+    settings = settings.model_copy(
+        update={
+            "postgres_db": f"{settings.postgres_db}_test",
+            "admin_origins": [ADMIN_ORIGIN],
+            "session_cookie_secure": True,
+            "session_idle_minutes": 60,
+            "session_max_hours": 12,
+            "trusted_proxies": [],
+        }
+    )
     admin = create_engine(settings.database_url("postgres"), isolation_level="AUTOCOMMIT")
     with admin.connect() as connection:
         exists = connection.scalar(

@@ -12,6 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from combo_api.settings import Settings
 
 API_DIR = Path(__file__).resolve().parents[1]
+# The admin dashboard origin allowed in test settings.
+ADMIN_ORIGIN = "https://admin.example.test"
 
 
 def alembic_config(settings: Settings) -> Config:
