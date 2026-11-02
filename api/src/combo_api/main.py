@@ -1,5 +1,6 @@
 """Application factory."""
 
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from importlib.metadata import version
@@ -25,6 +26,7 @@ def create_app(settings: Settings | None = None, env_file: str | None = ".env") 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.settings = settings or load_settings(env_file)
+        logging.getLogger("combo_api").setLevel(app.state.settings.log_level.upper())
         app.state.engine = create_engine(app.state.settings)
         app.state.sessionmaker = async_sessionmaker(app.state.engine, expire_on_commit=False)
         app.state.head_revision = head_revision()

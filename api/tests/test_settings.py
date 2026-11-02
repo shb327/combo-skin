@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 
 from combo_api.main import create_app
@@ -67,3 +69,11 @@ def test_env_example_lists_every_setting() -> None:
     lines = (API_DIR / ".env.example").read_text().splitlines()
     keys = {line.split("=", 1)[0] for line in lines if line and not line.startswith("#")}
     assert keys == {name.upper() for name in Settings.model_fields}
+
+
+@pytest.mark.anyio
+async def test_log_level_applies_to_app_logger(full_env: pytest.MonkeyPatch) -> None:
+    full_env.setenv("LOG_LEVEL", "warning")
+    app = create_app(env_file=None)
+    async with app.router.lifespan_context(app):
+        assert logging.getLogger("combo_api").level == logging.WARNING
