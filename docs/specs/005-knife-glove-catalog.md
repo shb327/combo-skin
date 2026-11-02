@@ -1,6 +1,6 @@
 # 005: Knife and glove catalog
 
-**Status:** Approved
+**Status:** Implemented
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api, website
@@ -355,7 +355,58 @@ None. The owner answered the questions of the first draft: the ByMykel dataset a
 
 ## Implementation notes
 
-Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+Source commit: `cbe5eec1854bf882bf1d79d8d5fd2aac7d80e5bc`, still the dataset's latest when implementation started, so the counts in criterion 2 apply unchanged.
+
+### Deviations
+
+**2026-11-02, criterion 21, search results (awaiting the owner's agreement).** Criterion 21 says search shows results "with images" for "Karambit Doppler". The search dropdown in `website/src/components/Search.tsx` has never shown images: it lists names only, on `main` as on this branch. Search now lists every Karambit Doppler phase from the catalog, and each result opens a page whose image loads. Proposed reading: the criterion checks that search finds the catalog's finishes; adding images to search would be new work for a later spec.
+
+Smaller changes, none affecting requirements:
+
+- `api/src/combo_api/catalog/snapshot.py` holds the snapshot and display order shapes, loading, writing and ordering. The Layout list in API / data model did not name a module for these.
+- The shared naming convention for unique constraints in `api/src/combo_api/db.py` now uses every column (`uq_<table>_<col>_<col>`) instead of the first only. Without it, the two composite unique constraints on `finishes` would get the same name. No existing constraint changed: the catalog tables are the first with unique constraints.
+- `website/tsconfig.app.json` sets `resolveJsonModule`, which TypeScript needs to type the import of `catalog.json`.
+- The `api` workflow's Compose smoke test also checks that `GET /knives` returns 20 types.
+
+### Criterion coverage
+
+Test ids are relative to `api/`.
+
+| Criterion | Covered by |
+| --- | --- |
+| 1 | `tests/catalog/test_snapshot.py::test_snapshot_records_its_source`, `::test_snapshot_is_written_canonically`; `refresh --commit cbe5eec…` on the branch, then `git diff --exit-code` on `snapshot.json`: no change |
+| 2 | `tests/catalog/test_snapshot.py::test_snapshot_counts` |
+| 3 | `tests/catalog/test_snapshot.py::test_karambit_vanilla`, `::test_karambit_doppler_phase_2`, `::test_talon_doppler_phase_1_has_its_own_paint_kit`, `::test_karambit_gamma_doppler_emerald`, `::test_specialist_mogul` |
+| 4 | `tests/catalog/test_snapshot.py::test_every_website_slug_is_kept` against `tests/catalog/fixtures/website_slugs.json` (648 pairs from `main`) |
+| 5 | `tests/catalog/test_validate.py` (duplicate definition index, duplicate finish slug, non-kebab-case slug, float range, Vanilla floats, missing and unknown phase, three bad image URLs, display order entries without a type or finish) |
+| 6 | `tests/catalog/test_source.py::test_vanilla_becomes_paint_index_zero_of_its_knife`, `::test_star_is_stripped_and_phases_are_kept`, `::test_existing_finish_keeps_its_slug_after_a_rename`, `::test_override_sets_a_new_finish_slug`, `::test_clashing_new_slugs_fail_naming_both`, `::test_refresh_needs_a_full_commit_and_no_network`, `::test_refresh_writes_nothing_when_validation_fails` |
+| 7 | `tests/test_migrations.py::test_upgrade_downgrade_upgrade`, `::test_models_match_migrations`, `::test_revision_history`, `::test_head_has_only_known_tables`; `uv run alembic check`: no new operations; `uv run alembic history`: `0001`, `0002` |
+| 8 | `tests/catalog/test_importer.py::test_import_into_empty_catalog` |
+| 9 | `tests/catalog/test_importer.py::test_second_import_changes_nothing` |
+| 10 | `tests/catalog/test_importer.py::test_newer_snapshot_updates_in_place_and_never_deletes` |
+| 11 | `tests/catalog/test_importer.py::test_stored_slug_never_changes`, `::test_inactive_slug_is_never_reused` |
+| 12 | `docker compose up -d --build --wait`: `migrate` and `catalog` exited 0 (`698 inserted`), `GET /knives` returned 20 types, Bayonet first and Kukri last; a second `docker compose run --rm catalog` reported `698 unchanged` |
+| 13 | `tests/catalog/test_routes.py::test_knife_types_in_display_order`, `::test_glove_types_in_display_order`, `::test_knife_type_with_finishes`, `::test_one_finish`, `::test_unknown_slugs_return_404` |
+| 14 | `tests/catalog/test_routes.py::test_inactive_finish_and_type` |
+| 15 | `tests/catalog/test_routes.py::test_every_type_lists_finishes_in_display_order`, `tests/catalog/test_export.py::test_export_keeps_website_slugs_and_order`, `::test_export_lists_unplaced_finishes`, `tests/catalog/test_snapshot.py::test_display_order_keeps_the_website_order`, `::test_new_glove_finishes_are_unlisted`, `tests/catalog/test_source.py::test_refresh_writes_a_valid_snapshot_and_lists_unplaced_finishes` |
+| 16 | `tests/catalog/test_routes.py::test_schema_lists_catalog_operations`; `tests/test_openapi.py::test_snapshot_is_up_to_date` |
+| 17 | `tests/catalog/test_export.py::test_export_is_up_to_date`, `::test_check_fails_on_stale_export`; `.github/workflows/api.yml` runs `export-website --check` |
+| 18 | The grep prints nothing; `GloveFinishes.tsx`, `KnifeFinishes.tsx`, `gloves.ts` and `knives.ts` use each finish's `image` |
+| 19 | Fresh clone with no `website/.env`: `npm ci`, `npm run lint`, `npm run build` exit 0; `dist` has no `/src/` paths |
+| 20 | `npm run preview`: `/gloves/specialist` 19 finishes, `/gloves/broken-fang` 4, `/knives/karambit` 35 (Vanilla, Autotronic, Black Laminate first), `/knives/kukri` 13; every finish image loaded (`naturalWidth` 512) with `referrerpolicy="no-referrer"` |
+| 21 | `npm run preview`: the four combos pages show "Specialist Gloves \| Mogul", "Broken Fang Gloves \| Yellow-banded", "Moto Gloves \| 3rd Commando Company" and "Karambit \| Doppler (Phase 2)", each with its image loaded and no referrer. Search for "Karambit Doppler" lists Black Pearl, Phase 1 to 4 and Ruby; see the deviation above about images |
+| 22 | `tests/catalog/test_export.py::test_export_is_small`; `gzip -c website/src/data/catalog.json \| wc -c` prints 48463 |
+| 23 | `THIRD_PARTY_NOTICES.md` holds the licence text from the dataset at the source commit and the Valve statement; both READMEs link to it |
+| 24 | `api/README.md` Catalog section, Getting started, Running and Endpoints; `website/README.md` Getting started, Configuration and Data; `website/.env.example`; `website/CS2_FINISHES.md` Catalog Totals |
+| 25 | `uv run ruff format --check .`, `uv run ruff check .`, `uv run mypy`, `uv run pytest` (89 passed, 0 skipped), the OpenAPI check: all exit 0; image 226,025,709 bytes |
+| 26 | Not yet checked: needs the branch pushed |
+| 27 | URLs added outside the generated files: the dataset repository and its raw file URL template, the Steam image host, the local API address in CI, and `example.com` placeholders in validation tests. `gitleaks dir .` on a clean clone and `gitleaks git` over the branch: no leaks |
+
+### Follow-ups
+
+- The website's main bundle is now 575 kB (162 kB gzipped), over Vite's 500 kB warning, because `catalog.json` is bundled. The build still exits 0. Loading the catalog with a dynamic `import()` would split it out.
+- When a finish leaves the game, `refresh` fails until its slug is removed from `display_order.json`, as R13 requires. `api/README.md` says so in the refresh steps.
+- The 22 glove finishes new to the site appear after the ordered ones, by paint index, until they are placed in `display_order.json`.
 
 ## Audit
 
