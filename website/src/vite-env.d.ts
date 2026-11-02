@@ -1,13 +1,5 @@
 /// <reference types="vite/client" />
 
-interface ImportMetaEnv {
-  readonly VITE_ASSET_BASE_URL: string
-}
-
-interface ImportMeta {
-  readonly env: ImportMetaEnv
-}
-
 declare module 'swiper/css' {}
 declare module 'swiper/css/bundle' {}
 declare module 'swiper/css/navigation' {}

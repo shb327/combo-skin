@@ -34,6 +34,7 @@ export function Combos() {
           alt={item.fullName}
           className="h-16 w-16 md:h-24 md:w-24 object-contain"
           draggable={false}
+          referrerPolicy="no-referrer"
         />
         <div className="flex-1 min-w-0">
           <h1 className="text-lg md:text-2xl font-semibold text-white truncate">{item.fullName}</h1>
