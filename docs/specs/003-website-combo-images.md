@@ -118,7 +118,7 @@ No deviations from the design.
 | 6 | `.github/workflows/website.yml` step "Check the build references no /src/ paths" after `npm run build`; `actionlint` exits 0; the diff against `main` only adds that step |
 | 7 | With `src/data/combos.ts` temporarily restored to string paths, `npm run build` then the step's command exits 1; change discarded |
 | 8 | `website/README.md` Data section shows the import and `image: mogul5`; `grep -c "/src/assets" website/README.md` prints 0; the Configuration section says repository images are bundled by the build |
-| 9 | Not yet checked: needs the branch pushed |
+| 9 | Workflow run 41489515514 on commit ae6ad98: `npm ci`, `npm run lint`, `npm run build` and the `/src/` check succeeded |
 | 10 | `gitleaks dir . --no-banner --redact` on a clean clone: no leaks |
 
 ### Follow-ups

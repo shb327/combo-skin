@@ -149,7 +149,7 @@ None.
 | 5 | The grep in criterion 5 prints nothing |
 | 6 | The workflow sets up Node 24 with the npm cache keyed on `website/package-lock.json`, runs `npm ci`, `npm run lint`, `npm run build` in `website/`, and sets `concurrency` with `cancel-in-progress` |
 | 7 | Fresh clone with no `website/.env`: `npm ci`, `npm run lint`, `npm run build` each exit 0 |
-| 8 | Not yet checked: needs the branch pushed |
+| 8 | Workflow run 41478083919 on commit 12798cf: job `build` succeeded (`npm ci`, `npm run lint`, `npm run build`) |
 | 9 | `grep -c 'This template provides' website/README.md` prints 0; sections: what the site does, screenshots, getting started, scripts, configuration, project structure, data |
 | 10 | Three screenshots in `website/docs/screenshots/` (189 KB, 294 KB, 448 KB), each embedded with alt text |
 | 11 | `head -5 README.md website/README.md` shows the `website` badge and link in both |
