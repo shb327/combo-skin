@@ -36,12 +36,21 @@ services:
       db:
         condition: service_healthy
 
+  # Loads the committed catalog snapshot. Safe to re-run: unchanged rows are left alone.
+  catalog:
+    <<: *api
+    command: ["python", "-m", "combo_api.catalog", "import"]
+    restart: "no"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
   api:
     <<: *api
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
-      migrate:
+      catalog:
         condition: service_completed_successfully
 
 volumes:

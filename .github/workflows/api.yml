@@ -52,6 +52,7 @@ jobs:
       - run: uv run ruff check .
       - run: uv run mypy
       - run: uv run python -m combo_api.openapi --check
+      - run: uv run python -m combo_api.catalog export-website --check
       - run: uv run pytest
 
   docker:
@@ -64,6 +65,7 @@ jobs:
       - run: cp api/.env.example api/.env
       - run: docker compose up -d --wait
       - run: curl -fsS http://localhost:8000/health/ready
+      - run: test "$(curl -fsS http://localhost:8000/knives | jq length)" -eq 20
       - if: failure()
         run: docker compose logs
       - if: always()
