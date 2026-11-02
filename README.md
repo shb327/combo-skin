@@ -1,12 +1,13 @@
 # combo-skin
 
+[![website](https://github.com/shb327/combo-skin/actions/workflows/website.yml/badge.svg)](https://github.com/shb327/combo-skin/actions/workflows/website.yml)
 [![api](https://github.com/shb327/combo-skin/actions/workflows/api.yml/badge.svg)](https://github.com/shb327/combo-skin/actions/workflows/api.yml)
 
 Monorepo for the Combo Skin project.
 
 | Path | Project | Stack |
 | --- | --- | --- |
-| [`website/`](website) | Frontend | Vite + React + TypeScript |
+| [`website/`](website) | Frontend ([README](website/README.md)) | Vite + React + TypeScript |
 | [`api/`](api) | Backend ([README](api/README.md)) | FastAPI + PostgreSQL |
 
 Planned: an admin dashboard in `admin/` and self-hosted deployment config in `deploy/`.
@@ -20,11 +21,4 @@ docker compose up -d --wait
 
 This starts PostgreSQL and the API. See [`api/README.md`](api/README.md) for tests, migrations and running on the host.
 
-## Running the website
-
-```bash
-cd website
-cp .env.example .env   # set VITE_ASSET_BASE_URL
-npm install
-npm run dev
-```
+See [`website/README.md`](website/README.md) to run the website.
