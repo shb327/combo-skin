@@ -1,6 +1,6 @@
 # 005: Knife and glove catalog
 
-**Status:** Implemented
+**Status:** Audited
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api, website
@@ -410,4 +410,58 @@ Test ids are relative to `api/`.
 
 ## Audit
 
-Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
+**Date:** 2026-11-02 · **Branch:** 005-knife-glove-catalog · **Commit:** 66227ef
+**Verdict:** Pass with follow-ups
+
+All checks ran on a fresh clone of the branch, with `api/.env` copied from `api/.env.example` and no `website/.env`. Test ids are relative to `api/`. Where a committed test is weaker than its criterion, the behaviour was also checked with throwaway tests run in the clone and not committed ("probe" below).
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | Snapshot records its source; refresh reproduces it | Pass | `tests/catalog/test_snapshot.py::test_snapshot_records_its_source`, `::test_snapshot_is_written_canonically`; `refresh --commit cbe5eec…` in the clone, then `git diff --exit-code` on `snapshot.json`: exit 0 |
+| 2 | 20 knife types with 576 finishes, 8 glove types with 94 | Pass | `tests/catalog/test_snapshot.py::test_snapshot_counts` checks every knife type's count |
+| 3 | Five named entries | Pass | `tests/catalog/test_snapshot.py::test_karambit_vanilla`, `::test_karambit_doppler_phase_2`, `::test_talon_doppler_phase_1_has_its_own_paint_kit`, `::test_karambit_gamma_doppler_emerald`, `::test_specialist_mogul` |
+| 4 | Every website slug kept | Pass | `tests/catalog/test_snapshot.py::test_every_website_slug_is_kept`; the fixture matches `gloves.ts` and `knives.ts` on `main` (648 pairs, compared by script) |
+| 5 | Validation failures named | Pass | `tests/catalog/test_validate.py`: every listed case raises `CatalogError` with the entry's label; see findings on test strength |
+| 6 | Normaliser rules; refresh needs a full SHA and no network | Pass | `tests/catalog/test_source.py`: Vanilla, `★`, rename keeps slug, override, clash names both, branch name and short SHA exit 1 with `urlopen` patched to fail, nothing written on failure |
+| 7 | Migration round trip; two revisions | Pass | `tests/test_migrations.py::test_upgrade_downgrade_upgrade`, `::test_models_match_migrations`, `::test_revision_history`; `uv run alembic check`: "No new upgrade operations detected"; `alembic history`: `0001`, `0002` |
+| 8 | Import into an empty catalog | Pass | `tests/catalog/test_importer.py::test_import_into_empty_catalog` (counts per kind); probe: every snapshot entry matches its row field by field |
+| 9 | Second import changes nothing | Pass | `tests/catalog/test_importer.py::test_second_import_changes_nothing` compares `id`, `slug`, `updated_at` of every row; Compose re-run reports `698 unchanged` |
+| 10 | Newer snapshot updates in place, never deletes | Pass | `tests/catalog/test_importer.py::test_newer_snapshot_updates_in_place_and_never_deletes`; probe: 671 finish rows and 28 type rows after the newer import |
+| 11 | Changed or reused slugs refused, nothing written | Pass | `tests/catalog/test_importer.py::test_stored_slug_never_changes`, `::test_inactive_slug_is_never_reused`; probe: the error also names the new finish (`507:9999`) |
+| 12 | Compose imports before the API starts | Pass | Clone: `docker compose up -d --wait` exit 0; `migrate` and `catalog` exited 0 (`698 inserted`); `GET /knives` returned 20 types, Bayonet first and Kukri last; `docker compose run --rm catalog`: `698 unchanged` |
+| 13 | Endpoints, order and 404s | Pass | `tests/catalog/test_routes.py::test_knife_types_in_display_order`, `::test_glove_types_in_display_order`, `::test_knife_type_with_finishes`, `::test_one_finish`, `::test_unknown_slugs_return_404` (six paths) |
+| 14 | Inactive finish and type | Pass | `tests/catalog/test_routes.py::test_inactive_finish_and_type`; probe: `GET /knives` reports Karambit's `finish_count` as 34 after Fade is deactivated |
+| 15 | Display order in API, export, refresh output | Pass | `tests/catalog/test_routes.py::test_every_type_lists_finishes_in_display_order`, `tests/catalog/test_export.py::test_export_keeps_website_slugs_and_order`, `::test_export_lists_unplaced_finishes`, `tests/catalog/test_snapshot.py::test_display_order_keeps_the_website_order`, `::test_new_glove_finishes_are_unlisted` (22), `tests/catalog/test_source.py::test_refresh_writes_a_valid_snapshot_and_lists_unplaced_finishes` |
+| 16 | Six operations in the OpenAPI snapshot | Pass | `tests/catalog/test_routes.py::test_schema_lists_catalog_operations`; `uv run python -m combo_api.openapi --check`: exit 0, also without `api/.env` |
+| 17 | Export check fails when stale; runs in CI | Pass | `tests/catalog/test_export.py::test_export_is_up_to_date`, `::test_check_fails_on_stale_export`; manual: one finish renamed in `snapshot.json`, `export-website --check` exit 1, restored, exit 0; `.github/workflows/api.yml` runs it |
+| 18 | No `VITE_ASSET_BASE_URL`, no image base URL | Pass | The grep prints nothing; `grep -rnE "import\.meta\.env\|BASE_URL" website/src` prints nothing |
+| 19 | Clean website install, lint, build | Pass | Clone, no `website/.env`: `npm ci`, `npm run lint`, `npm run build` exit 0; no `/src/` in `dist` |
+| 20 | Finish pages show loaded images with no referrer | Pass | `npm run preview` of the clone's build: `/gloves/specialist` 19, `/gloves/broken-fang` 4, `/knives/karambit` 35 (Vanilla, Autotronic, Black Laminate first), `/knives/kukri` 13; every finish image loaded (none failed), `referrerpolicy="no-referrer"`, `loading="lazy"` |
+| 21 | Combos pages and search | Pass | The four combos pages show the finish name with its image loaded (`naturalWidth` 512) and no referrer; search for "Karambit Doppler" lists Black Pearl, Phase 1 to 4 and Ruby, under the reading agreed in Implementation notes |
+| 22 | Export under 64 KiB gzipped | Pass | `gzip -c website/src/data/catalog.json \| wc -c`: 48463; `tests/catalog/test_export.py::test_export_is_small` |
+| 23 | Notices and links | Pass | `THIRD_PARTY_NOTICES.md` matches the dataset's `LICENSE` at the source commit and has the Valve statement; both READMEs link to it |
+| 24 | Documentation | Pass | `api/README.md` Catalog, Getting started, Running, Endpoints, Layout; `website/README.md` Getting started, Configuration, Data; `website/.env.example`; `website/CS2_FINISHES.md` Catalog Totals |
+| 25 | API checks; image under 250 MB | Pass | Clone: format check, lint, mypy, pytest (89 passed, 0 skipped), OpenAPI check all exit 0; `docker build -t combo-skin-api api` exit 0, 226,029,038 bytes |
+| 26 | CI succeeds on GitHub | Pass | Commit 66227ef: `api` and `website` runs succeeded (also on 39aa267, recorded in Implementation notes) |
+| 27 | Only allowed URLs; no secrets | Pass | URLs added outside generated files: the dataset repository and raw-file template, the Steam image host, the local API in CI, and `example.com` placeholders in validation tests; gitleaks clean (below) |
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Lint | `uv run ruff format --check .`, `uv run ruff check .`; `npm run lint` | Pass |
+| Type check | `uv run mypy` (strict) | Pass |
+| Tests | `uv run pytest` (89 passed, 0 skipped), locally and in CI | Pass |
+| Snapshot checks | `uv run python -m combo_api.openapi --check`, `uv run python -m combo_api.catalog export-website --check` | Pass |
+| Build | `npm ci && npm run build`; `docker build -t combo-skin-api api`; `docker compose up -d --wait` | Pass |
+| Secret scan | `gitleaks git --log-opts="main..005-knife-glove-catalog"`, `gitleaks dir .` on the clean clone | Pass |
+| Public exposure | Manual review of the diff and log: no hosts, addresses or local paths beyond those in criterion 27; local tool configuration is ignored and nothing private or `.env` is tracked; all 12 commits authored by the owner with one-line messages and no trailers | Pass |
+| Design conformance | Manual review and an independent read of the code against Design, API / data model and Security | Pass, with unrecorded minor differences (see findings) |
+
+**Findings**
+
+- (follow-up) Slug reservation lives only in the database. A finish that leaves the game drops out of the next snapshot, and its slug is then removed from `display_order.json`. After that nothing in the repository remembers it, so a later refresh can give the same slug to a different finish (probe: a new paint kit named like a retired one derives the retired slug). Refresh, validation, the export check and CI all pass. Only `import` against a database holding the old row refuses it. The website export would serve the retired URL for the new finish. Fix: keep retired entries in the snapshot (or a committed list of retired slugs) and check new slugs against it in `refresh`.
+- (follow-up) A new type that reuses an inactive type's codename under a new definition index passes the slug checks, then fails `import` with a database `IntegrityError` instead of a named `CatalogError`. It still writes nothing (probe). Validation should check codenames against stored rows too.
+- (follow-up) Unrecorded difference: the item image in the `website/src/pages/Combos.tsx` header has `referrerPolicy` but not `loading="lazy"`, which Design asks for on finish images. It sits above the fold, so eager loading is reasonable; record it or add the attribute.
+- (follow-up) Unrecorded difference: `api/src/combo_api/catalog/routes.py` declares the 404 response on the router, so `api/openapi.json` lists 404 for `GET /knives` and `GET /gloves`, which never return it. API / data model lists 404 only for the slug routes.
+- (follow-up) The spec does not say what the finish route returns when its type is inactive. The code returns the finish (200) while the type route returns 404. Decide and record it.
+- (follow-up) Tests are thinner than some criteria, though the probes confirm the behaviour. Criterion 8 checks counts per kind, not every row's fields. Criterion 10 checks only Karambit's rows. Criterion 11 does not assert that the offending finish is named. Criterion 14 does not check `finish_count` on `GET /knives` after a deactivation. Criterion 5's float case does not try `float_min == float_max`, and its duplicate-index message does not name the two types. Criterion 15's API test allows 7 or 8 trailing finishes instead of asserting 8, 7 and 7. Criterion 17's test makes the output stale rather than the snapshot.
+- (follow-up) Recorded in Implementation notes, still open: the website bundle is 575 kB (162 kB gzipped), over Vite's warning; refresh fails while `display_order.json` lists a finish that left the game; the 22 new glove finishes are not placed yet.
