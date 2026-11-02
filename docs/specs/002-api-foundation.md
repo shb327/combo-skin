@@ -1,6 +1,6 @@
 # 002: API foundation
 
-**Status:** Approved
+**Status:** Implemented
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api
@@ -38,7 +38,7 @@ Create the `api/` section: a FastAPI service with PostgreSQL, Alembic migrations
 - There is no `api/` directory, no Python code, and no Docker or Compose file anywhere in the repo.
 - There is no `.github/` directory. Spec 001 (Draft) defines the CI conventions this spec follows: one workflow per section in `.github/workflows/<section>.yml`, `push` and `pull_request` triggers with no filters, `permissions: contents: read`, actions pinned to full commit SHAs, no secrets, one concurrent run per ref, and a status badge in the root and section READMEs.
 - `README.md` (root) lists only `website/` in its project table and says a Python backend is planned in `api/`, an admin dashboard in `admin/` and deployment config in `deploy/`.
-- `.gitignore` (root) ignores editor files, `node_modules/` and local assistant configuration. It does not ignore `.env` files; `website/.gitignore` ignores `*.env` for the website only.
+- `.gitignore` (root) ignores editor files, `node_modules/` and local editor and tool configuration. It does not ignore `.env` files; `website/.gitignore` ignores `*.env` for the website only.
 - `docs/specs/README.md` and `docs/specs/_template.md` define the spec process.
 - Development machines may have an old system Python. The API must not depend on it: uv installs and pins the interpreter.
 - Docker with Compose v2 (`docker compose`, including `--wait`) is available locally.
@@ -247,7 +247,48 @@ None.
 
 ## Implementation notes
 
-**2026-11-02, published database port (agreed with the owner).** The Design table publishes PostgreSQL on host port 5432. On a development machine that already runs PostgreSQL (a system install, or another project's container), 5432 is taken and `docker compose up` fails with "port is already allocated". Proposed instead: publish the Compose database on host port 54320, set `POSTGRES_PORT` in `api/.env.example` to that port for host-run tools and tests, and have Compose set `POSTGRES_PORT=5432` for the containers that reach the database inside the Compose network.
+### Deviations
+
+**2026-11-02, published database port (agreed with the owner).** The Design table published PostgreSQL on host port 5432. On a development machine that already runs PostgreSQL (a system install, or another project's container), 5432 is taken and `docker compose up` fails with "port is already allocated". Instead, the Compose database is published on host port 54320, `api/.env.example` sets `POSTGRES_PORT=54320` for host-run tools and tests, and Compose sets `POSTGRES_PORT=5432` for the containers that reach the database inside the Compose network. The Design table was updated to match.
+
+### Criterion coverage
+
+Test ids are relative to `api/`.
+
+| Criterion | Covered by |
+| --- | --- |
+| 1 | Fresh clone: `uv sync --locked` exits 0, `uv run python --version` prints `Python 3.14.3` (system Python is 3.9) |
+| 2 | `uv run ruff format --check .`, `uv run ruff check .` |
+| 3 | `uv run mypy`; `[tool.mypy] strict = true`, `files = ["src", "tests"]` in `pyproject.toml` |
+| 4 | `uv run pytest` with the Compose database up: 28 passed, 0 skipped |
+| 5 | `docker compose stop db && uv run pytest`: 12 errors, 0 skipped, exit non-zero |
+| 6 | `tests/test_settings.py::test_missing_required_setting_names_it`, `::test_invalid_setting_names_it_without_values`, `::test_password_not_in_repr`, `::test_startup_fails_without_settings` |
+| 7 | `tests/test_settings.py::test_env_example_lists_every_setting` |
+| 8 | `tests/test_health.py::test_live`, `::test_live_without_database` |
+| 9 | `tests/test_health.py::test_ready`, `::test_ready_with_pending_migrations`, `::test_ready_without_database` |
+| 10 | `tests/test_migrations.py::test_upgrade_downgrade_upgrade`, `::test_models_match_migrations`; `uv run alembic check` prints "No new upgrade operations detected" |
+| 11 | `tests/test_migrations.py::test_single_baseline_revision`; `uv run alembic history` prints one revision, `<base> -> 0001 (head)` |
+| 12 | `tests/test_openapi.py::test_schema_is_served`, `::test_docs_are_served`, `::test_docs_can_be_turned_off` |
+| 13 | `tests/test_openapi.py::test_operation_ids_are_unique_function_names` |
+| 14 | `tests/test_openapi.py::test_snapshot_is_up_to_date`, `::test_check_fails_on_stale_snapshot`, `::test_check_needs_no_settings_or_database`; manual on a fresh clone without `api/.env`: `--check` exits 0, exits 1 after adding a route to the health router, exits 0 after regenerating |
+| 15 | `docker build -t combo-skin-api api` exits 0; `id -u` prints `10001`; size 225,516,971 bytes; `.env` and uv absent |
+| 16 | `grep -nE '^FROM\|image:' api/Dockerfile compose.yaml .github/workflows/api.yml \| grep -v '@sha256:'` prints nothing |
+| 17 | Fresh clone: `cp api/.env.example api/.env && docker compose up -d --wait` exits 0, `migrate` exited 0, `/health/ready` returns 200 with all checks `ok`; `docker compose down -v` removes the stack |
+| 18 | Without `api/.env`, `docker compose up` fails with "env file … api/.env not found" |
+| 19 | `docker compose config`: both published ports have `host_ip: 127.0.0.1` |
+| 20 | `actionlint` 1.7.12 (official image, pinned by digest) exits 0 on `.github/workflows/api.yml`; the SHA, `secrets.` and `pull_request_target` greps print nothing |
+| 21 | `.github/workflows/api.yml`: job `check` (sync, format, lint, mypy, snapshot check, pytest against a PostgreSQL 18 service), job `docker` (build, Compose smoke test), `concurrency` with `cancel-in-progress` |
+| 22 | Not yet checked: needs the branch pushed |
+| 23 | `api/README.md` sections; its getting-started steps followed literally on a fresh clone (criterion 17), and the host-run steps serve `/health/ready` with 200 |
+| 24 | `head -5 README.md api/README.md` shows the `api` badge in both; the root project table lists `api/` and links `api/README.md` |
+| 25 | URL grep: only the repo's GitHub URLs, uv and Docker docs, the local API address, and `http://test` (the in-process test client's base URL, not a host); `gitleaks dir .` on a clean clone and `gitleaks git` over the branch report no leaks |
+
+### Follow-ups
+
+- The Docker image and CI pin uv 0.11.2, the version that wrote `uv.lock`. Newer uv releases exist; bump the local uv, the Dockerfile's uv image and the workflow's `version` together.
+- The image is 226 MB, close to the 250 MB limit. A non-editable install would drop the separate source copy if later dependencies push it over.
+- `LOG_LEVEL` sets the level of the `combo_api` loggers. Uvicorn's own access and error logs keep their default level.
+- `actionlint` is not installed locally; it was run from its official Docker image.
 
 ## Audit
 
