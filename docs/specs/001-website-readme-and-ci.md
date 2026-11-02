@@ -1,6 +1,6 @@
 # 001: Website README and CI
 
-**Status:** Approved
+**Status:** Implemented
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** website
@@ -137,6 +137,33 @@ None.
 ### Deviations
 
 **2026-11-02, screenshot pages (agreed with the owner).** The Design table picks home, glove finishes for one glove type, and combos for one glove finish. Finish images load from `VITE_ASSET_BASE_URL`, and the configured asset host does not currently resolve, so the glove-finishes page shows only alt text and the combos page header shows a broken thumbnail. Home, the glove and knife search pages, and the combo cards use images stored in the repository and render fully. Instead: home, search by gloves, and the combos page for one glove finish cropped to its combo cards, all captured at 1440 px wide. The Design table was updated to match.
+
+### Criterion coverage
+
+| Criterion | Covered by |
+| --- | --- |
+| 1 | `actionlint .github/workflows/website.yml` (actionlint 1.7.12, official image pinned by digest) exits 0 |
+| 2 | `on: push, pull_request` with no filters; `grep -n pull_request_target .github/workflows/website.yml` prints nothing |
+| 3 | Top-level `permissions: contents: read` and nothing else |
+| 4 | The grep in criterion 4 prints nothing (checkout v7.0.1 and setup-node v7.1.0, pinned to SHAs) |
+| 5 | The grep in criterion 5 prints nothing |
+| 6 | The workflow sets up Node 24 with the npm cache keyed on `website/package-lock.json`, runs `npm ci`, `npm run lint`, `npm run build` in `website/`, and sets `concurrency` with `cancel-in-progress` |
+| 7 | Fresh clone with no `website/.env`: `npm ci`, `npm run lint`, `npm run build` each exit 0 |
+| 8 | Not yet checked: needs the branch pushed |
+| 9 | `grep -c 'This template provides' website/README.md` prints 0; sections: what the site does, screenshots, getting started, scripts, configuration, project structure, data |
+| 10 | Three screenshots in `website/docs/screenshots/` (189 KB, 294 KB, 448 KB), each embedded with alt text |
+| 11 | `head -5 README.md website/README.md` shows the `website` badge and link in both |
+| 12 | `website/README.md` documents `VITE_ASSET_BASE_URL` with the `.env.example` placeholder and says finish images do not load without a real value |
+| 13 | Fresh clone, getting-started steps followed literally: the dev server starts and the home page renders |
+| 14 | The root README links `website/README.md` and has no setup commands (`grep -c 'npm run dev\|npm install' README.md` prints 0) |
+| 15 | The URL grep lists only the repo's GitHub URLs, Node.js, npm and Vite docs, and the `example.com` placeholder; `gitleaks dir .` on a clean clone and `gitleaks git` over the branch report no leaks |
+
+### Follow-ups
+
+- The asset host behind `VITE_ASSET_BASE_URL` does not resolve, so finish images fail everywhere the site uses them, including any deployed copy. Restore the host or move the images (spec 003 plans a catalog that 3D viewers and images can build on).
+- Combo screenshots are referenced as `/src/assets/combos/...` strings in `src/data/combos.ts`. The dev server serves them, but `npm run build` does not include them, so a production build shows no combo images. Importing them, or moving them to `public/`, fixes it. This spec does not change application code.
+- `combos.png` was over 500 KB as captured. All three PNGs were re-encoded losslessly with stronger compression; pixels are unchanged.
+- Spec 002's branch also edits the root `README.md`. Whichever pull request merges second needs both badges and both project rows.
 
 ## Audit
 
