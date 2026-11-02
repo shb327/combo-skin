@@ -1,6 +1,6 @@
 # 001: Website README and CI
 
-**Status:** Implemented
+**Status:** Audited
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** website
@@ -167,4 +167,41 @@ None.
 
 ## Audit
 
-Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
+**Date:** 2026-11-02 · **Branch:** 001-website-readme-and-ci · **Commit:** 12798cf
+**Verdict:** Pass with follow-ups
+
+All local checks ran on a fresh clone of the branch with no `website/.env`.
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | Workflow exists and passes actionlint | Pass | `actionlint .github/workflows/website.yml` (1.7.12) exit 0 |
+| 2 | `push` and `pull_request`, no filters, no `pull_request_target` | Pass | `.github/workflows/website.yml` `on:` block; the `pull_request_target` grep prints nothing |
+| 3 | `permissions: contents: read` only | Pass | Top-level `permissions` block in the workflow |
+| 4 | Every action pinned to a commit SHA | Pass | The grep in criterion 4 prints nothing (checkout v7.0.1, setup-node v7.1.0) |
+| 5 | No secrets | Pass | `grep -n 'secrets\.' .github/workflows/website.yml` prints nothing |
+| 6 | Node 24, `npm ci`, lint, build in `website/`, cancels superseded runs | Pass | Workflow steps, `defaults.run.working-directory: website`, `concurrency` with `cancel-in-progress` |
+| 7 | Clean clone without `.env`: install, lint and build pass | Pass | `npm ci`, `npm run lint`, `npm run build` each exit 0 |
+| 8 | `website` workflow succeeds on GitHub | Pass | Run 41478083919 on commit 12798cf: job `build` succeeded, with `npm ci`, `npm run lint` and `npm run build` all successful |
+| 9 | No template text; required sections | Pass | `grep -c 'This template provides' website/README.md` prints 0; headings cover what the site does, screenshots, getting started, scripts, configuration, project structure, data |
+| 10 | At least three screenshots, present, with alt text, under 500 KB | Pass | Three embeds by relative path; files exist in `website/docs/screenshots/` at 188,981, 293,978 and 448,380 bytes, all 1440 px wide; each has alt text |
+| 11 | Badge in the first five lines of both READMEs | Pass | `head -5 README.md website/README.md`: badge image and link to the workflow in both |
+| 12 | `VITE_ASSET_BASE_URL` documented with the placeholder; images need a real value | Pass | `website/README.md` Configuration section uses the same placeholder as `website/.env.example` and says finish images do not load without a real value |
+| 13 | Getting-started steps start the dev server; home renders | Pass | Fresh clone, steps followed literally; the dev server started and the rendered home page contains its search-by-gloves and search-by-knives cards |
+| 14 | Root README links the website README, no setup commands | Pass | `README.md` lines 9 and 13 link `website/README.md`; no `npm` commands remain |
+| 15 | Only allowed URLs; no secrets | Pass | URL grep: the repo's GitHub URLs, Node.js, npm and Vite docs, and the `example.com` placeholder; gitleaks: no findings |
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Lint | `npm run lint` (clean `npm ci`), locally and in CI | Pass |
+| Tests | None: the website has no test runner, by design of this spec | Not applicable |
+| Build | `npm run build`, locally and in CI | Pass |
+| Secret scan | `gitleaks git --log-opts="origin/main..001-website-readme-and-ci"`, `gitleaks dir .` on a clean clone | Pass |
+| Public exposure | Manual review of the diff and log: no secrets, hosts, addresses or local paths; screenshots show only the site's pages; local tool configuration is ignored and nothing private or `.env` is tracked; all 7 commits are authored by the owner with one-line messages and no trailers | Pass |
+| Design conformance | Manual review against Design; the diff touches only the workflow, READMEs, screenshots and this spec, with no application code | Pass, one recorded deviation |
+
+**Findings**
+
+- (follow-up) Recorded deviation: the screenshots show home, search by gloves and a cropped combos page instead of glove finishes, because the asset host does not resolve. Swap in a glove-finishes screenshot once finish images load again.
+- (follow-up) `website/README.md` says combo screenshots "always load". That is true on the dev server only: combo images are referenced as `/src/assets/...` strings and are missing from `npm run build` output (recorded under Follow-ups in Implementation notes). Correct the README when that bug is fixed, or sooner.
+- (follow-up) The Implementation notes still list criterion 8 as not yet checked; this audit verified it.
+- (follow-up) Recorded in Implementation notes, still open: the asset host is offline; combo images are missing from production builds; the root `README.md` will conflict with spec 002's branch at merge time.
