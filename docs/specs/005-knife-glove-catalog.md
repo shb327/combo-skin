@@ -359,7 +359,7 @@ Source commit: `cbe5eec1854bf882bf1d79d8d5fd2aac7d80e5bc`, still the dataset's l
 
 ### Deviations
 
-**2026-11-02, criterion 21, search results (awaiting the owner's agreement).** Criterion 21 says search shows results "with images" for "Karambit Doppler". The search dropdown in `website/src/components/Search.tsx` has never shown images: it lists names only, on `main` as on this branch. Search now lists every Karambit Doppler phase from the catalog, and each result opens a page whose image loads. Proposed reading: the criterion checks that search finds the catalog's finishes; adding images to search would be new work for a later spec.
+**2026-11-02, criterion 21, search results (agreed with the owner).** Criterion 21 says search shows results "with images" for "Karambit Doppler". The search dropdown in `website/src/components/Search.tsx` has never shown images: it lists names only, on `main` as on this branch. Search now lists every Karambit Doppler phase from the catalog, and each result opens a page whose image loads. Agreed reading: the criterion checks that search finds the catalog's finishes. Adding images to search is new work for a later spec.
 
 Smaller changes, none affecting requirements:
 
@@ -394,7 +394,7 @@ Test ids are relative to `api/`.
 | 18 | The grep prints nothing; `GloveFinishes.tsx`, `KnifeFinishes.tsx`, `gloves.ts` and `knives.ts` use each finish's `image` |
 | 19 | Fresh clone with no `website/.env`: `npm ci`, `npm run lint`, `npm run build` exit 0; `dist` has no `/src/` paths |
 | 20 | `npm run preview`: `/gloves/specialist` 19 finishes, `/gloves/broken-fang` 4, `/knives/karambit` 35 (Vanilla, Autotronic, Black Laminate first), `/knives/kukri` 13; every finish image loaded (`naturalWidth` 512) with `referrerpolicy="no-referrer"` |
-| 21 | `npm run preview`: the four combos pages show "Specialist Gloves \| Mogul", "Broken Fang Gloves \| Yellow-banded", "Moto Gloves \| 3rd Commando Company" and "Karambit \| Doppler (Phase 2)", each with its image loaded and no referrer. Search for "Karambit Doppler" lists Black Pearl, Phase 1 to 4 and Ruby; see the deviation above about images |
+| 21 | `npm run preview`: the four combos pages show "Specialist Gloves \| Mogul", "Broken Fang Gloves \| Yellow-banded", "Moto Gloves \| 3rd Commando Company" and "Karambit \| Doppler (Phase 2)", each with its image loaded and no referrer. Search for "Karambit Doppler" lists Black Pearl, Phase 1 to 4 and Ruby, as agreed in the deviation above |
 | 22 | `tests/catalog/test_export.py::test_export_is_small`; `gzip -c website/src/data/catalog.json \| wc -c` prints 48463 |
 | 23 | `THIRD_PARTY_NOTICES.md` holds the licence text from the dataset at the source commit and the Valve statement; both READMEs link to it |
 | 24 | `api/README.md` Catalog section, Getting started, Running and Endpoints; `website/README.md` Getting started, Configuration and Data; `website/.env.example`; `website/CS2_FINISHES.md` Catalog Totals |
