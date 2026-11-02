@@ -1,6 +1,6 @@
 # 003: Bundle combo images in production builds
 
-**Status:** Implemented
+**Status:** Audited
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** website
@@ -128,4 +128,35 @@ No deviations from the design.
 
 ## Audit
 
-Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
+**Date:** 2026-11-02 · **Branch:** 003-website-combo-images · **Commit:** ae6ad98
+**Verdict:** Pass with follow-ups
+
+All local checks ran on a fresh clone of the branch with no `website/.env`.
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | No `/src/` string paths in `website/src` | Pass | `grep -rnE "['\"]/src/" website/src`: 0 matches; `src/data/combos.ts` imports the four images |
+| 2 | Clean clone: install, lint, build | Pass | `npm ci`, `npm run lint`, `npm run build` each exit 0 |
+| 3 | Four JPEGs bundled; no `/src/` in `dist` | Pass | `find dist/assets -name '*.jpeg'`: 4; `grep -rlF '/src/' dist` exits 1 (no match) |
+| 4 | Images load from the production build | Pass | `npm run preview`, Specialist Gloves \| Mogul combos page: four hashed JPEGs, each `naturalWidth` 1280 |
+| 5 | Images load on the dev server | Pass | `npm run dev`, same page: the four images, each `naturalWidth` 1280 |
+| 6 | CI step after build; actionlint; nothing else changed | Pass | `.github/workflows/website.yml` step "Check the build references no /src/ paths" follows `npm run build`; actionlint exits 0; the diff against `main` adds only that step |
+| 7 | The step fails on the old string paths | Pass | With `src/data/combos.ts` restored to its pre-fix version and rebuilt, the step's script, taken from the workflow, exits 1; on the fixed build it exits 0 |
+| 8 | README shows imports; no `/src/assets`; accurate claim | Pass | `website/README.md` Data section imports `mogul5` and uses `image: mogul5`; `grep -c "/src/assets"` prints 0; Configuration says repository images are bundled by the build |
+| 9 | `website` workflow succeeds on GitHub | Pass | Run 41489515514 on ae6ad98: `npm ci`, `npm run lint`, `npm run build` and the new check all succeeded (the `api` workflow also passed) |
+| 10 | No secrets | Pass | `gitleaks dir .` on a clean clone and `gitleaks git` over the branch: no leaks |
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Lint | `npm run lint` (clean `npm ci`), locally and in CI | Pass |
+| Tests | None: the website has no test runner, by design of this spec | Not applicable |
+| Build | `npm run build`, locally and in CI | Pass |
+| Secret scan | `gitleaks git --log-opts="main..003-website-combo-images"`, `gitleaks dir .` | Pass |
+| Public exposure | Manual review of the diff and log: no hosts, addresses, URLs or local paths added; local tool configuration is ignored and nothing private or `.env` is tracked; all 6 commits are authored by the owner with one-line messages and no trailers | Pass |
+| Design conformance | Manual review against Design: images imported, `Combo.image` still a string, files not moved, one shell `grep` step and no new dependency | Pass |
+
+**Findings**
+
+- (follow-up) The guard matches any `/src/` text in `dist/`, not only asset paths. A future dependency that ships that string in its bundled code would fail the build check; narrow the pattern then if it happens.
+- (follow-up) The Implementation notes still list criterion 9 as not yet checked; this audit verified it.
+- (follow-up) Recorded in Implementation notes, still open: the offline asset host, and the dev tunnel hostname in `website/vite.config.ts`.
