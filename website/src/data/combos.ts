@@ -1,3 +1,8 @@
+import mogul1 from '@/assets/combos/mogul/1.jpeg'
+import mogul2 from '@/assets/combos/mogul/2.jpeg'
+import mogul3 from '@/assets/combos/mogul/3.jpeg'
+import mogul4 from '@/assets/combos/mogul/4.jpeg'
+
 export interface Combo {
   id: string
   image: string
@@ -25,7 +30,7 @@ export const gloveCombos: GloveCombos[] = [
     combos: [
       {
         id: 'mogul-1',
-        image: '/src/assets/combos/mogul/1.jpeg',
+        image: mogul1,
         knifeId: '',
         knifeName: 'M9 Bayonet | Urban Masked',
         rating: 8.88,
@@ -37,7 +42,7 @@ export const gloveCombos: GloveCombos[] = [
       },
       {
         id: 'mogul-2',
-        image: '/src/assets/combos/mogul/2.jpeg',
+        image: mogul2,
         knifeId: '',
         knifeName: 'Karambit | Gamma Daggers (Phase 1)',
         rating: 8.82,
@@ -46,7 +51,7 @@ export const gloveCombos: GloveCombos[] = [
       },
       {
         id: 'mogul-3',
-        image: '/src/assets/combos/mogul/3.jpeg',
+        image: mogul3,
         knifeId: '',
         knifeName: 'Shadow Daggers | Doppler (Phase 4)',
         rating: 7.6,
@@ -56,7 +61,7 @@ export const gloveCombos: GloveCombos[] = [
       },
       {
         id: 'mogul-4',
-        image: '/src/assets/combos/mogul/4.jpeg',
+        image: mogul4,
         knifeId: '',
         knifeName: 'Karambit | Case Hardened',
         rating: 7.54,
