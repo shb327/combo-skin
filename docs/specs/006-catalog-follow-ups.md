@@ -1,6 +1,6 @@
 # 006: Catalog follow-ups
 
-**Status:** Approved
+**Status:** Implemented
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api, website
@@ -165,7 +165,50 @@ None. The owner chose to keep retired entries in the snapshot and to return a re
 
 ## Implementation notes
 
-Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+The branch was rebased onto `main` after spec 005 was merged (pull request 6). The committed snapshot was converted once by adding `"retired": false` to every entry; `refresh` at the spec 005 source commit then produced the same file.
+
+### Deviations
+
+None that change a requirement. Smaller additions:
+
+- `export-website` takes the same hidden `--snapshot` option as `refresh`, so criterion 16's test can check a changed copy of the snapshot against the committed export.
+- Validation also rejects a retired type that still has a finish in the game, which R2 implies.
+- `normalise` checks type slugs per kind itself (naming both types), as it already did for finish slugs, so a clash with a retired type is caught before validation.
+
+### Criterion coverage
+
+Test ids are relative to `api/`.
+
+| Criterion | Covered by |
+| --- | --- |
+| 1 | `tests/catalog/test_snapshot.py::test_every_entry_has_a_retired_flag`, `::test_snapshot_is_written_canonically`; fresh clone: `refresh --commit cbe5eec…`, then `git diff --exit-code` on `snapshot.json`: exit 0 |
+| 2 | `tests/catalog/test_source.py::test_missing_finish_is_kept_retired`, `::test_missing_type_is_kept_retired_with_all_finishes`, `::test_returning_entries_are_no_longer_retired` |
+| 3 | `tests/catalog/test_source.py::test_new_finish_cannot_take_a_retired_slug`, `::test_new_type_cannot_take_a_retired_type_slug` |
+| 4 | `tests/catalog/test_source.py::test_refresh_reports_retired_and_returning_entries` |
+| 5 | `tests/catalog/test_validate.py::test_display_order_may_list_retired_finishes`, `tests/catalog/test_source.py::test_display_order_may_list_retired_finishes` |
+| 6 | `tests/catalog/test_snapshot.py::test_retired_entries_are_left_out_of_order_and_export`, `::test_retired_type_needs_retired_finishes` |
+| 7 | `tests/catalog/test_importer.py::test_retired_entries_without_rows_are_inserted_inactive`, `::test_retiring_and_returning_keep_ids` |
+| 8 | `tests/catalog/test_importer.py::test_reused_codename_is_refused` |
+| 9 | `tests/catalog/test_importer.py::test_every_entry_matches_its_row` |
+| 10 | `tests/catalog/test_importer.py::test_newer_snapshot_updates_in_place_and_never_deletes` (row counts of both tables) |
+| 11 | `tests/catalog/test_importer.py::test_inactive_slug_is_never_reused` |
+| 12 | `tests/catalog/test_routes.py::test_list_finish_count_after_deactivation`, `::test_finish_of_retired_type`, `::test_one_finish` |
+| 13 | `tests/catalog/test_routes.py::test_schema_lists_404_only_on_slug_routes`; `uv run python -m combo_api.openapi --check`: exit 0 |
+| 14 | `tests/catalog/test_validate.py::test_equal_float_bounds`, `::test_duplicate_definition_index_names_both_types`, `::test_duplicate_finish_slug_names_its_type` |
+| 15 | `tests/catalog/test_routes.py::test_every_type_lists_finishes_in_display_order`, `tests/catalog/test_export.py::test_export_places_new_finishes_last` |
+| 16 | `tests/catalog/test_export.py::test_check_fails_when_the_snapshot_changes` |
+| 17 | Fresh clone: `npm run build` exit 0, no "larger than 500 kB" line; `catalog-*.js` 214.64 kB and `index-*.js` 360.63 kB in `dist/assets/` |
+| 18 | `npm run preview`: `/knives/karambit` 35 finishes, all images loaded, both chunks requested; `/gloves/specialist/mogul/combos` finish image loaded (`naturalWidth` 512) |
+| 19 | `api/README.md` Catalog section: refresh step 2, "Retired entries", import paragraph, Endpoints table |
+| 20 | Fresh clone: format check, lint, mypy, pytest (112 passed, 0 skipped), OpenAPI check, `export-website --check`, `npm ci`, `npm run lint`, `npm run build`: all exit 0 |
+| 21 | Not yet checked: needs the branch pushed |
+| 22 | `gitleaks dir .` on a clean clone and `gitleaks git` over the branch: no leaks |
+
+Also checked: with the Compose database holding spec 005's rows, `docker compose up -d --build --wait` imports the converted snapshot as `698 unchanged`, and the single-finish endpoint serves `item_type.active`.
+
+### Follow-ups
+
+- The 22 glove finishes new to the site in spec 005 are still unplaced in `display_order.json` (owner's edit).
 
 ## Audit
 
