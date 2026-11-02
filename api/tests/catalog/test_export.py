@@ -68,3 +68,14 @@ def test_check_fails_when_the_snapshot_changes(tmp_path: Path) -> None:
     changed.write_text(json.dumps(data))
     assert main(["export-website", "--check", "--snapshot", str(changed)]) == 1
     assert main(["export-website", "--check", "--snapshot", str(SNAPSHOT_PATH)]) == 0
+
+
+def test_export_places_new_finishes_last() -> None:
+    data = json.loads(export.render(SNAPSHOT, ORDER))
+    unplaced = {"driver": 8, "specialist": 7, "sport": 7}
+    for group, kind in export.GROUPS.items():
+        expected = [w for w in website_slugs() if w["kind"] == kind]
+        for item_type, website_type in zip(data[group], expected, strict=True):
+            rest = [f["id"] for f in item_type["finishes"]][len(website_type["finishes"]) :]
+            assert len(rest) == unplaced.get(item_type["id"], 0), item_type["id"]
+            assert not set(rest) & set(website_type["finishes"])

@@ -227,6 +227,10 @@
       },
       "ItemTypeRef": {
         "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
           "def_index": {
             "title": "Def Index",
             "type": "integer"
@@ -247,7 +251,8 @@
           "slug",
           "name",
           "def_index",
-          "kind"
+          "kind",
+          "active"
         ],
         "title": "ItemTypeRef",
         "type": "object"
@@ -457,9 +462,6 @@
               }
             },
             "description": "Successful Response"
-          },
-          "404": {
-            "description": "Not found"
           }
         },
         "summary": "List Glove Types",
@@ -516,7 +518,7 @@
     },
     "/gloves/{type_slug}/{finish_slug}": {
       "get": {
-        "description": "One glove finish, including one no longer in the game (`active: false`).",
+        "description": "One glove finish, including one no longer in the game (`active: false`) or whose type\nis not (`item_type.active: false`).",
         "operationId": "get_glove_finish",
         "parameters": [
           {
@@ -641,9 +643,6 @@
               }
             },
             "description": "Successful Response"
-          },
-          "404": {
-            "description": "Not found"
           }
         },
         "summary": "List Knife Types",
@@ -700,7 +699,7 @@
     },
     "/knives/{type_slug}/{finish_slug}": {
       "get": {
-        "description": "One knife finish, including one no longer in the game (`active: false`).",
+        "description": "One knife finish, including one no longer in the game (`active: false`) or whose type\nis not (`item_type.active: false`).",
         "operationId": "get_knife_finish",
         "parameters": [
           {

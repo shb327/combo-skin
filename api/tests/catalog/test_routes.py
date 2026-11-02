@@ -8,11 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from combo_api.catalog.importer import import_snapshot
 from combo_api.catalog.snapshot import Snapshot, load_display_order, load_snapshot
 from tests.catalog.support import website_slugs
+from tests.catalog.test_snapshot import with_retired
 from tests.support import API_DIR
 
 pytestmark = pytest.mark.anyio
 
 SNAPSHOT = load_snapshot()
+# Glove finishes new to the site in spec 005, not placed in display_order.json yet.
+UNPLACED = {"driver": 8, "specialist": 7, "sport": 7}
 ORDER = load_display_order()
 
 
@@ -75,7 +78,13 @@ async def test_one_finish(client: AsyncClient) -> None:
         "float_min": 0.0,
         "float_max": 0.08,
         "active": True,
-        "item_type": {"slug": "karambit", "name": "Karambit", "def_index": 507, "kind": "knife"},
+        "item_type": {
+            "slug": "karambit",
+            "name": "Karambit",
+            "def_index": 507,
+            "kind": "knife",
+            "active": True,
+        },
     }
     mogul = await get(client, "/gloves/specialist/mogul")
     assert (mogul["paint_index"], mogul["item_type"]["kind"]) == (10064, "glove")
@@ -108,8 +117,7 @@ async def test_every_type_lists_finishes_in_display_order(client: AsyncClient) -
         assert [f["slug"] for f in finishes[: len(listed)]] == listed
         rest = [f["paint_index"] for f in finishes[len(listed) :]]
         assert rest == sorted(rest)
-        if website_type["slug"] in {"driver", "specialist", "sport"}:
-            assert len(rest) in {7, 8}
+        assert len(rest) == UNPLACED.get(website_type["slug"], 0), website_type["slug"]
 
 
 def without(snapshot: Snapshot, type_slug: str, finish_slug: str | None = None) -> Snapshot:
@@ -161,3 +169,40 @@ def test_schema_lists_catalog_operations() -> None:
         ("/gloves/{type_slug}", "get_glove_type"),
         ("/gloves/{type_slug}/{finish_slug}", "get_glove_finish"),
     }
+
+
+async def test_list_finish_count_after_deactivation(
+    client: AsyncClient, catalog: AsyncSession
+) -> None:
+    newer = without(SNAPSHOT, "karambit", "fade")
+    finishes = {
+        **ORDER.finishes,
+        "knife/karambit": tuple(s for s in ORDER.finishes["knife/karambit"] if s != "fade"),
+    }
+    await import_snapshot(catalog, newer, ORDER.model_copy(update={"finishes": finishes}))
+    karambit = next(k for k in await get(client, "/knives") if k["slug"] == "karambit")
+    assert karambit["finish_count"] == 34
+
+
+async def test_finish_of_retired_type(client: AsyncClient, catalog: AsyncSession) -> None:
+    await import_snapshot(catalog, with_retired(SNAPSHOT), ORDER)
+    finish = await get(client, "/knives/talon/doppler-phase-1")
+    assert finish["active"] is False
+    assert finish["item_type"]["active"] is False
+    assert (await client.get("/knives/talon")).status_code == 404
+    fade = await get(client, "/knives/karambit/fade")
+    assert (fade["active"], fade["item_type"]["active"]) == (False, True)
+
+
+def test_schema_lists_404_only_on_slug_routes() -> None:
+    schema = json.loads((API_DIR / "openapi.json").read_text())
+    paths = schema["paths"]
+    for path in ("/knives", "/gloves"):
+        assert set(paths[path]["get"]["responses"]) == {"200"}
+    for path in (
+        "/knives/{type_slug}",
+        "/gloves/{type_slug}",
+        "/knives/{type_slug}/{finish_slug}",
+        "/gloves/{type_slug}/{finish_slug}",
+    ):
+        assert set(paths[path]["get"]["responses"]) == {"200", "404", "422"}
