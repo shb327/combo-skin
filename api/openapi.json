@@ -1,6 +1,42 @@
 {
   "components": {
     "schemas": {
+      "AdminOut": {
+        "properties": {
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username"
+        ],
+        "title": "AdminOut",
+        "type": "object"
+      },
+      "AdminSession": {
+        "properties": {
+          "admin": {
+            "$ref": "#/components/schemas/AdminOut"
+          },
+          "csrf_token": {
+            "title": "Csrf Token",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "admin",
+          "csrf_token",
+          "expires_at"
+        ],
+        "title": "AdminSession",
+        "type": "object"
+      },
       "Checks": {
         "properties": {
           "database": {
@@ -26,6 +62,43 @@
           "migrations"
         ],
         "title": "Checks",
+        "type": "object"
+      },
+      "Credentials": {
+        "properties": {
+          "password": {
+            "format": "password",
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string",
+            "writeOnly": true
+          },
+          "username": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "Credentials",
+        "type": "object"
+      },
+      "Error": {
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "Error",
         "type": "object"
       },
       "Finish": {
@@ -444,6 +517,145 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/admin/login": {
+      "post": {
+        "description": "Log in with a username and password. Sets the session cookie.",
+        "operationId": "admin_login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Credentials"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSession"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`invalid_credentials`"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`origin_not_allowed`"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`unsupported_media_type`"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`too_many_attempts`; `Retry-After` gives the seconds to wait"
+          }
+        },
+        "summary": "Admin Login",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/logout": {
+      "post": {
+        "description": "End the current session, if there is one, and clear the cookie.",
+        "operationId": "admin_logout",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`origin_not_allowed` or `csrf_failed`"
+          }
+        },
+        "summary": "Admin Logout",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/me": {
+      "get": {
+        "description": "The logged-in admin and the session's CSRF token.",
+        "operationId": "admin_me",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSession"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`not_authenticated`"
+          }
+        },
+        "summary": "Admin Me",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/gloves": {
       "get": {
         "description": "Glove types in display order.",

@@ -79,3 +79,84 @@ async def test_log_level_applies_to_app_and_uvicorn_loggers(full_env: pytest.Mon
     async with app.router.lifespan_context(app):
         for name in ("combo_api", "uvicorn", "uvicorn.error", "uvicorn.access"):
             assert logging.getLogger(name).level == logging.WARNING, name
+
+
+def test_admin_defaults(full_env: pytest.MonkeyPatch) -> None:
+    settings = load_settings(env_file=None)
+    assert settings.admin_origins == []
+    assert settings.session_cookie_secure is True
+    assert settings.session_idle_minutes == 60
+    assert settings.session_max_hours == 12
+    assert settings.trusted_proxies == []
+
+
+def test_admin_lists_are_comma_separated(full_env: pytest.MonkeyPatch) -> None:
+    full_env.setenv("ADMIN_ORIGINS", "https://admin.example.test, http://localhost:5174")
+    full_env.setenv("TRUSTED_PROXIES", "10.0.0.1, 172.16.0.0/12, ::1")
+    settings = load_settings(env_file=None)
+    assert settings.admin_origins == ["https://admin.example.test", "http://localhost:5174"]
+    assert [str(network) for network in settings.trusted_proxies] == [
+        "10.0.0.1/32",
+        "172.16.0.0/12",
+        "::1/128",
+    ]
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "*",
+        "http://localhost:5174/",
+        "http://localhost:5174/admin",
+        "localhost:5174",
+        "ftp://localhost",
+        "http://localhost:5174, *",
+    ],
+)
+def test_invalid_admin_origins_are_refused(full_env: pytest.MonkeyPatch, value: str) -> None:
+    full_env.setenv("ADMIN_ORIGINS", value)
+    with pytest.raises(SettingsError) as error:
+        load_settings(env_file=None)
+    assert "ADMIN_ORIGINS" in str(error.value)
+
+
+@pytest.mark.parametrize("value", ["proxy", "10.0.0.300", "10.0.0.0/33"])
+def test_invalid_trusted_proxies_are_refused(full_env: pytest.MonkeyPatch, value: str) -> None:
+    full_env.setenv("TRUSTED_PROXIES", value)
+    with pytest.raises(SettingsError) as error:
+        load_settings(env_file=None)
+    assert "TRUSTED_PROXIES" in str(error.value)
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("SESSION_IDLE_MINUTES", "4"),
+        ("SESSION_IDLE_MINUTES", "1441"),
+        ("SESSION_MAX_HOURS", "0"),
+        ("SESSION_MAX_HOURS", "25"),
+    ],
+)
+def test_session_lifetimes_are_bounded(full_env: pytest.MonkeyPatch, name: str, value: str) -> None:
+    full_env.setenv(name, value)
+    with pytest.raises(SettingsError) as error:
+        load_settings(env_file=None)
+    assert name in str(error.value)
+
+
+def test_idle_lifetime_cannot_exceed_absolute(full_env: pytest.MonkeyPatch) -> None:
+    full_env.setenv("SESSION_MAX_HOURS", "1")
+    full_env.setenv("SESSION_IDLE_MINUTES", "61")
+    with pytest.raises(SettingsError) as error:
+        load_settings(env_file=None)
+    assert "SESSION_IDLE_MINUTES" in str(error.value)
+
+
+@pytest.mark.anyio
+async def test_app_logs_reach_standard_error(full_env: pytest.MonkeyPatch) -> None:
+    app = create_app(env_file=None)
+    async with app.router.lifespan_context(app):
+        handlers = logging.getLogger("combo_api").handlers
+        assert [h for h in handlers if isinstance(h, logging.StreamHandler)]
+    async with app.router.lifespan_context(app):
+        assert logging.getLogger("combo_api").handlers == handlers

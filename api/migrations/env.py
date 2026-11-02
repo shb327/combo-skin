@@ -8,6 +8,7 @@ from sqlalchemy import URL, pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
+import combo_api.admins.models  # registers the admin tables
 import combo_api.catalog.models  # noqa: F401  (registers the catalog tables)
 from combo_api.db import Base
 from combo_api.settings import load_settings
