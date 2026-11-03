@@ -387,7 +387,7 @@ Built on `009-api-combos`, from `main` at the merge of spec 008.
 
 ### Deviations
 
-**2026-11-03, criterion 18 and API / data model, `Item` (needs the owner's agreement).** Criterion 18 asks for each batch candidate "with its image and float range", but the `Item` shape in API / data model has only the combo's own range (`float_from`, `float_to`), which is empty on a candidate, so the finish's range from the catalog was missing. `Item` now also has `float_min` and `float_max`, the finish's own range (null for Vanilla), everywhere it appears: admin combos, candidates and public combos. The dashboard needs it to check a range before sending it. Nothing else in the shape changed. If the owner prefers the range only on candidates, it is a small change.
+**2026-11-03, criterion 18 and API / data model, `Item` (agreed with the owner).** Criterion 18 asks for each batch candidate "with its image and float range", but the `Item` shape in API / data model has only the combo's own range (`float_from`, `float_to`), which is empty on a candidate, so the finish's range from the catalog was missing. `Item` now also has `float_min` and `float_max`, the finish's own range (null for Vanilla), everywhere it appears: admin combos, candidates and public combos. The dashboard needs it to check a range before sending it. Nothing else in the shape changed. The owner accepted the range on every `Item`, not only on candidates.
 
 Smaller changes, none affecting a requirement:
 
