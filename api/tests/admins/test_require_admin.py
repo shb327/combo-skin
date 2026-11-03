@@ -25,6 +25,8 @@ pytestmark = pytest.mark.anyio
 
 WRITES = {"POST", "PUT", "PATCH", "DELETE"}
 UNGUARDED = {"admin_login", "admin_logout"}
+# Admin routes that work without a session, or that check it themselves.
+OPEN_ADMIN_ROUTES = {"admin_login", "admin_logout", "admin_me"}
 
 probe = APIRouter(prefix="/probe")
 
@@ -56,6 +58,18 @@ def unguarded_writes(app: FastAPI) -> list[str]:
         if isinstance(route, APIRoute)
         and set(route.methods or ()) & WRITES
         and route.name not in UNGUARDED
+        and not depends_on_require_admin(route)
+    ]
+
+
+def unguarded_admin_routes(app: FastAPI) -> list[str]:
+    """Routes under /admin/, whatever their method, that do not depend on `require_admin`."""
+    return [
+        route.name
+        for route in app.routes
+        if isinstance(route, APIRoute)
+        and route.path.startswith("/admin/")
+        and route.name not in OPEN_ADMIN_ROUTES
         and not depends_on_require_admin(route)
     ]
 
@@ -169,6 +183,7 @@ def undocumented(app: FastAPI) -> list[str]:
 def test_every_write_route_requires_an_admin() -> None:
     app = create_app()
     assert unguarded_writes(app) == []
+    assert unguarded_admin_routes(app) == []
     assert undocumented(app) == []
 
 
@@ -184,7 +199,12 @@ def test_the_guard_finds_an_unprotected_write() -> None:
     async def undocumented_read(current: AdminDep) -> None:
         return None
 
+    @app.get("/admin/probe")
+    async def unprotected_admin_read() -> None:
+        return None
+
     assert unguarded_writes(app) == ["unprotected_write"]
+    assert unguarded_admin_routes(app) == ["unprotected_admin_read"]
     assert undocumented(app) == ["undocumented_read"]
 
 
