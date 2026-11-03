@@ -1,6 +1,6 @@
 """The knife order batches follow: the saved order, then active knife types missing from it."""
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from combo_api.catalog.models import ItemType
@@ -23,7 +23,12 @@ async def knife_types(db: AsyncSession) -> list[ItemType]:
 
 
 async def replace(db: AsyncSession, slugs: list[str]) -> bool:
-    """Save a new order. Refused (False) unless it names every active knife type once."""
+    """Save a new order. Refused (False) unless it names every active knife type once.
+
+    Concurrent replaces take turns on a table lock, so the last one wins; without it, a
+    replace that starts during another would not see that one's rows and could not delete
+    them."""
+    await db.execute(text("LOCK TABLE knife_order IN SHARE ROW EXCLUSIVE MODE"))
     active = {t.slug for t in await knife_types(db)}
     if len(slugs) != len(active) or set(slugs) != active:
         return False

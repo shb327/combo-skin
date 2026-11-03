@@ -1,10 +1,15 @@
+import asyncio
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import delete, insert, select
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from combo_api.catalog.models import ItemType
+from combo_api.combos import order as knife_order
+from combo_api.combos.models import KnifeOrder
 from tests.combos.support import logged_in, retire_type
 from tests.combos.test_models import OWNER_ORDER
 
@@ -81,3 +86,39 @@ async def test_refuse_a_wrong_order(admin_client: AsyncClient, db_session: Async
             (["body", "slugs"], "knife_order_mismatch")
         ]
     assert await order(admin_client) == active
+
+
+async def test_concurrent_replaces_last_write_wins(
+    engine: AsyncEngine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A replace that starts while another is writing waits for it, then wins."""
+    first = OWNER_ORDER[::-1]
+    second = OWNER_ORDER[1:] + OWNER_ORDER[:1]
+
+    async def every_knife(db: AsyncSession) -> list[SimpleNamespace]:
+        return [SimpleNamespace(slug=slug) for slug in OWNER_ORDER]
+
+    monkeypatch.setattr(knife_order, "knife_types", every_knife)
+    writer = await engine.connect()
+    try:
+        await writer.begin()
+        await writer.execute(delete(KnifeOrder))
+        await writer.execute(insert(KnifeOrder), rows(first))
+        async with AsyncSession(engine) as db:
+            replacing = asyncio.create_task(knife_order.replace(db, second))
+            await asyncio.sleep(0.3)
+            assert not replacing.done()
+            await writer.commit()
+            assert await replacing is True
+        async with engine.connect() as reader:
+            saved = await reader.scalars(select(KnifeOrder.type_slug).order_by(KnifeOrder.position))
+            assert list(saved) == second
+    finally:
+        await writer.close()
+        async with engine.begin() as restore:
+            await restore.execute(delete(KnifeOrder))
+            await restore.execute(insert(KnifeOrder), rows(OWNER_ORDER))
+
+
+def rows(slugs: list[str]) -> list[dict[str, Any]]:
+    return [{"position": i, "type_slug": slug} for i, slug in enumerate(slugs, start=1)]
