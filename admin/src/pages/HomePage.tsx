@@ -39,7 +39,7 @@ function Statistics() {
         <ul className="grid gap-4 sm:grid-cols-3">
           {figures.map(([value, label]) => (
             <li key={label} className="rounded-lg border border-white/10 p-4">
-              <span className="block text-2xl font-semibold tabular-nums">{value}</span>
+              <span className="block text-xl font-semibold tabular-nums">{value}</span>
               <span className="text-sm text-white/70">{label}</span>
             </li>
           ))}
