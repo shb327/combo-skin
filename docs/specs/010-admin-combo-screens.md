@@ -1,6 +1,6 @@
 # 010: Admin combo screens
 
-**Status:** Draft
+**Status:** Approved
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** admin
