@@ -385,6 +385,8 @@ R13 said a combo updated in a batch takes the batch-wide description, so a blank
 
 After the audit the owner asked for a browse like the website's, besides the search, text only. R35 to R37, a Design row (Browsing), the routes and requests tables and criteria 42 to 44 were added. `src/pages/TypePage.tsx` is the type page; `FinishesPage` shows the type grid under the search, from the catalog it already loads; `catalogTypes` in `src/combos/queries.ts` groups catalog entries by type; finish pages link to their type. The knife search now gives a knife example ("karambit ruby") instead of the gloves one. Checked in the browser against a throwaway Compose stack with a placeholder admin and sample combos, both deleted afterwards: the real catalog's 20 knife and 8 glove types, a type page with its counts, and no horizontal scroll at 375 px on the new pages.
 
+An independent audit of both owner's changes found, and these were fixed with tests: a type page kept saying "Counting combos…" when its combos could not be loaded (now "Combo count unavailable", with the error and Try again); a finish of a retired type linked to a type page that does not exist (the type is now named without a link); an active type without active finishes was left out of the grid, though R35 says every type (the catalog's type list is now kept with its finishes; such a type's page says it has no finishes); an unknown type still asked for its combos (now only a known type does); and "Set own description" on an existing combo started from the batch-wide description, clearing the current one at once (it now starts from the current description) (`src/pages/TypePage.test.tsx`, `src/pages/BatchPage.test.tsx::saving a batch`). Tests were added for the knife type links and request, the rarity colour, an unknown knife type, an existing description that is null, and a batch description of spaces. `admin/README.md` describes the type grid and type pages.
+
 ### Follow-ups
 
 - The searches load the catalog with 9 requests for gloves and 21 for knives on each page load (Design, Follow-ups: one API request for every finish of a kind).
@@ -512,6 +514,26 @@ All commands ran on a fresh clone of the branch with no `admin/.env`. The manual
 - (follow-up) Criterion 38 waits for the push: the `admin` workflow has not run on this branch yet.
 - (follow-up) After a delete refused for a stale version, the edit page enables its buttons before the combo has been read again (`admin/src/pages/EditComboPage.tsx`, `remove`); a Delete clicked in that moment sends the old version and gets another 409, harmlessly.
 - (follow-up) A form counts as unsaved once changed, even when changed back, so the logout confirmation and the leave-page warning can appear with nothing to lose.
+- (follow-up) The owner's two changes after this audit were audited on their own; see "Audit of the owner's changes" below.
 - (resolved after the audit) A batch replaced an updated combo's description with a blank batch-wide one. The owner changed R13 to keep it unless one is typed; see Implementation notes, "Owner's change after the audit". The change is covered by tests and was not re-audited as a whole.
 - (follow-up) The searches load the catalog in 9 or 21 requests per page load (API follow-up in Design).
 - (follow-up) The manual criteria were not repeated after the first audit's fixes; each fix is covered by a test.
+
+### Audit of the owner's changes
+
+**Date:** 2026-11-03 · **Commit:** f68a151 · **Verdict:** Pass with follow-ups
+
+Both changes made after the audit above (existing descriptions kept in a batch; browsing by type) were read by an independent reviewer against R13, R35 to R37, their Design rows and criteria 18 and 42 to 44, with probes in a scratch clone. The defects found were fixed with tests (Implementation notes, "Owner's change: browsing by type"). On a fresh clone of commit f68a151: `npm ci`, `api:types:check`, `lint`, `typecheck`, `test` (260 passed), `build` (no chunk-size warning) and `check:bundle` exit 0; `gitleaks git --log-opts="origin/main..HEAD"` and `gitleaks dir` report no leaks; no change outside `admin/` and the spec; no image, other host, storage or server text added.
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 18 | Batch request, with the description rule | Pass | `src/pages/BatchPage.test.tsx::saving a batch` (kept, typed, cleared, null, spaces, own description from the current one) |
+| 42 | Type grids under the searches | Pass | `src/pages/TypePage.test.tsx::browsing types` |
+| 43 | Type pages with counts; unknown types | Pass | `src/pages/TypePage.test.tsx::a type page`; `src/App.test.tsx::shell::titles %s` |
+| 44 | Finish pages link to their type | Pass | `src/pages/TypePage.test.tsx::finish pages` |
+
+**Findings**
+
+- (follow-up) The new pages were checked in the browser before the reviewer's fixes, against a throwaway stack; the fixes are covered by tests, not rechecked by hand.
+- (follow-up) Criterion 38 still waits for the `admin` workflow on the pushed branch.
+
