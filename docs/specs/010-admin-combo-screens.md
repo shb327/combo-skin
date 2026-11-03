@@ -90,6 +90,7 @@ Specs 001 to 009 are Audited and merged into `main`.
 
 **Knife order**
 
+- R20a. Home shows three numbers (owner's change, 2026-11-03): the total number of combos, how many glove finishes have no combo yet, and how many knife finishes have no combo yet, each of the active finishes of that kind. A combo of any status counts.
 - R21. A Knife order page, reached from a section of Home below Drafts that looks like the Drafts section (owner's change, 2026-11-03), lists the knife types in the saved order. Any admin can move a type up or down, or to a position, with mouse or keyboard alone, and save the whole order; changes can be discarded before saving.
 
 **Values**
@@ -156,6 +157,7 @@ Specs 001 to 009 are Audited and merged into `main`.
 | Routes | `/gloves`, `/gloves/:type/:finish`, `/gloves/:type/:finish/add`, `/gloves/:type/:finish/batch`, `/gloves/:type/:finish/batch/:knifeFinish`, `/knives`, `/knives/:type/:finish`, `/knives/:type/:finish/add`, `/combos/:id`, `/knife-order` | Dialogs over the finish page for add and batch: no address to return to after a session ends, and lost on reload |
 | Browsing (owner's choice after the audit) | Like the website's type and finish grids: cards with a picture (Finish images), the name, the float range, and counts; no rarity colour, since every glove shares one rarity and every knife another, both shown in the same red (owner's change, 2026-11-03). The type grid comes from the catalog already loaded for the search; a type page asks for its combos once (`GET /admin/combos` with `glove_type` or `knife_type`, paged as the finish page) and counts them per finish in the browser. Types in catalog display order, as the website shows them, not the knife order of batches | Text only (the first choice): see Finish images. A list without counts: the owner could not see which finishes still have no combos. A request per finish for counts: up to 30 requests per type page |
 | Page titles | `By gloves`, `<type>` on a type page, `<type> \| <finish>` on a finish page, `Add knife`, `Add gloves`, `Batch`, `Edit combo`, `Knife order`, each followed by ` · Combo Skin admin` | The finish name alone: the add and list pages of one finish would look the same in two tabs |
+| Home statistics (owner's change, 2026-11-03) | Counted in the browser from the catalog the searches already load and from every combo (`GET /admin/combos` with no filter, in pages of 500, the list the finish pages use), so the numbers follow every write. Only active finishes are counted; a combo of any status counts, so a finish with only drafts is not "without a combo". Shown between the two directions and Drafts as three small figures, each with "of N". A failure shows a message and Try again in that section only | A statistics endpoint in the API: one small request instead of the catalog and every combo, but an API change, outside this spec (Follow-ups). Counting only published combos: the owner wants to see which finishes still need entering, drafts included |
 | Navigation (owner's change, 2026-11-03) | Home, By gloves, By knife. Knife order is a section of Home below Drafts, shown the same way (a heading, one line, a plain link), because it is rarely used; its page links back to Home. Spec 008 criterion 21 and its test change to these links | A fourth navigation link (the first version): gave a rarely used page as much weight as the two directions. Under By gloves only: it is shared by every admin and both directions |
 | Number formats | Ratings with two decimals (`9.50`); float values as stored with trailing zeros removed (`0.06`, `0.8`); dates as the browser's locale date and time | Ratings as typed (`9.5`): a column of ratings would not line up |
 | Retired finishes | Pages for a retired finish (reached by link or address) show "No longer in the game" and hide Add and Start a batch. Searches list active finishes only, as the catalog routes return | Allowing the forms and relying on the API's `finish_retired`: an avoidable refusal |
@@ -204,7 +206,7 @@ No API change. The dashboard uses the catalog routes and the routes of spec 009 
 | Add | The finish, as above; the other kind's search | `POST /admin/combos` |
 | Batch | `GET /admin/batches/finishes`; `GET /admin/batches/candidates` | `POST /admin/batches`; then `POST /admin/combos/publish` with the created ids |
 | Edit | `GET /admin/combos/{id}` | `PUT /admin/combos/{id}`; publish, unpublish, delete |
-| Home | `GET /admin/combos?status=draft&limit=1`; `GET /gloves/sport/pandoras-box` and `GET /knives/karambit/vanilla` for the two pictures | `POST /admin/combos/publish` with `all_drafts: true` |
+| Home | `GET /admin/combos?status=draft&limit=1`; every combo (`GET /admin/combos`, `limit=500`, `offset`) and the catalog of both kinds, for the statistics; `GET /gloves/sport/pandoras-box` and `GET /knives/karambit/vanilla` for the two pictures | `POST /admin/combos/publish` with `all_drafts: true` |
 | Knife order | `GET /admin/knife-order` | `PUT /admin/knife-order` |
 
 **Batch request built from the rows:** `glove` is the page's finish; `knife_finish` the chosen name; `create` holds the ticked new rows in list order, each `{knife_type, rating, description, glove: Conditions, knife: Conditions}` with batch-wide values or overrides resolved; `update` holds the ticked existing rows in list order, each `{id, version, rating, description}` with `version` from the candidates. The index of each row in `create` or `update` is kept to map a 422 `loc` back to the row.
@@ -310,6 +312,7 @@ Commands run in `admin/` unless stated. "The fake" is the test fake API with its
 45. Tests: pictures with the item's `image_url`, `referrerpolicy="no-referrer"` and `loading="lazy"` are shown on type page cards, search options, the finish page, combo list rows (the other item), batch rows (the knife) and the edit page (both items).
 46. Tests: an `image_url` on another host, on `http`, or a relative one, renders no `img`; a picture that fails to load is removed.
 47. Tests: Home shows the By gloves card with the Sport Gloves Pandora's Box picture and the By knife card with Karambit's Vanilla, then Drafts, then a Knife order section after Drafts with a link to `/knife-order`; the knife order page links to Home.
+48. Tests: with the fake catalog (4 active glove finishes, 10 active knife finishes) and 4 combos on 2 glove finishes and 3 knife finishes, Home shows 4 combos, 2 of 4 glove finishes without a combo, and 7 of 10 knife finishes without a combo; after a combo is added on another page, coming back to Home shows the new numbers; a failed combos request shows an error with Try again in the statistics section.
 
 ## Test plan
 
@@ -327,7 +330,7 @@ Commands run in `admin/` unless stated. "The fake" is the test fake API with its
 | 37 | Vitest: shell tests in `src/App.test.tsx` |
 | 38 | The workflow run page for the branch's latest commit (checked after the owner pushes) |
 | 39 | Read `admin/README.md` |
-| 42 to 47 | Vitest: browse, type page, picture and Home tests; `scripts/csp.test.ts`, `scripts/check-bundle.test.ts` |
+| 42 to 48 | Vitest: browse, type page, picture and Home tests; `scripts/csp.test.ts`, `scripts/check-bundle.test.ts` |
 | 40, 41 | The commands in the criteria; `git diff main...010-admin-combo-screens \| grep -oE 'https?://[^ )>"]+' \| sort -u` |
 
 Section commands, run in `admin/`:
@@ -411,6 +414,7 @@ The rarity colour dot beside each finish, on type pages and in search results, w
 
 ### Follow-ups
 
+- A statistics endpoint in the API would let Home count without loading the catalog and every combo (Design, Home statistics).
 - The searches load the catalog with 9 requests for gloves and 21 for knives on each page load (Design, Follow-ups: one API request for every finish of a kind).
 - On the edit page, "Keep mine" after a conflict on a form with no unsaved changes keeps the stored values of the new version, since there were none of the owner's own.
 - Home asks for the draft count each time it is shown.
