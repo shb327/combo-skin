@@ -8,18 +8,41 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from combo_api.admins import clock
-from combo_api.admins.deps import ADMIN_RESPONSES, AdminDep, Session, error_response, refuse
+from combo_api.admins.deps import (
+    ADMIN_RESPONSES,
+    AdminDep,
+    CurrentAdmin,
+    Session,
+    error_response,
+    refuse,
+)
 from combo_api.catalog.models import Finish
 from combo_api.combos import queries, rules
 from combo_api.combos.ids import new_public_id
-from combo_api.combos.models import Combo
-from combo_api.combos.schemas import AdminCombo, ComboIn, ComboUpdate, PublicId, decimal
+from combo_api.combos.models import Combo, Status
+from combo_api.combos.schemas import (
+    AdminCombo,
+    Changed,
+    ComboIn,
+    ComboUpdate,
+    PublicId,
+    PublishRequest,
+    UnpublishRequest,
+    decimal,
+)
 
 logger = logging.getLogger("combo_api.combos")
 router = APIRouter(prefix="/admin", tags=["admin"], responses=ADMIN_RESPONSES)
 
 NOT_FOUND: dict[int | str, dict[str, Any]] = {
     status.HTTP_404_NOT_FOUND: error_response("`combo_not_found`")
+}
+
+
+# The statuses a combo can move from, for each status it moves to.
+MOVES_TO: dict[Status, set[Status]] = {
+    "published": {"draft", "unpublished"},
+    "unpublished": {"published"},
 }
 
 
@@ -171,3 +194,55 @@ async def remove_combo(
     await db.delete(row)
     await db.commit()
     logger.info("combo removed admin=%s id=%s %s", current.username, combo_id, described(removed))
+
+
+async def locked_ids(db: AsyncSession, ids: list[str]) -> list[Combo]:
+    """The combos with these ids, locked; 422 naming each unknown id."""
+    rows = (await db.scalars(select(Combo).where(Combo.public_id.in_(ids)).with_for_update())).all()
+    known = {row.public_id for row in rows}
+    problems = rules.Problems()
+    for index, public_id in enumerate(ids):
+        if public_id not in known:
+            problems.add(("body", "ids", index), "combo_not_found", "No combo has this id")
+    if problems.errors:
+        raise problems.error()
+    return list(rows)
+
+
+async def set_status(
+    db: AsyncSession, rows: list[Combo], to: Status, current: CurrentAdmin
+) -> list[str]:
+    """Move the combos not already in that status; returns their ids. The version stays: it
+    counts content changes only."""
+    now = clock.now()
+    changed = [row for row in rows if row.status in MOVES_TO[to]]
+    for row in changed:
+        row.status = to
+        row.updated_at = now
+        row.updated_by = current.id
+        if to == "published":
+            row.published_at = now
+    await db.commit()
+    return sorted(row.public_id for row in changed)
+
+
+@router.post("/combos/publish")
+async def publish_combos(request: PublishRequest, current: AdminDep, db: Session) -> Changed:
+    """Publish the combos with these ids, or every draft. All of them or none."""
+    if request.ids is not None:
+        rows = await locked_ids(db, request.ids)
+    else:
+        query = select(Combo).where(Combo.status == "draft").with_for_update()
+        rows = list((await db.scalars(query)).all())
+    changed = await set_status(db, rows, "published", current)
+    logger.info("combos published admin=%s ids=%s", current.username, ",".join(changed))
+    return Changed(changed=len(changed))
+
+
+@router.post("/combos/unpublish")
+async def unpublish_combos(request: UnpublishRequest, current: AdminDep, db: Session) -> Changed:
+    """Take published combos off the public pages. All of them or none."""
+    rows = await locked_ids(db, request.ids)
+    changed = await set_status(db, rows, "unpublished", current)
+    logger.info("combos unpublished admin=%s ids=%s", current.username, ",".join(changed))
+    return Changed(changed=len(changed))

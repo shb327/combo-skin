@@ -3,7 +3,7 @@
 import unicodedata
 from datetime import datetime
 from decimal import Decimal
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 
 from pydantic import AfterValidator, BaseModel, Field, model_validator
 from pydantic_core import PydanticCustomError
@@ -115,6 +115,30 @@ class ComboUpdate(BaseModel):
     description: Description
     glove: Conditions
     knife: Conditions
+
+
+IdList = Annotated[list[PublicId], Field(min_length=1, max_length=500)]
+
+
+class PublishRequest(BaseModel):
+    """Combos to publish: `ids`, or every draft with `all_drafts`. Exactly one of them."""
+
+    ids: IdList | None = None
+    all_drafts: Literal[True] | None = None
+
+    @model_validator(mode="after")
+    def exactly_one(self) -> Self:
+        if (self.ids is None) == (self.all_drafts is None):
+            raise PydanticCustomError("value_error", "Value error, send ids or all_drafts")
+        return self
+
+
+class UnpublishRequest(BaseModel):
+    ids: IdList
+
+
+class Changed(BaseModel):
+    changed: int
 
 
 class Item(BaseModel):
