@@ -17,7 +17,7 @@ Create the `admin/` section: a Vite, React and TypeScript app where the owner an
 - An `admin/` npm project on the same stack and look as the website: Vite, React 19, TypeScript, Tailwind v4, Montserrat, the website's background and accent colours.
 - Login, "who am I" on load, logout and every error code of spec 007's login endpoints, with the user returned to where they were after their session ends.
 - One API client, typed from the committed OpenAPI snapshot, that sends credentials only to the configured API origin and the CSRF token on writes; CI fails when the generated types are stale.
-- An app shell: layout, navigation with placeholders for the next sections, the logged-in admin's username, logout, and a not-found page.
+- An app shell: layout, navigation (Home, By gloves, By knife), a home page that offers the two directions, placeholders for the combo screens of later specs, the logged-in admin's username, logout, and a not-found page.
 - Tests, lint, type check and build, an `admin` GitHub Actions workflow, `admin/README.md`, and the root README updated.
 
 **Non-goals**
@@ -35,7 +35,7 @@ Create the `admin/` section: a Vite, React and TypeScript app where the owner an
 - `website/` is the reference for stack and look. `website/package.json`: Vite 7, React 19.2, TypeScript 5.9, Tailwind v4 through `@tailwindcss/vite`, `react-router` 7, ESLint 9 with a flat config (`website/eslint.config.js`), no test runner. It also carries Chakra UI v2, Emotion and other libraries the admin does not need. `website/src/index.css` defines the theme tokens (`--color-background: #0A0A0C`, `--color-accent: #00DE12`) and the Montserrat font stack. `website/index.html` loads Montserrat from a third-party font host at runtime.
 - `.github/workflows/website.yml` and `api.yml` set the CI conventions from specs 001 and 002: `push` and `pull_request` with no filters, `permissions: contents: read`, `concurrency` per ref with `cancel-in-progress`, actions pinned to commit SHAs (checkout v7.0.1, setup-node v7.1.0), `persist-credentials: false`, no secrets, Node 24 with the npm cache keyed on the lockfile, and a status badge in the root and section READMEs.
 - `api/openapi.json` is the committed OpenAPI 3.1 snapshot; operation IDs are the route function names (spec 002). `api/README.md` says it is used to generate TypeScript types for the website and admin; nothing generates them yet. `uv run python -m combo_api.openapi --check` keeps it in sync with the API.
-- Spec 007 (`docs/specs/007-admin-login.md`, Approved, being implemented on `007-admin-login`) defines what this spec calls:
+- Spec 007 (`docs/specs/007-admin-login.md`, Audited and merged into `main`) defines what this spec calls:
   - `POST /admin/login` (`admin_login`), JSON `{"username", "password"}`, username 1 to 64 and password 1 to 1024 characters; returns `{"admin": {"username"}, "csrf_token", "expires_at"}` and sets the session cookie.
   - `GET /admin/me` (`admin_me`): the same body for the current session, or 401. This is how a reloaded page gets its CSRF token back.
   - `POST /admin/logout` (`admin_logout`): needs an allowed `Origin` and, with a live session, the `X-CSRF-Token` header; returns 204.
@@ -76,8 +76,8 @@ Create the `admin/` section: a Vite, React and TypeScript app where the owner an
 
 **Shell**
 
-- R16. With a session, every page shows a header with the product name, the admin's username and a logout button, and navigation with Home and Combos; the current page is marked for assistive technology.
-- R17. Home and Combos are placeholders that say what will come there. An unknown path shows a not-found page inside the shell with a link home.
+- R16. With a session, every page shows a header with the product name, the admin's username and a logout button, and navigation with Home, By gloves and By knife; the current page is marked for assistive technology.
+- R17. Home offers two directions, By gloves and By knife, each a link to its page. By gloves and By knife are placeholders that say the combo screens for that direction come in later specs. An unknown path shows a not-found page inside the shell with a link home.
 - R18. Each page sets the document title to `<page> · Combo Skin admin`. The layout works without horizontal scrolling from 375 px wide.
 
 **Checks and docs**
@@ -115,7 +115,8 @@ Create the `admin/` section: a Vite, React and TypeScript app where the owner an
 | Guard rails in lint | ESLint rules fail on `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource` and `navigator.sendBeacon` outside `src/api/client.ts`; on `localStorage`, `sessionStorage`, `indexedDB` and `document.cookie` anywhere; on `dangerouslySetInnerHTML`; and on `console.log`. A test runs ESLint on small samples to prove each rule fires | Code review only: easy to miss in later screens. |
 | Login form | `method="post"` with no `action`, so a submit before the script runs never puts the password in the URL; `autocomplete` `username` and `current-password`; `maxlength` 64 and 1024 as in spec 007; the password is cleared after every failed attempt and is not kept after the request | A plain `<form>`: a native submit is a `GET` that puts both fields in the URL. |
 | Layout | Header across the top, navigation in a sidebar on wide screens and a menu button below 768 px; the login page a centred form | Tabs only: no room for the sections still to come. |
-| Files | `admin/`: `package.json`, `package-lock.json`, `index.html`, `vite.config.ts` (Vite, Vitest, CSP and origin check), `tsconfig*.json`, `eslint.config.js`, `.env.example`, `.gitignore`, `README.md`, `scripts/api-types.mjs` (generate and `--check`), `scripts/check-bundle.mjs`; `src/main.tsx`, `src/App.tsx` (routes), `src/index.css`, `src/api/` (`schema.d.ts`, `client.ts`, `origin.ts`, `errors.ts`), `src/auth/` (session context, route guard, return path), `src/pages/` (Login, Home, Combos, NotFound), `src/components/` (layout, header, navigation), `src/test/` (fake API) | One `src/` folder per page with its own API calls: spreads requests across the app, which the client rule forbids. |
+| Sections | Two directions instead of one "Combos" section (owner's choice): By gloves at `/gloves` and By knife at `/knives`, the same path words as the website and the API catalog. Home shows both as links | One `/combos` section: the owner wants combos reached from the glove or the knife side. `/by-gloves` and `/by-knife`: longer, and unlike the website's paths. |
+| Files | `admin/`: `package.json`, `package-lock.json`, `index.html`, `vite.config.ts` (Vite, Vitest, CSP and origin check), `tsconfig*.json`, `eslint.config.js`, `.env.example`, `.gitignore`, `README.md`, `scripts/api-types.mjs` (generate and `--check`), `scripts/check-bundle.mjs`; `src/main.tsx`, `src/App.tsx` (routes), `src/index.css`, `src/api/` (`schema.d.ts`, `client.ts`, `origin.ts`, `errors.ts`), `src/auth/` (session context, route guard, return path), `src/pages/` (Login, Home, ByGloves, ByKnife, NotFound), `src/components/` (layout, header, navigation), `src/test/` (fake API) | One `src/` folder per page with its own API calls: spreads requests across the app, which the client rule forbids. |
 | CI workflow | `.github/workflows/admin.yml`, name `admin`, job `build`; triggers, permissions, concurrency, the same pinned checkout and setup-node SHAs, `persist-credentials: false` and Node 24 as `website.yml`, npm cache keyed on `admin/package-lock.json`; steps `npm ci`, `npm run api:types:check`, `npm run lint`, `npm test`, `npm run build` (which runs the type check), `npm run check:bundle` | `npm audit` in CI: depends on a live advisory service and fails on advisories unrelated to the change. Running the API in this workflow: see API in tests. |
 
 **Follow-ups** (outside this spec):
@@ -141,8 +142,9 @@ No API change. The app uses the three routes of spec 007 through the generated t
 | Path | Without a session | With a session |
 | --- | --- | --- |
 | `/login` | Login page | Home |
-| `/` | Login, then back | Home placeholder |
-| `/combos` | Login, then back | Combos placeholder |
+| `/` | Login, then back | Home: links to By gloves and By knife |
+| `/gloves` | Login, then back | By gloves placeholder |
+| `/knives` | Login, then back | By knife placeholder |
 | Anything else | Login, then back | Not found, in the shell |
 
 **Login outcomes:**
@@ -210,20 +212,20 @@ Commands run in `admin/` unless stated. "The fake" is the test fake API of Desig
 **Login and session**
 
 12. Tests: on load the app sends one `GET /admin/me` and shows only a loading state until it answers; a 200 shows the shell with the username, a 401 shows the login page; neither shows the other first.
-13. Tests: a successful login from `/login?next=%2Fcombos%3Fa%3D1` sends one `POST /admin/login` with the typed username and password and lands on `/combos?a=1` with the username in the header; from `/login` it lands on `/`.
+13. Tests: a successful login from `/login?next=%2Fgloves%3Fa%3D1` sends one `POST /admin/login` with the typed username and password and lands on `/gloves?a=1` with the username in the header; from `/login` it lands on `/`.
 14. Tests: each login outcome in API / data model shows its message in a `role="alert"` element. For `invalid_credentials` the password field is empty, the username kept and the password focused. For 429 with `Retry-After: 90` (fake timers) submit stays disabled and the remaining time counts down until 90 seconds pass, then submit is enabled; with no or an invalid `Retry-After`, submit is enabled. A rejected `fetch` shows the "cannot reach the API" message, and a 500 with a body of `<b>x</b>` shows the generic message and not that text.
 15. Tests: the login inputs are found by their labels, have `autocomplete` `username` and `current-password`, `maxlength` 64 and 1024 and `required`; the form has `method="post"` and no `action`; submitting with an empty field sends no request; a second submit while the first is in flight sends nothing.
-16. Tests: visiting `/combos?a=1` without a session shows login and, after logging in, `/combos?a=1`. With a session, a request that gets 401 `not_authenticated` shows the login page with the session-ended notice and the current path in `next`, and a new login returns there.
+16. Tests: visiting `/knives?a=1` without a session shows login and, after logging in, `/knives?a=1`. With a session, a request that gets 401 `not_authenticated` shows the login page with the session-ended notice and the current path in `next`, and a new login returns there.
 17. Tests: after login with `next` set to each of `//example.com`, `https://example.com`, `/\example.com`, `javascript:alert(1)` and `/login`, the app lands on `/`.
 18. Tests with fake timers: when `expires_at` passes, the app sends `GET /admin/me` and a 401 shows login with the notice. A tab that becomes visible after more than a minute hidden sends one `GET /admin/me`; one hidden for less than a minute sends none. Before `expires_at`, no `/admin/me` is sent while the tab stays visible and idle.
 19. A test: `/login` with a session goes to `/`.
-20. Tests: logout sends `POST /admin/logout` with the token; on 204 the login page shows and visiting `/combos` afterwards shows login, not the placeholder. On 500, a readable `origin_not_allowed` or a rejected `fetch`, the shell stays with the username and an error is shown.
+20. Tests: logout sends `POST /admin/logout` with the token; on 204 the login page shows and visiting `/gloves` afterwards shows login, not the placeholder. On 500, a readable `origin_not_allowed` or a rejected `fetch`, the shell stays with the username and an error is shown.
 
 **Shell**
 
-21. Tests: with a session the header shows "Combo Skin admin", the username and a logout button; the navigation has Home and Combos links, and the current one has `aria-current="page"`; `/combos` shows the placeholder; `/nope` shows the not-found page inside the shell with a link to `/`. Without a session, `/nope` shows login with `next=%2Fnope`.
-22. Tests: the document title is `Home · Combo Skin admin`, `Combos · Combo Skin admin`, `Not found · Combo Skin admin` and `Log in · Combo Skin admin` on the matching pages.
-23. Manual: at 375 px and at 1440 px wide, the login page, Home and Combos show no horizontal scroll bar and the navigation is reachable.
+21. Tests: with a session the header shows "Combo Skin admin", the username and a logout button; the navigation has Home, By gloves and By knife links, in that order, and the current one has `aria-current="page"`; Home has a By gloves link to `/gloves` and a By knife link to `/knives`; `/gloves` and `/knives` show their placeholders; `/nope` shows the not-found page inside the shell with a link to `/`. Without a session, `/nope` shows login with `next=%2Fnope`.
+22. Tests: the document title is `Home · Combo Skin admin`, `By gloves · Combo Skin admin`, `By knife · Combo Skin admin`, `Not found · Combo Skin admin` and `Log in · Combo Skin admin` on the matching pages.
+23. Manual: at 375 px and at 1440 px wide, the login page, Home, By gloves and By knife show no horizontal scroll bar and the navigation is reachable.
 
 **Security**
 
@@ -281,16 +283,7 @@ npm run check:bundle
 
 ## Open questions
 
-Each Design row below holds the recommendation; confirm it or choose the alternative.
-
-- CSRF token: in memory only, restored by `/admin/me` after a reload (recommended), or `sessionStorage` to skip that request.
-- Routing and data fetching: `react-router` 7 and the typed client with small hooks, deciding on a query library in the combos spec (recommended), or TanStack Query now.
-- Type generation: `openapi-typescript` with `openapi-fetch`, generated file committed (recommended), or generated at build time and not committed.
-- Tests: Vitest, Testing Library and a hand-written fake API, with the real API checked by hand and an end-to-end test left as an API follow-up (recommended), or MSW as the fake.
-- Styles: copy the two tokens and the font (recommended), or a shared package with the website.
-- Compose: `npm run dev` on the host only for now (recommended), or an `admin` dev service in `compose.yaml`.
-- API origin: `VITE_API_BASE_URL` with a `localhost` default, checked when the dev server or build starts (recommended), or a required variable, or a runtime config file.
-- Indexing: a `noindex` meta tag now and an `X-Robots-Tag` header in `deploy/`, with no `robots.txt` (recommended), or also a `robots.txt` with `Disallow: /` despite the trade-off in Design.
+None. The owner chose every recommendation in Design: the CSRF token in memory only; `react-router` 7 with the typed client and small hooks, the query library left to the combos spec; `openapi-typescript` and `openapi-fetch` with the generated file committed; Vitest, Testing Library and a hand-written fake API; copying the colour tokens and the font; `npm run dev` on the host only; `VITE_API_BASE_URL` with a `localhost` default; a `noindex` meta tag now, an `X-Robots-Tag` header in `deploy/` and no `robots.txt`. The owner also replaced the single Combos section with two directions, By gloves and By knife (Design, Sections).
 
 ## Implementation notes
 
