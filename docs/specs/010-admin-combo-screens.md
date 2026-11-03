@@ -1,0 +1,342 @@
+# 010: Admin combo screens
+
+**Status:** Draft
+<!-- Lifecycle: Draft → Approved → Implemented → Audited -->
+
+**Section:** admin
+**Branch:** 010-admin-combo-screens
+
+## Summary
+
+Replace the By gloves and By knife placeholders of the admin dashboard with the screens that enter and manage combos through the API of spec 009: pick a glove or knife finish, see its combos, add one combo, enter a batch of knives for one pair of gloves, edit, publish, unpublish and delete combos, and reorder the knife types. Unsaved work survives the end of a session. After this spec the owner can log in locally and enter the first 200 combos.
+
+## Goals and non-goals
+
+**Goals**
+
+- By gloves: search and pick a glove finish, see its combos, add one knife, and enter a batch (owner's design, Requirements R8 to R21).
+- By knife: search and pick a knife finish, see its combos, and add gloves one at a time.
+- Edit one combo with spec 009's version check; publish or unpublish one combo, a selection, a just-saved batch, or every draft; delete a draft or unpublished combo.
+- A knife order page that any admin can reorder and save.
+- Unsaved changes in any form come back after the session ends and the same admin logs in again, without browser storage.
+- Shared pieces with unit tests: finish search, rating, float range and seed inputs, the batch rating fill, and mapping API errors to fields.
+
+**Non-goals**
+
+- Combo previews, images of combos, screenshots and R2.
+- The website showing combos, pattern groups, combo variations (several combos per pairing), prices.
+- Two-factor login, roles, account management, deployment.
+- Any change to `api/`. What the API could do better is listed under Follow-ups.
+- Keeping unsaved changes across a reload or a closed tab (Design, Unsaved changes).
+
+## Context
+
+Specs 001 to 009 are Audited and merged into `main`.
+
+- **Admin app** (spec 008). `admin/src/App.tsx` routes `/login` and, behind `RequireSession` and `Layout`, `/` (`HomePage`), `/gloves` (`ByGlovesPage`), `/knives` (`ByKnifePage`) and a not-found page. `ByGlovesPage.tsx` and `ByKnifePage.tsx` render `Placeholder.tsx`, which says the screens come in a later version. `src/components/Layout.tsx` holds the header and the navigation (`SECTIONS`: Home, By gloves, By knife); `src/components/useTitle.ts` sets `<page> · Combo Skin admin`.
+- **Client.** `src/api/client.ts` is the only module that may use the network (lint guard rails in `admin/eslint.config.js`). `createApi` returns `request`, `openapi-fetch`'s typed `request` with the origin check, the CSRF header on writes, one retry after `csrf_failed`, and `not_authenticated` ending the session through `onSessionChange`. Types come from the generated `src/api/schema.d.ts`, which already holds every route of spec 009.
+- **Errors.** `src/api/errors.ts`: `ApiError` has `kind`, `status`, `code` and `retryAfter`; `httpError` reads `code` only from a string `detail`. A 422 body is a list of `{loc, msg, type, input, ctx}` (FastAPI), so today its item paths and `type` codes are lost and the app shows the generic message. `input` echoes what was sent and `msg` is server text; neither may be rendered (spec 008 S9 and its "server text is never rendered" rule).
+- **Session.** `src/auth/session.tsx` keeps the session in React state above the routes. When a request gets 401 `not_authenticated`, when `expires_at` passes, or when a tab hidden for a minute comes back to an ended session, the state becomes anonymous and `RequireSession` navigates to `/login?next=<path>`; every page under `Layout` unmounts, so form state kept in a page is lost today. The page is not reloaded: the JavaScript heap survives the trip to the login page and back.
+- **Data fetching.** No query library: spec 008 Design left the choice to this spec and listed keeping an unsaved combo form across a session end as a follow-up.
+- **Guard rails.** Lint forbids `localStorage`, `sessionStorage`, `indexedDB` and `document.cookie` everywhere, network globals outside the client, `dangerouslySetInnerHTML` and `console.log`; `src/lint.test.ts` proves each rule. The only lint exceptions are three commented lines in `src/flow.test.tsx`, which read storage to prove it stays empty.
+- **CSP.** `vite.config.ts` builds `img-src 'self'`; spec 008 S4 says nothing is loaded from a third-party host. Catalog `image_url` values point to the game's public image host, so showing them would need a CSP change. `scripts/check-bundle.mjs` fails a build that references another host.
+- **Tests.** Vitest, Testing Library and `src/test/fakeApi.ts`, a hand-written `fetch` that answers the three login routes, queues replies with `next()` and records every request. 117 tests pass.
+- **Combos API** (spec 009, used as written):
+  - `GET /admin/combos` with `glove_type`, `glove_finish`, `knife_type`, `knife_finish`, `status`, `sort` (`rating` or `updated`), `limit` (1 to 500) and `offset`, returning `{total, items: [AdminCombo]}`.
+  - `POST /admin/combos` (`{glove: ItemIn, knife: ItemIn, rating, description}`), `GET`, `PUT` (with `version`) and `DELETE ?version=` on `/admin/combos/{id}`.
+  - `POST /admin/combos/publish` (`ids`, 1 to 500, or `all_drafts: true`, which publishes only drafts) and `/unpublish` (`ids`), each all or nothing, returning `{changed}`. Status changes do not change `version`.
+  - `GET /admin/batches/finishes` (`[{slug, display_name, knife_types}]`), `GET /admin/batches/candidates?glove_type&glove_finish&knife_finish` (rows in knife order, each with `existing` or null), `POST /admin/batches` (`create` items with conditions, `update` items with `id`, `version`, rating and description only; 1 to 50 items; all or nothing), returning `{created, updated}`.
+  - `GET` and `PUT /admin/knife-order` (`{slugs}` naming every active knife type once).
+  - `Item` carries the finish's own range as `float_min` and `float_max` (null for Vanilla) next to the combo's `float_from`, `float_to` and `seeds`.
+  - Errors: 404 `combo_not_found`; 409 `combo_exists`, `version_conflict`, `combo_published`; 422 lists with `type` codes `finish_not_found`, `finish_retired`, `float_outside_finish`, `finish_has_no_float`, `finish_has_no_pattern`, `duplicate_seed`, `duplicate_knife_type`, `combo_not_found`, `combo_not_in_batch`, `knife_order_mismatch`, and pydantic's own (`decimal_max_places`, `too_long`, `string_too_long`, `value_error` and others).
+- **Catalog API** (specs 005, 006). `GET /gloves` and `GET /knives` list active types (8 glove types, 20 knife types); `GET /gloves/{type}` and `/knives/{type}` return one type with its active finishes. There is no single request for every finish of a kind: listing all of them takes 9 requests for gloves (94 finishes) and 21 for knives (576 finishes). `GET /{kind}/{type}/{finish}` also returns a retired finish, with `active: false`.
+
+## Requirements
+
+**Finding a finish**
+
+- R1. By gloves (`/gloves`) and By knife (`/knives`) open with a search field that finds a finish by any words of its type name and finish name, in any order and any letter case ("kimono spec" finds Specialist Gloves | Crimson Kimono). Results show `<type name> | <finish display name>` with the finish's rarity colour, in catalog display order, and can be chosen with the keyboard alone.
+- R2. Choosing a finish opens its page at `/gloves/<type>/<finish>` or `/knives/<type>/<finish>`, so a reload, the browser's back button and a copied link return to it.
+
+**A finish's combos**
+
+- R3. A finish page shows the finish name, its float range from the catalog, and its combos: the other item (type and finish), the rating with two decimals, a short summary of both items' conditions, the status (draft, published, unpublished), and when and by whom it last changed.
+- R4. The list can be filtered by status, with the number of combos in each status shown, and on a glove finish page by knife finish name; it can be sorted by rating (default, highest first) or by last change.
+- R5. Each combo in the list can be opened for editing, published or unpublished, and, when it is a draft or unpublished, deleted. Several combos can be selected and published or unpublished in one request.
+- R6. A retired finish's page says so and offers no way to add combos; its existing combos can still be managed. An unknown finish in the address shows a not-found message with a link back to the search.
+
+**Adding one combo**
+
+- R7. From a glove finish page, "Add knife" opens a form with a knife finish search, the rating, float range and pattern seeds for each item, and a description. From a knife finish page, "Add gloves" opens the same form with a glove finish search. Saving creates one draft and returns to the finish page, where it is listed.
+
+**Batch** (By gloves only, owner's design)
+
+- R8. "Start a batch" on a glove finish page asks for a knife finish name (Ruby, Blue Steel, ...), searchable, from the names the API lists.
+- R9. Every knife type with that finish is then listed in the saved knife order, each with its float range, ticked.
+- R10. A knife type that already has a combo with these gloves shows "already exists" with its status and rating, unticked, and offers to update its rating and description instead.
+- R11. The owner can untick and tick any row. Rows never change place.
+- R12. The owner gives the top rating. Each next included row is filled in 0.05 below the included row above it, never below 0. Any row's rating can be changed by hand; rows below a changed row that were not changed by hand follow it. A row keeps its place even when rated above the row before it.
+- R13. A batch-wide float range and pattern seeds for the gloves, a batch-wide float range and pattern seeds for the knives, and a batch-wide description apply to every new row. Any new row can override each of them, and clearing an override returns that row to the batch-wide value. A row being updated (R10) takes the batch-wide description unless overridden, and keeps its conditions.
+- R14. Before saving, every value is checked as in R22 to R25 against each row's own finish; a batch-wide knife range outside one row's finish range marks that row, which can then override it.
+- R15. Save sends the batch in one request. It creates every ticked new row as a draft and updates every row chosen in R10, all or nothing. Afterwards the page shows what was saved (each knife with its rating, created or updated) and offers to publish the new combos in one request, or to go back to the finish page.
+
+**Editing and managing**
+
+- R16. A combo's edit page (`/combos/<id>`) shows the pairing (not editable), status, version, who created and last changed it and when, and edits the rating, both items' conditions and the description. Saving sends the version it was read at.
+- R17. When someone else changed the combo first, the page says so, naming who changed it and when, shows their value and the owner's value for each field that differs, and lets the owner either take theirs or keep their own values and save again over the new version. A combo removed by someone else shows a message saying so.
+- R18. The edit page can publish, unpublish and (for a draft or unpublished combo) delete the combo.
+- R19. Deleting asks for confirmation naming the pairing. A published combo cannot be deleted; the page says to unpublish it first.
+- R20. Home shows how many drafts exist across all finishes and offers "Publish all drafts", which asks for confirmation with that number and publishes only drafts (spec 009: an unpublished combo is not put back).
+
+**Knife order**
+
+- R21. A Knife order page lists the knife types in the saved order. Any admin can move a type up or down, or to a position, with mouse or keyboard alone, and save the whole order; changes can be discarded before saving.
+
+**Values**
+
+- R22. A rating is a number from 0 to 10 with at most 2 decimals, typed with a dot or a comma, shown with two decimals. The Up and Down arrow keys in a rating field step by 0.05.
+- R23. A float range is From and To, both or neither, each with at most 4 decimals, From below To, inside the finish's own range (bounds included). A finish without a float range (Vanilla) takes no float range and no seeds.
+- R24. Pattern seeds are whole numbers from 0 to 1000, typed separated by commas or spaces, at most 100 per item. When the field loses focus they are shown sorted with duplicates removed. An empty field means any pattern.
+- R25. A description is plain text of at most 1000 characters after trimming, with line breaks allowed and other control characters refused; a counter shows the length. Empty means none.
+- R26. Every value is checked as it is typed and again before saving. A form with an invalid value sends nothing and says, next to each field, what is wrong.
+
+**Errors**
+
+- R27. A refusal from the API is shown inside the form: a 422 next to the field its path points to, including the row of a batch; a 409 or 404 as a message for the whole form with what to do next. The form keeps every value.
+- R28. Messages are fixed texts chosen by status, code and `type`. Text, input or context from an error body is never shown.
+
+**No lost work**
+
+- R29. When the session ends while a form (add, batch, edit, knife order) has unsaved changes, and the same admin logs in again in the same tab, the app returns to that form with every value restored and a notice that unsaved changes were restored, with a way to discard them.
+- R30. Leaving a form for another page and coming back keeps its unsaved values the same way. Saving a form, or discarding its changes, forgets them.
+- R31. Logging in as another admin forgets the previous admin's unsaved changes. Logging out with unsaved changes asks for confirmation first. Reloading or closing the tab with unsaved changes triggers the browser's leave-page warning.
+- R32. Nothing is written to `localStorage`, `sessionStorage`, IndexedDB or cookies.
+
+**Shell and checks**
+
+- R33. The navigation has Home, By gloves, By knife and Knife order. Every new page sets its document title and works without horizontal scrolling from 375 px wide.
+- R34. `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` and `npm run check:bundle` pass in `admin/`; `admin/README.md` describes the new screens and how unsaved changes are kept.
+
+## Design
+
+Decisions marked "open question" are recommendations the owner has not yet answered; the spec is written as if they are accepted.
+
+| Decision | Chosen | Alternatives rejected, and why |
+| --- | --- | --- |
+| Server state (open question 1) | TanStack Query v5 (`@tanstack/react-query`), the one new runtime dependency. One `QueryClient` per app, created in `main.tsx` and in tests. Query functions call only `api.request`, so the client stays the only network module. Settings: no automatic retries (a refusal shows with a "Try again" button), no refetch on window focus or interval, catalog queries never stale within a page load, admin combo queries refetched when a page mounts. After every write the affected queries are invalidated: combo lists, the draft count, candidates, the combo itself. On logout the cache is cleared | The small hooks of spec 008: lists, candidates, counts and a dozen writes would each need hand-written loading, error, cache and invalidation code, and two pages showing the same combo would disagree after a write. SWR: weaker support for writes and invalidation. Refetching on focus or an interval: each request counts as activity and would keep an idle session alive (spec 008 rejected polling for the same reason) |
+| Unsaved changes (open question 2) | In memory only. A drafts store (a React context above the routes, inside `SessionProvider`) holds each form's unsaved values under a key (`add-knife:<glove type>/<glove finish>`, `add-gloves:<knife type>/<knife finish>`, `batch:<glove type>/<glove finish>/<knife finish>`, `edit:<id>`, `knife-order`), tagged with the admin's username. Forms read their starting values from it and write to it on every change. When the session ends, the login page and `next` (spec 008) bring the admin back, and the form finds its values. Cleared for a form on save or discard; cleared entirely on logout (after confirmation) and when a different admin logs in. A `beforeunload` warning covers reloads and closed tabs | `sessionStorage` with limits (a size cap, cleared on logout, per tab): survives a reload, but breaks spec 008 S2 and its lint rule, leaves combo data on a shared computer after the session ends, and needs an exception in the guard rails. Accepted cost: a reload or closed tab loses unsaved work, which the browser's warning makes deliberate. Keeping state inside each page: lost when `RequireSession` unmounts the pages. Blocking in-app navigation with a prompt: unnecessary when the values are kept anyway |
+| Finish search (open question 3) | One search field across type and finish. All finishes of a kind are loaded once per page load from the catalog routes (9 requests for gloves, 21 for knives, in parallel, cached) and searched in the browser: each typed word must start a word of `<type name> <display name>`, case and accents ignored. At most 50 results are shown, then "type more to narrow". The ARIA combobox pattern: `role="combobox"` input, `role="listbox"` results, `aria-activedescendant`, Up, Down, Enter, Escape. The same component picks the knife or gloves when adding one combo | Type first, then finish: two choices for every combo, where most searches name the finish ("crimson kimono", "ruby"). A server search: needs an API change (Follow-ups). |
+| Finish images (open question 3) | None: a rarity colour dot and the name. The CSP and spec 008 S4 stay as they are | Small catalog images: needs `img-src` to allow the game's image host and S4 changed to allow third-party images, sends the admin's address to that host on every list, and the owner knows the finishes by name (owner: no previews). Can be added later as one CSP line and a bundle check allow-list entry |
+| Knife order input (open question 4) | Per row: Move up and Move down buttons and a position select (1 to n). After a move, focus stays on the moved row's button that was used, and a live region says "Karambit moved to position 2". No dependency | A drag and drop library (for example dnd-kit): a second runtime dependency for 20 rows, and keyboard support needs its own setup. Native HTML drag and drop: no keyboard or touch support |
+| Rating input (open question 5) | `<input type="text" inputmode="decimal">`, not `type="number"`. Accepts `8.88`, `8,88`, `9.5`, `10`; shown as `9.50` after the field loses focus. Up and Down arrows step by 0.05 from the current value, clamped to 0 and 10. Parsed into an integer number of hundredths; all arithmetic, including the batch fill, is on integers, and the request sends `hundredths / 100` as a JSON number | `type="number"`: browsers differ on commas, the mouse wheel changes values by accident, and `step=0.05` makes 8.88 invalid. A slider: imprecise for 8.88. A select of 0.05 steps: refuses 8.88 |
+| Float and seed inputs (open question 5) | From and To text fields with `inputmode="decimal"`, placeholders showing the finish's range (`0.06 – 0.80`), parsed into integer ten-thousandths and compared with the finish's range parsed the same way from its shortest decimal form (as spec 009 does on the server). Seeds in one text field, commas or spaces between; sorted and de-duplicated when the field loses focus, with a note "1 duplicate removed" | Number inputs: the same problems as ratings. Refusing duplicates: the API refuses them, but removing them loses nothing |
+| Validation messages (open question 5) | Fixed texts next to the field, linked with `aria-describedby` and `aria-invalid`: "Enter a rating.", "Enter a number such as 8.88.", "Rating must be from 0 to 10.", "Use at most 2 decimals.", "Use at most 4 decimals.", "Enter both From and To, or neither.", "From must be below To.", "Outside this finish's range, 0.06 to 0.80." (with the real range), "Vanilla has no float or pattern.", "Seeds are whole numbers from 0 to 1000.", "At most 100 seeds.", "At most 1000 characters.", "Remove tabs and other control characters." A failed save moves focus to a summary at the top that links to each field in error | Messages only on submit: the owner finds out late. A browser's built-in validation bubbles: not translatable, not testable, and not shown for API errors |
+| Batch rating fill | Each row keeps its rating and a "set by hand" flag. The top rating field sets the first included row. Every included row not set by hand gets the rating of the nearest included row above it minus 0.05, floored at 0. Typing in a row sets it by hand; rows below that follow it recompute. Unticking a row closes the gap. "Refill from top" clears every "set by hand" flag. Rows being updated (R10) are included rows | Filling once and never again: changing the top rating after a few edits would mean retyping every row. Re-sorting rows by rating: the owner's design keeps knife order |
+| Batch conditions | Batch-wide values: glove range and seeds, knife range and seeds, description. A new row uses each batch-wide value unless it has its own override, shown as "own value" with a Clear button. A Vanilla row takes no knife conditions and shows why. A row with a knife range outside its finish is marked and blocks Save until fixed or overridden | Copying batch-wide values into each row when typed: a later change to the batch-wide value would not reach rows already filled |
+| Existing combos in a batch | Unticked by default, shown with status and current rating. Ticking one adds it to `update`, with the rating from the fill and the batch-wide description unless overridden, and shows the current values beside ("now 9.10"). Conditions are not editable there (spec 009 `update` items carry rating and description only); the row links to the combo's edit page | Prefilling an updated row with its current rating, set by hand: re-rating in the batch's context is the point of including it |
+| After a batch save | A result panel replaces the form: created rows (knife, rating) and updated rows; "Publish these N new combos" (one request with the created ids); "Back to <gloves>". The batch's draft is cleared | Going straight back to the finish page: the owner asked to see what was saved. Publishing updated rows too: their status was chosen earlier and is left as it is |
+| "A whole batch" later | Batches are not stored (spec 009). On a glove finish page, filtering by knife finish name and "select all shown" gives the same set, which can then be published or unpublished in one request | A batch id in the API: an API change for a filter the list already covers |
+| Combo lists | One request per page: `GET /admin/combos` with the finish's filters, `limit=500`, and further pages by `offset` while `total` is larger. Status chips (All, Draft, Published, Unpublished) with counts, the knife finish name filter and the sort are applied in the browser. Rows are cards that wrap on narrow screens. A checkbox per row and "select all shown" drive "Publish selected" and "Unpublish selected"; buttons are disabled when nothing selected can change | Server-side filters per chip: a request per click and separate counts. A table with horizontal scroll: fails at 375 px |
+| Status display | A text badge per status, never colour alone: Draft (neutral), Published (accent), Unpublished (muted) | Colour only: unreadable for some colour vision and for screen readers |
+| Conditions summary | `Gloves 0.06–0.15 · seeds 2, 179 (+3)` and `Knife any`, numbers as stored, at most three seeds then a count | Full lists in the row: a hundred seeds would fill the page |
+| API errors in forms (open question 6) | `ApiError` gains `problems`: for a 422 list body, the `loc` and `type` of each entry, nothing else. A function maps `loc` to a form field: `["body", "rating"]`, `["body", "knife", "float_from"]`, and in a batch `["body", "create", i, ...]` and `["body", "update", i, ...]` through the index of the row as sent. Known `type` codes get fixed messages ("Outside this finish's range.", "This finish is no longer in the game.", "Vanilla has no float or pattern.", "This knife type appears twice.", "This combo is not part of this batch."); other codes "The API refused this value."; a path that matches no field goes to the summary. 409 and 404 show a message for the whole form: `combo_exists` "These items already have a combo." with a link to it; `version_conflict` the conflict view (next row) or, in a batch, "Combos changed since you opened this batch." with the candidates reloaded; `combo_published` "Unpublish it first."; `combo_not_found` "This combo no longer exists." | One message for the whole form: the owner could not tell which of 18 rows is wrong. Showing `msg`: server text, which spec 008 never renders, and English pydantic wording |
+| Version conflict on edit (open question 6) | After 409 `version_conflict` the page reads the combo again and shows, for each field that differs, "Theirs" and "Yours", with who changed it and when. "Use theirs" replaces the form with the stored combo. "Keep mine" keeps the owner's values with the new version; the next Save sends that version. A delete refused for a stale version asks the owner to check the combo and delete again | Overwriting without showing: loses the other admin's change silently. Merging field by field: more UI for a rare case with a few admins |
+| Batch conflicts | After 409 `combo_exists` or `version_conflict` the candidates are fetched again and the owner's values are kept per knife type. A row whose knife type now has a combo becomes "already exists", unticked, with the owner's rating and description kept for a possible update | Discarding the batch: loses the work the owner just did |
+| A save without an answer | When a save gets no response, the message says the API could not be reached and the changes may or may not be saved; the values are kept and the list is reloaded. Saving again is safe: a duplicate create is refused with `combo_exists`, a stale update with `version_conflict` | Retrying automatically: hides a real failure |
+| Publish all drafts | On Home: the draft count from `GET /admin/combos?status=draft&limit=1` (`total`), and a button that opens a confirmation dialog with that number. Confirm sends `{"all_drafts": true}` and shows `changed` | On each finish page: the action is global, so it belongs on a global page. Without confirmation: one click publishes every draft on the website |
+| Dialogs | A native `<dialog>` opened with `showModal()`, focus on Cancel, Escape cancels | A dialog library: a dependency for two confirmations |
+| Routes | `/gloves`, `/gloves/:type/:finish`, `/gloves/:type/:finish/add`, `/gloves/:type/:finish/batch`, `/gloves/:type/:finish/batch/:knifeFinish`, `/knives`, `/knives/:type/:finish`, `/knives/:type/:finish/add`, `/combos/:id`, `/knife-order` | Dialogs over the finish page for add and batch: no address to return to after a session ends, and lost on reload |
+| Page titles | `By gloves`, `<type> \| <finish>` on a finish page, `Add knife`, `Add gloves`, `Batch`, `Edit combo`, `Knife order`, each followed by ` · Combo Skin admin` | The finish name alone: the add and list pages of one finish would look the same in two tabs |
+| Navigation | Home, By gloves, By knife, Knife order. Spec 008 criterion 21 and its test change to four links | Knife order under By gloves only: it is shared by every admin and both directions |
+| Number formats | Ratings with two decimals (`9.50`); float values as stored with trailing zeros removed (`0.06`, `0.8`); dates as the browser's locale date and time | Ratings as typed (`9.5`): a column of ratings would not line up |
+| Retired finishes | Pages for a retired finish (reached by link or address) show "No longer in the game" and hide Add and Start a batch. Searches list active finishes only, as the catalog routes return | Allowing the forms and relying on the API's `finish_retired`: an avoidable refusal |
+| Tests | The fake API gains a small in-memory catalog (2 glove types including Specialist Gloves with Crimson Kimono, 3 knife types including Karambit, a few finishes each, Vanilla, Doppler (Ruby) on all 3 knives, one retired finish) and an in-memory combo store that implements the routes of spec 009 the screens use, with its version, status and all-or-nothing rules; `next()` still overrides any route with a queued reply. Its bodies are typed from the generated schema. Pure functions (parsing, fill, search, error paths) have their own unit tests. One test file per page | MSW: still one more dependency for what the fake already does. Testing against the real API in CI: admins are created only at a terminal (spec 008 Follow-ups); the manual criterion covers the real API |
+| Files | `src/combos/` for the shared pieces (`values.ts` parsing and formatting, `fill.ts`, `search.ts`, `problems.ts` error paths, `drafts.tsx` the drafts store, `queries.ts` query keys and hooks, components for the finish search, conditions fields, rating field, combo list and confirmation dialog); `src/pages/` for the pages (`GloveFinishesPage`, `GloveFinishPage`, `KnifeFinishesPage`, `KnifeFinishPage`, `AddComboPage`, `BatchPage`, `EditComboPage`, `KnifeOrderPage`). `Placeholder.tsx` is removed | One folder per page with its own queries: the same combo would be cached under different keys |
+
+**Follow-ups** (outside this spec):
+
+- `api/`: one request for every finish of a kind, with type names, for the searches (today 9 or 21 requests per page load).
+- `api/`: a count per status for a finish, if lists grow past a few hundred combos.
+- `api/`: a batch with only `update` items on a retired glove finish is refused (spec 009 audit); the dashboard never sends one, since a retired finish's page offers no batch.
+- `api/`: the error codes as an enumeration in `api/openapi.json` (spec 008 and 009 follow-up), so the admin's error mapping is typed.
+- Keeping unsaved changes across a reload, if in-memory proves too little (open question 2).
+- Finish images in the lists (open question 3).
+
+## API / data model
+
+No API change. The dashboard uses the catalog routes and the routes of spec 009 through the generated types.
+
+**Routes of the dashboard** (all behind login, as spec 008):
+
+| Path | Page |
+| --- | --- |
+| `/` | Home: the two directions, Knife order, draft count and Publish all drafts |
+| `/gloves` | Glove finish search |
+| `/gloves/:type/:finish` | Glove finish: its combos, Add knife, Start a batch |
+| `/gloves/:type/:finish/add` | Add one knife |
+| `/gloves/:type/:finish/batch` | Batch: pick a knife finish name |
+| `/gloves/:type/:finish/batch/:knifeFinish` | Batch rows, save and result |
+| `/knives` | Knife finish search |
+| `/knives/:type/:finish` | Knife finish: its combos, Add gloves |
+| `/knives/:type/:finish/add` | Add one pair of gloves |
+| `/combos/:id` | Edit one combo |
+| `/knife-order` | Knife order |
+
+**Requests each screen sends:**
+
+| Screen | Reads | Writes |
+| --- | --- | --- |
+| Searches | `GET /gloves` and `GET /gloves/{type}` for each type, or the same under `/knives`; once per page load | |
+| Finish page | `GET /{kind}/{type}/{finish}` (name, range, `active`); `GET /admin/combos` with `glove_type` and `glove_finish` (or `knife_type` and `knife_finish`), `limit=500`, `offset` | `POST /admin/combos/publish` and `/unpublish` with `ids`; `DELETE /admin/combos/{id}?version=` |
+| Add | The finish, as above; the other kind's search | `POST /admin/combos` |
+| Batch | `GET /admin/batches/finishes`; `GET /admin/batches/candidates` | `POST /admin/batches`; then `POST /admin/combos/publish` with the created ids |
+| Edit | `GET /admin/combos/{id}` | `PUT /admin/combos/{id}`; publish, unpublish, delete |
+| Home | `GET /admin/combos?status=draft&limit=1` | `POST /admin/combos/publish` with `all_drafts: true` |
+| Knife order | `GET /admin/knife-order` | `PUT /admin/knife-order` |
+
+**Batch request built from the rows:** `glove` is the page's finish; `knife_finish` the chosen name; `create` holds the ticked new rows in list order, each `{knife_type, rating, description, glove: Conditions, knife: Conditions}` with batch-wide values or overrides resolved; `update` holds the ticked existing rows in list order, each `{id, version, rating, description}` with `version` from the candidates. The index of each row in `create` or `update` is kept to map a 422 `loc` back to the row.
+
+**`ApiError.problems`:** `[{loc: (string | number)[], type: string}]` for a 422 list body, empty otherwise. `msg`, `input` and `ctx` are dropped when the body is read.
+
+**Drafts store entry:** `{key, username, values, restored: boolean}` in memory, where `values` is the form's own state (for a batch: the chosen rows, ticks, ratings, "set by hand" flags, batch-wide values and overrides, keyed by knife type slug).
+
+**Dependencies** (`admin/package.json`): `@fontsource/montserrat`, `@tanstack/react-query` (5.x), `openapi-fetch`, `react`, `react-dom`, `react-router`.
+
+## Security
+
+- S1. Every combo and knife order request goes through `src/api/client.ts`: to the API origin, with credentials, and with the CSRF token on writes. The lint guard rails and their tests are unchanged and pass.
+- S2. Nothing is written to `localStorage`, `sessionStorage`, IndexedDB or cookies; unsaved changes live in memory only. No new lint exception is added.
+- S3. Unsaved changes of one admin are never shown to another admin who logs in in the same tab, and are discarded on logout.
+- S4. Descriptions, finish names and every other value from the API are rendered as text, never as HTML. Text, input and context from error bodies are never rendered.
+- S5. The Content Security Policy, the robots tag and the bundle check of spec 008 are unchanged and pass; nothing is loaded from a third-party host.
+- S6. Actions that change what the public sees or remove data ("Publish all drafts", delete) ask for confirmation; publishing a selection or a saved batch shows the number of combos on its button.
+- S7. No new environment variable, secret, or network destination. `admin/.env.example` is unchanged.
+- S8. Dependencies are installed from `package-lock.json` with `npm ci`; the only new runtime dependency is `@tanstack/react-query`.
+
+## Acceptance criteria
+
+Commands run in `admin/` unless stated. "The fake" is the test fake API with its in-memory catalog and combo store (Design, Tests). Unit tests name the function they test.
+
+**Project**
+
+1. On a fresh clone with no `admin/.env`, `npm ci`, `npm run api:types:check`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` and `npm run check:bundle` each exit 0; `npm run build` prints no chunk-size warning.
+2. `node -p "Object.keys(require('./package.json').dependencies).sort().join(' ')"` prints exactly `@fontsource/montserrat @tanstack/react-query openapi-fetch react react-dom react-router`.
+3. `git diff main...010-admin-combo-screens -- admin/eslint.config.js admin/vite.config.ts admin/scripts/check-bundle.mjs` removes no rule, CSP source or check; `grep -rn "eslint-disable" src` lists only the three lines of spec 008 in `src/flow.test.tsx`; `src/lint.test.ts` passes.
+
+**Values** (unit tests)
+
+4. Rating parsing: `8.88`, `8,88`, ` 9.5 `, `10` and `0` parse to 888, 888, 950, 1000 and 0 hundredths and format as `8.88`, `8.88`, `9.50`, `10.00`, `0.00`; empty, `abc`, `1e1`, `8.885`, `-0.01` and `10.01` are refused with the messages of Design. Arrow steps from `8.88` give `8.93` and `8.83`; from `9.98` up gives `10.00`; from `0.03` down gives `0.00`.
+5. Float range: with the finish range 0.06 to 0.8, `0.06`–`0.8` and `0.1`–`0.15` are accepted, `0.05`–`0.5`, `0.1`–`0.81`, `0.2`–`0.1`, `0.2`–`0.2`, `0.12345`–`0.2` and From without To are refused with their messages; with the range 0 to 0.08, `0`–`0.08` is accepted and `0`–`0.09` refused; Vanilla refuses any range or seed.
+6. Seeds: `179, 387 2` gives `[2, 179, 387]`; `5 5 6` gives `[5, 6]` and the note "1 duplicate removed"; `1001`, `-1`, `1.5` and `x` are refused; 101 different seeds are refused; empty gives `[]`.
+7. Description: `"  text  "` becomes `text`; spaces only become null; 1000 characters pass and 1001 are refused; a line break passes and a tab is refused.
+8. Batch fill: top 9.50 over four included rows gives 9.50, 9.45, 9.40, 9.35; top 0.10 over four rows gives 0.10, 0.05, 0.00, 0.00; with row 2 set by hand to 9.80, row 3 gets 9.75; unticking row 2 then gives row 3 the rating 0.05 below row 1; changing the top rating changes only rows not set by hand; "Refill from top" refills all; twenty rows from 9.50 end at exactly 8.55; rows never change order.
+9. Search: "kimono spec" and "SPEC kim" find Specialist Gloves | Crimson Kimono; "ruby" finds Doppler (Ruby) on every knife type that has it and nothing else; results follow catalog display order; more than 50 matches show 50 and the "type more" note.
+10. Error paths: a 422 body with `loc` `["body", "create", 1, "knife", "float_from"]` and `type` `float_outside_finish` maps to the second sent `create` row's knife From field with "Outside this finish's range."; `["body", "update", 0, "rating"]` maps to the first `update` row's rating; an unknown `type` gives "The API refused this value."; a path that matches no field goes to the summary. A body whose `msg`, `input` and `ctx` hold `<b>x</b>` produces no text containing `<b>x</b>`, and `ApiError.problems` holds only `loc` and `type`.
+
+**Finding a finish and its combos**
+
+11. Tests with the fake: `/gloves` sends `GET /gloves` and one `GET /gloves/{type}` per glove type; typing "kimono" and pressing Down and Enter, without the mouse, opens `/gloves/specialist/crimson-kimono`; going back and searching again sends no further catalog request. The input has `role="combobox"` and the results `role="listbox"`. `/knives` does the same with knife types.
+12. Tests: a glove finish page sends one `GET /admin/combos` with `glove_type`, `glove_finish` and `limit=500`, and shows each combo's knife, rating with two decimals, conditions summary, status as text, and last change with the username; with a queued first answer whose `total` is 501, it sends a second request with `offset=500` and shows the combos of both answers. Status chips show the right counts and filter; the knife finish filter and both sorts show the expected order. A knife finish page shows the gloves of each combo the same way.
+13. Tests: a retired finish's page shows "No longer in the game" and no Add or Start a batch; an unknown finish shows the not-found message with a link to the search.
+
+**Adding one combo**
+
+14. Tests: on a glove finish page, Add knife, picking a knife finish, entering rating `8,88`, a knife range, glove seeds `2 1` and a description, then Save, sends one `POST /admin/combos` whose body has both items' slugs, `rating` 8.88 as a JSON number, the range, glove seeds `[1, 2]` and the description; the page returns to the finish page with the new draft listed and a saved message. With an invalid value Save sends nothing and the field shows its message. A 409 `combo_exists` shows "These items already have a combo." with a link to `/combos/<id>` of the existing combo. Add gloves on a knife finish page works the same with a glove finish search.
+
+**Batch**
+
+15. Tests: Start a batch lists the batch finish names from `GET /admin/batches/finishes`, searchable; picking one sends `GET /admin/batches/candidates` with the glove finish and the name and shows the rows in the order returned, new rows ticked, the existing row unticked with "Already exists", its status and rating, and an option to update it.
+16. Tests: entering the top rating 9.50 fills the ticked rows as in criterion 8; editing a row, unticking a row, and changing the top rating behave as in criterion 8 on screen; rows keep their order after a row is rated above the one before it.
+17. Tests: a batch-wide knife range, glove seeds and description reach every new row; one row's own knife range replaces the batch-wide one for that row only, and Clear returns it to the batch-wide value; a row whose finish range does not contain the batch-wide range is marked and Save sends nothing until it is overridden; a Vanilla row takes no knife conditions.
+18. Tests: Save sends one `POST /admin/batches` whose `create` holds exactly the ticked new rows in list order with resolved values, and whose `update` holds exactly the ticked existing row with its `id`, the `version` from the candidates, its filled rating and the batch description; nothing is sent with no row ticked. On 200 the result lists each created and updated knife with its rating; "Publish these N new combos" sends one `POST /admin/combos/publish` with exactly the created ids and shows the number changed.
+19. Tests: a 422 with a `loc` in `create` row 2 shows the message on the row of the knife sent as row 2, and every value stays; a 409 `combo_exists` shows "Combos changed since you opened this batch.", sends `GET /admin/batches/candidates` again, keeps the owner's values per knife type, and shows a row that now has a combo as "Already exists", unticked.
+
+**Editing and managing**
+
+20. Tests: `/combos/<id>` sends `GET /admin/combos/<id>`, shows the pairing without inputs for it, status, version, creator, last change, and the values; Save sends `PUT` with the version read and the edited rating, description and both conditions, then shows the new version.
+21. Tests: a `PUT` answered 409 `version_conflict` leads to one `GET` of the combo and a message naming the admin and time of the other change, with "Theirs" and "Yours" for each differing field; "Use theirs" fills the form with the stored values; "Keep mine" keeps the owner's values and the next Save sends the new version. A 404 on `GET` or `PUT` shows "This combo no longer exists."
+22. Tests: from the list and from the edit page, Publish on a draft or unpublished combo sends `POST /admin/combos/publish` with `{"ids": [id]}` and Unpublish on a published one sends `/unpublish`; the status shown changes after the answer. Selecting three rows and "Publish selected" sends one request with those three ids. "Select all shown" with the knife finish filter on selects only the shown rows.
+23. Tests: Delete is offered only for draft and unpublished combos; it opens a dialog naming the pairing; Cancel sends nothing; Confirm sends `DELETE /admin/combos/<id>?version=<n>` and the combo leaves the list. A 409 `combo_published`, a 409 `version_conflict` and a 404 each show their message and the combo stays listed until the list is reloaded.
+24. Tests: Home shows the draft count from `GET /admin/combos?status=draft&limit=1`; Publish all drafts opens a dialog with that number; Cancel sends nothing; Confirm sends exactly `{"all_drafts": true}` and shows the number changed; an unpublished combo in the fake stays unpublished.
+
+**Knife order**
+
+25. Tests: `/knife-order` shows the knife types from `GET /admin/knife-order` in order; the first row has no Move up and the last no Move down; Move down on row 1, using only the keyboard, makes it row 2, keeps focus on that row's Move down button and announces the move in a live region; the position select moves a row to the chosen place; Save is disabled until the order changes, then sends `PUT /admin/knife-order` with every slug in the new order; Discard restores the saved order; a 422 `knife_order_mismatch` shows a message asking to reload.
+
+**No lost work**
+
+26. Tests, for each of the add, batch, edit and knife order forms: after values are changed, a request that gets 401 `not_authenticated` shows the login page; logging in again as the same admin returns to the form's path with every value restored (for a batch: ticks, ratings, "set by hand" flags, batch-wide values and overrides) and a "Restored unsaved changes" notice whose Discard returns the form to the stored values. The same holds when the session ends because `expires_at` passed (fake timers).
+27. Tests: changing values in the add form, going to Home and back restores them; a successful save, then opening the add form again, shows empty values.
+28. Tests: after the session ends with unsaved changes, logging in as a different username shows empty forms. Logout with unsaved changes opens a dialog; Cancel sends no `POST /admin/logout`; Confirm logs out, and logging in again as the same admin shows empty forms.
+29. Tests: with unsaved changes, a `beforeunload` event dispatched on `window` has `defaultPrevented` true; without, false.
+
+**Security**
+
+30. The full-flow test of spec 008 (`src/flow.test.tsx`) is extended with: a search, a batch save, a publish, an edit with a version conflict, a session end with an unsaved batch and its restore; at every step `localStorage`, `sessionStorage` and `document.cookie` are empty, and every recorded write carries the session's `X-CSRF-Token` and goes to the API origin.
+31. Tests: a combo whose description and finish display name are `<img src=x onerror=alert(1)>` shows that text literally, and the page has no `img` element with `src="x"`.
+32. `npm run check:bundle` exits 0 after a build; `contentSecurityPolicy` in `vite.config.ts` returns the same string as on `main`.
+
+**Manual, against the local stack**
+
+33. Following `admin/README.md` literally on a fresh clone, with the Compose stack from `api/.env.example` and an admin made with spec 007's tool: search "crimson kimono", open Specialist Gloves | Crimson Kimono, start a batch with Doppler (Ruby): 18 rows in the seeded knife order (Butterfly first). Untick three, set the top rating to 9.50, give Karambit its own knife range 0 to 0.01, save: 15 drafts are listed. "Publish these 15 new combos" publishes them, and `GET /gloves/specialist/crimson-kimono/combos` on the local API returns 15 combos with ratings 9.50 down by 0.05 in the order saved. Add one knife and one pair of gloves from the other direction. Edit one combo in two tabs and save both: the second shows the conflict. Move Karambit to position 1 on the knife order page and save: a new batch lists it first.
+34. Manual: with `SESSION_IDLE_MINUTES=5` in `api/.env` and the API restarted, fill half a batch, wait over five minutes, act: the login page shows; logging in returns to the batch with every value restored. Reloading the page with unsaved changes shows the browser's leave-page warning.
+35. Manual, with `npm run build && npm run preview`: the browser console shows no CSP violation while doing criterion 33's steps; the network panel shows requests only to `localhost:5174` and `localhost:8000`; local and session storage and IndexedDB stay empty.
+36. Manual: at 375 px and 1440 px wide, every page of the routes table has no horizontal scroll bar, and a batch of 18 rows can be filled and saved at 375 px.
+
+**Shell, CI and docs**
+
+37. Tests: the navigation has Home, By gloves, By knife and Knife order in that order, the current one with `aria-current="page"`; the document titles are those of Design on each page. The placeholder text of spec 008 no longer appears.
+38. After the branch is pushed, the `admin` workflow run for its latest commit succeeds on GitHub.
+39. `admin/README.md` describes the screens (By gloves with batches, By knife, editing and publishing, knife order), that unsaved changes are kept in memory across a session end but not across a reload, and the project structure with `src/combos/`; its first paragraph no longer says the combo screens come later.
+40. `git diff --stat main...010-admin-combo-screens -- api website compose.yaml .github` prints nothing.
+41. The only URLs in the changed files point to `github.com/shb327/combo-skin`, public documentation, `localhost` or `example.com` placeholders; `gitleaks dir . --no-banner --redact` on a clean clone and `gitleaks git --log-opts="main..010-admin-combo-screens" --no-banner --redact` report no findings.
+
+## Test plan
+
+| Criterion | How it is checked |
+| --- | --- |
+| 1 | Fresh clone into a temporary directory, then the commands in criterion 1; read the build output |
+| 2 | The command in criterion 2 |
+| 3 | The `git diff` and `grep` in criterion 3; Vitest: `src/lint.test.ts` |
+| 4 to 10 | Vitest: unit tests of `src/combos/values.ts`, `fill.ts`, `search.ts` and `problems.ts`, and of `httpError` in `src/api/errors.ts` |
+| 11 to 29 | Vitest with Testing Library, `user-event`, fake timers and the fake: one test file per page, plus the drafts store tests |
+| 30 | Vitest: `src/flow.test.tsx` |
+| 31 | Vitest: list and edit page tests |
+| 32 | `npm run build && npm run check:bundle`; Vitest: a test comparing `contentSecurityPolicy` with the string of spec 008 |
+| 33 to 36 | Manual, with the local stack as described, recorded in Implementation notes |
+| 37 | Vitest: shell tests in `src/App.test.tsx` |
+| 38 | The workflow run page for the branch's latest commit (checked after the owner pushes) |
+| 39 | Read `admin/README.md` |
+| 40, 41 | The commands in the criteria; `git diff main...010-admin-combo-screens \| grep -oE 'https?://[^ )>"]+' \| sort -u` |
+
+Section commands, run in `admin/`:
+
+```bash
+npm ci
+npm run api:types:check
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm run check:bundle
+```
+
+## Open questions
+
+Each has a recommendation, which Design already follows.
+
+1. **Server state.** TanStack Query v5 now (recommended: caching across pages, invalidation after writes, one new dependency), or keep the small hooks of spec 008 (no dependency, more hand-written cache code).
+2. **Unsaved changes across a session end.** In memory only, lost on reload or closing the tab, with the browser's leave-page warning (recommended: keeps spec 008's no-storage rule unchanged), or `sessionStorage` with limits (survives a reload, but needs an exception to spec 008 S2 and its lint rule, and leaves combo data in the browser after the session ends).
+3. **Searching for finishes, and images.** One search across type and finish (recommended), or type then finish. No finish images (recommended: CSP unchanged), or small catalog images, which need the CSP and spec 008 S4 to allow the game's image host.
+4. **Knife order input.** Move up, Move down and a position select, keyboard first, no dependency (recommended), or a drag and drop library.
+5. **Typing values.** Text inputs with decimal keyboards, dot or comma, Up and Down stepping by 0.05, ratings shown with two decimals, messages as in Design (recommended), or number inputs with `step`.
+6. **API errors.** Field-level 422 messages mapped by `loc` with fixed texts, a "Theirs and yours" conflict view on edit, and a batch kept and its candidates reloaded after a 409 (recommended), or one message per form and a reload on conflict.
+7. **Size.** One spec (recommended: By knife and the knife order page reuse every piece built for By gloves and add little review), or two: 010 By gloves with batches, editing and publishing; then By knife, the knife order page and polish.
+
+## Implementation notes
+
+Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+
+## Audit
+
+Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
