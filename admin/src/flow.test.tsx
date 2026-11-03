@@ -24,7 +24,7 @@ describe('a full session', () => {
       expect(localStorage.length).toBe(0)
       // eslint-disable-next-line no-restricted-globals
       expect(sessionStorage.length).toBe(0)
-      // eslint-disable-next-line no-restricted-properties
+      // eslint-disable-next-line no-restricted-properties, no-restricted-syntax
       expect(document.cookie).toBe('')
       const page = document.body.cloneNode(true) as HTMLElement
       page.querySelector('input[type="password"]')?.remove()

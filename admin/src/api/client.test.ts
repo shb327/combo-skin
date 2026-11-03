@@ -4,7 +4,7 @@ import { createApi } from './client'
 import { ApiError } from './errors'
 
 function setup(fake = new FakeApi()) {
-  const api = createApi({ baseUrl: ORIGIN, fetch: fake.fetch })
+  const api = createApi({ baseUrl: ORIGIN, fetch: fake.respond })
   return { fake, api }
 }
 

@@ -67,7 +67,7 @@ export class FakeApi {
     return this.requests.filter((r) => `${r.method} ${new URL(r.url).pathname}` === route)
   }
 
-  fetch = async (request: Request): Promise<Response> => {
+  respond = async (request: Request): Promise<Response> => {
     const body = await request.clone().text()
     const headers: Record<string, string> = {}
     request.headers.forEach((value, name) => {

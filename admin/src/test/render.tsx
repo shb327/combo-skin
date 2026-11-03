@@ -9,7 +9,7 @@ import { FakeApi, ORIGIN, PASSWORD, USERNAME } from './fakeApi'
 /** Render the whole app at a path, against the fake API. */
 export function renderApp(path: string, fake = new FakeApi(), { fakeTimers = false } = {}) {
   window.history.replaceState(null, '', path)
-  const api = createApi({ baseUrl: ORIGIN, fetch: fake.fetch })
+  const api = createApi({ baseUrl: ORIGIN, fetch: fake.respond })
   const user = userEvent.setup(fakeTimers ? { advanceTimers: vi.advanceTimersByTime } : {})
   render(
     <BrowserRouter>

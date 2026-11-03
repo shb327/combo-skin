@@ -31,15 +31,32 @@ const properties = [
   { object: 'navigator', property: 'sendBeacon', message: 'Make requests through src/api/client.ts.' },
   { object: 'document', property: 'cookie', message: 'The session cookie is HttpOnly; the admin sets no cookies.' },
 ]
-const rawHtml = {
-  selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
-  message: 'Never render HTML from strings.',
+const rawHtml = [
+  "JSXAttribute[name.name='dangerouslySetInnerHTML']",
+  "Property[key.name='dangerouslySetInnerHTML']",
+].map((selector) => ({ selector, message: 'Never render HTML from strings.' }))
+// The same names reached through any object (window.navigator.sendBeacon, top.fetch, ...).
+const networkMembers = {
+  selector: 'MemberExpression[property.name=/^(fetch|XMLHttpRequest|WebSocket|EventSource|sendBeacon)$/]',
+  message: 'Make requests through src/api/client.ts.',
 }
+const storageMembers = {
+  selector: 'MemberExpression[property.name=/^(localStorage|sessionStorage|indexedDB|cookie)$/]',
+  message: 'The admin keeps nothing in browser storage or cookies.',
+}
+// Aliases would hide the objects above from these rules.
+const aliasedGlobals = [
+  'VariableDeclarator',
+  'AssignmentExpression > .right',
+].map((node) => ({
+  selector: `${node === 'VariableDeclarator' ? 'VariableDeclarator > .init' : node}[type='Identifier'][name=/^(window|document|console|globalThis|self|top|parent|frames|navigator)$/]`,
+  message: 'Use browser globals directly, so the guard rails can see them.',
+}))
 
 export default defineConfig([
   globalIgnores(['dist']),
   {
-    files: ['**/*.{ts,tsx}'],
+    files: ['**/*.{ts,tsx}', 'src/**/*.{js,jsx}'],
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
@@ -53,7 +70,7 @@ export default defineConfig([
     rules: {
       'no-restricted-globals': ['error', ...network, ...storage],
       'no-restricted-properties': ['error', ...properties],
-      'no-restricted-syntax': ['error', rawHtml],
+      'no-restricted-syntax': ['error', ...rawHtml, networkMembers, storageMembers, ...aliasedGlobals],
       'no-console': ['error', { allow: ['warn', 'error'] }],
     },
   },
@@ -61,6 +78,7 @@ export default defineConfig([
     files: ['src/api/client.ts'],
     rules: {
       'no-restricted-globals': ['error', ...storage],
+      'no-restricted-syntax': ['error', ...rawHtml, storageMembers, ...aliasedGlobals],
       'no-restricted-properties': [
         'error',
         ...properties.filter((p) => p.message !== 'Make requests through src/api/client.ts.'),
