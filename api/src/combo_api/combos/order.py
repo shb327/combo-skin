@@ -1,6 +1,6 @@
 """The knife order batches follow: the saved order, then active knife types missing from it."""
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from combo_api.catalog.models import ItemType
@@ -20,3 +20,14 @@ async def knife_types(db: AsyncSession) -> list[ItemType]:
         )
     ).all()
     return sorted(types, key=lambda t: rank.get(t.slug, len(rank)))
+
+
+async def replace(db: AsyncSession, slugs: list[str]) -> bool:
+    """Save a new order. Refused (False) unless it names every active knife type once."""
+    active = {t.slug for t in await knife_types(db)}
+    if len(slugs) != len(active) or set(slugs) != active:
+        return False
+    await db.execute(delete(KnifeOrder))
+    db.add_all(KnifeOrder(position=i, type_slug=slug) for i, slug in enumerate(slugs, start=1))
+    await db.commit()
+    return True

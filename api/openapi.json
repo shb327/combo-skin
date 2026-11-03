@@ -1020,6 +1020,60 @@
         "title": "KnifeFinishName",
         "type": "object"
       },
+      "KnifeOrderIn": {
+        "description": "Every active knife type's slug, once, in the new order.",
+        "properties": {
+          "slugs": {
+            "items": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Slugs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "slugs"
+        ],
+        "title": "KnifeOrderIn",
+        "type": "object"
+      },
+      "KnifeOrderOut": {
+        "properties": {
+          "knife_types": {
+            "items": {
+              "$ref": "#/components/schemas/KnifeTypeName"
+            },
+            "title": "Knife Types",
+            "type": "array"
+          }
+        },
+        "required": [
+          "knife_types"
+        ],
+        "title": "KnifeOrderOut",
+        "type": "object"
+      },
+      "KnifeTypeName": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name"
+        ],
+        "title": "KnifeTypeName",
+        "type": "object"
+      },
       "Live": {
         "properties": {
           "status": {
@@ -2089,6 +2143,108 @@
           }
         },
         "summary": "Update Combo",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/knife-order": {
+      "get": {
+        "description": "Active knife types in the order batches follow.",
+        "operationId": "get_knife_order",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnifeOrderOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`not_authenticated`"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`origin_not_allowed` or `csrf_failed`"
+          }
+        },
+        "summary": "Get Knife Order",
+        "tags": [
+          "admin"
+        ]
+      },
+      "put": {
+        "description": "Replace the knife order. The list must name every active knife type exactly once.",
+        "operationId": "replace_knife_order",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnifeOrderIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnifeOrderOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`not_authenticated`"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`origin_not_allowed` or `csrf_failed`"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Replace Knife Order",
         "tags": [
           "admin"
         ]

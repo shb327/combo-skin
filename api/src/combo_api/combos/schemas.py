@@ -219,6 +219,21 @@ class BatchSaved(BaseModel):
     updated: list[AdminCombo]
 
 
+class KnifeTypeName(BaseModel):
+    slug: str
+    name: str
+
+
+class KnifeOrderOut(BaseModel):
+    knife_types: list[KnifeTypeName]
+
+
+class KnifeOrderIn(BaseModel):
+    """Every active knife type's slug, once, in the new order."""
+
+    slugs: Annotated[list[Slug], Field(max_length=100)]
+
+
 class Item(BaseModel):
     type_slug: str
     type_name: str

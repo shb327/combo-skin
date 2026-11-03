@@ -18,7 +18,7 @@ from combo_api.admins.deps import (
 )
 from combo_api.catalog.models import Finish
 from combo_api.catalog.snapshot import Kind
-from combo_api.combos import batches, queries, rules
+from combo_api.combos import batches, order, queries, rules
 from combo_api.combos.models import Combo, Status
 from combo_api.combos.schemas import (
     AdminCombo,
@@ -33,6 +33,9 @@ from combo_api.combos.schemas import (
     ComboUpdate,
     Existing,
     KnifeFinishName,
+    KnifeOrderIn,
+    KnifeOrderOut,
+    KnifeTypeName,
     PublicId,
     PublishRequest,
     Slug,
@@ -387,3 +390,34 @@ async def save_batch(batch: BatchIn, current: AdminDep, db: Session) -> BatchSav
         created=[await load(db, public_id) for public_id in created],
         updated=[await load(db, public_id) for public_id in updated],
     )
+
+
+async def knife_order_out(db: AsyncSession) -> KnifeOrderOut:
+    return KnifeOrderOut(
+        knife_types=[KnifeTypeName(slug=t.slug, name=t.name) for t in await order.knife_types(db)]
+    )
+
+
+@router.get("/knife-order")
+async def get_knife_order(current: AdminDep, db: Session) -> KnifeOrderOut:
+    """Active knife types in the order batches follow."""
+    return await knife_order_out(db)
+
+
+@router.put("/knife-order")
+async def replace_knife_order(
+    new_order: KnifeOrderIn, current: AdminDep, db: Session
+) -> KnifeOrderOut:
+    """Replace the knife order. The list must name every active knife type exactly once."""
+    if not await order.replace(db, new_order.slugs):
+        problems = rules.Problems()
+        problems.add(
+            ("body", "slugs"),
+            "knife_order_mismatch",
+            "List every active knife type exactly once",
+        )
+        raise problems.error()
+    logger.info(
+        "knife order replaced admin=%s slugs=%s", current.username, ",".join(new_order.slugs)
+    )
+    return await knife_order_out(db)
