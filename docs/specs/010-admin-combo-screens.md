@@ -554,7 +554,7 @@ Both changes made after the audit above (existing descriptions kept in a batch; 
 
 ### Audit of the pictures change
 
-**Date:** 2026-11-03 · **Commit:** see below · **Verdict:** Pass with follow-ups
+**Date:** 2026-11-03 · **Commit:** 9637421 (code; the spec line was filled in after) · **Verdict:** Pass with follow-ups
 
 The owner's pictures change (`git diff ec86a9b..HEAD`) was read by an independent reviewer against R38, the Finish images row, S5, S7, S9 and criteria 3, 32, 35, 41, 42, 45 and 46, with probes of `pictureUrl` (other ports, an explicit `:443`, user info, look-alike hosts, a trailing dot, upper case, leading spaces, `http`, relative URLs: all refused) and of the real catalog snapshot (every picture on the image host, every knife type with a Vanilla, every fixed glove finish present). It found no defect against a requirement; it found tests weaker than criteria 42, 45 and 46, a picture and its name that could wrap apart on the edit and add pages, and spec lines that still described the first choice (S7, criterion 41, the add page's picture, the bundle check's text rule, two Design rows). All were fixed or corrected, with tests where they apply. On a clean clone: `npm ci`, `lint`, `typecheck`, `test` (284 passed), `build` (no chunk-size warning) and `check:bundle` exit 0; `gitleaks` reports no leaks. The browser check in Implementation notes ("Owner's change: pictures") covers criterion 35 for pictures.
 
