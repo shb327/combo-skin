@@ -150,7 +150,17 @@ describe('login', () => {
     await act(async () => answer(json(200, fake.session())))
   })
 
-  it.each(['//example.com', 'https://example.com', '/\\example.com', 'javascript:alert(1)', '/login'])(
+  it.each([
+    '//example.com',
+    'https://example.com',
+    '/\\example.com',
+    'javascript:alert(1)',
+    '/login',
+    '/login?next=%2F',
+    '/.//example.com',
+    '/./login',
+    '/%2e%2e//example.com',
+  ])(
     'ignores the return path %s',
     async (next) => {
       const { user } = renderApp(`/login?next=${encodeURIComponent(next)}`)
