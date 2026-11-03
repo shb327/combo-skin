@@ -85,8 +85,8 @@ export function LoginPage() {
         onSubmit={onSubmit}
         className="w-full max-w-sm rounded-xl border border-white/10 p-6"
       >
-        <img src={logo} alt="" className="mx-auto h-10 w-auto" />
-        <h1 className="mt-4 text-center text-xl font-semibold">Combo Skin admin</h1>
+        <img src={logo} alt="Combo Skin" className="mx-auto h-10 w-auto" />
+        <h1 className="mt-4 text-center text-xl font-semibold tracking-widest uppercase">Admin</h1>
         {ended && !error && (
           <p role="status" className="mt-4 rounded-md bg-white/5 px-3 py-2 text-sm">
             {MESSAGES.sessionEnded}

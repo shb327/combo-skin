@@ -108,6 +108,13 @@ describe('login', () => {
     expect(document.body.innerHTML).not.toContain('<b>x</b>')
   })
 
+  it('shows the logo and ADMIN, not the product name in text', async () => {
+    renderApp('/login')
+    expect(await screen.findByRole('img', { name: 'Combo Skin' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Admin' })).toHaveClass('uppercase')
+    expect(document.body).not.toHaveTextContent('Combo Skin admin')
+  })
+
   it('has labelled fields with the right attributes, in a post form', async () => {
     renderApp('/login')
     const username = await screen.findByLabelText('Username')
@@ -271,7 +278,9 @@ describe('shell', () => {
   it('has the header, the navigation and the placeholders', async () => {
     const { user } = renderApp('/', new FakeApi().withSession())
     const banner = await screen.findByRole('banner')
-    expect(within(banner).getByText('Combo Skin admin')).toBeInTheDocument()
+    expect(within(banner).getByRole('img', { name: 'Combo Skin' })).toBeInTheDocument()
+    expect(within(banner).getByText('Admin')).toHaveClass('uppercase')
+    expect(banner).not.toHaveTextContent('Combo Skin admin')
     expect(within(banner).getByText(USERNAME)).toBeInTheDocument()
     expect(within(banner).getByRole('button', { name: 'Log out' })).toBeInTheDocument()
 

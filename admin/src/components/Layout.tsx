@@ -50,8 +50,8 @@ export function Layout() {
         >
           Menu
         </button>
-        <img src={logo} alt="" className="hidden h-6 w-auto sm:block" />
-        <span className="font-semibold whitespace-nowrap">Combo Skin admin</span>
+        <img src={logo} alt="Combo Skin" className="h-6 w-auto" />
+        <span className="text-sm font-semibold tracking-widest uppercase">Admin</span>
         {/* Below 640 px the username takes its own line under the others. */}
         <span className="order-last w-full truncate text-sm text-white/70 sm:order-none sm:ml-auto sm:w-auto">
           {username}
