@@ -25,7 +25,8 @@ export function FinishSearch<T extends SearchEntry>({
   const id = useId()
   const input = inputId ?? `${id}-input`
   const [query, setQuery] = useState('')
-  const [active, setActive] = useState(0)
+  // -1: no option highlighted yet; Enter then takes the first.
+  const [active, setActive] = useState(-1)
   const [open, setOpen] = useState(false)
   const { results, more } = search(entries, query)
   const shown = open && query.trim() !== ''
@@ -52,13 +53,13 @@ export function FinishSearch<T extends SearchEntry>({
         aria-autocomplete="list"
         aria-expanded={shown}
         aria-controls={`${id}-list`}
-        aria-activedescendant={shown && results.length ? optionId(active) : undefined}
+        aria-activedescendant={shown && active >= 0 && results.length ? optionId(active) : undefined}
         value={query}
         placeholder="For example: crimson kimono"
         className={INPUT}
         onChange={(event) => {
           setQuery(event.target.value)
-          setActive(0)
+          setActive(-1)
           setOpen(true)
         }}
         onBlur={() => setOpen(false)}
@@ -73,7 +74,7 @@ export function FinishSearch<T extends SearchEntry>({
             setActive((i) => Math.max(i - 1, 0))
           } else if (event.key === 'Enter') {
             event.preventDefault()
-            if (shown) choose(results[active])
+            if (shown) choose(results[Math.max(active, 0)])
           } else if (event.key === 'Escape') {
             setOpen(false)
           }
