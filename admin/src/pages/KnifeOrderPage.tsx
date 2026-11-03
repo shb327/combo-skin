@@ -1,11 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router'
 import { ApiError, errorMessage } from '../api/errors'
 import { useApi } from '../api/useApi'
 import { useTitle } from '../components/useTitle'
 import { COMBO_MESSAGES } from '../combos/messages'
 import { keys, useKnifeOrder } from '../combos/queries'
-import { PRIMARY, SECONDARY } from '../combos/styles'
+import { LINK, PRIMARY, SECONDARY } from '../combos/styles'
 import { QueryState, RestoredNotice } from '../combos/ui'
 import { useDraft } from '../combos/useDrafts'
 
@@ -74,7 +75,12 @@ export function KnifeOrderPage() {
 
   return (
     <section>
-      <h1 className="text-2xl font-semibold">Knife order</h1>
+      <p className="text-sm">
+        <Link to="/" className={LINK}>
+          Home
+        </Link>
+      </p>
+      <h1 className="mt-1 text-2xl font-semibold">Knife order</h1>
       <p className="mt-2 max-w-prose text-white/70">
         Batches list knife types in this order. It is shared by every admin.
       </p>

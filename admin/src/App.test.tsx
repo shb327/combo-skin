@@ -322,8 +322,8 @@ describe('shell', () => {
 
     const nav = screen.getByRole('navigation')
     const links = within(nav).getAllByRole('link')
-    expect(links.map((l) => l.textContent)).toEqual(['Home', 'By gloves', 'By knife', 'Knife order'])
-    expect(links.map((l) => l.getAttribute('href'))).toEqual(['/', '/gloves', '/knives', '/knife-order'])
+    expect(links.map((l) => l.textContent)).toEqual(['Home', 'By gloves', 'By knife'])
+    expect(links.map((l) => l.getAttribute('href'))).toEqual(['/', '/gloves', '/knives'])
     expect(within(nav).getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page')
 
     const main = screen.getByRole('main')

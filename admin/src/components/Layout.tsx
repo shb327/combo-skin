@@ -12,7 +12,6 @@ const SECTIONS = [
   { to: '/', label: 'Home', end: true },
   { to: '/gloves', label: 'By gloves', end: false },
   { to: '/knives', label: 'By knife', end: false },
-  { to: '/knife-order', label: 'Knife order', end: false },
 ]
 
 export function Layout() {

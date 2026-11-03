@@ -3,14 +3,14 @@ import { Link } from 'react-router'
 import { useApi } from '../api/useApi'
 import { useTitle } from '../components/useTitle'
 import { comboErrorMessage } from '../combos/messages'
-import { useComboWrites, useDraftCount } from '../combos/queries'
+import { Picture } from '../combos/Picture'
+import { useComboWrites, useDraftCount, useFinish } from '../combos/queries'
 import { SECONDARY } from '../combos/styles'
 import { ConfirmDialog } from '../combos/ui'
 
 const DIRECTIONS = [
   { to: '/gloves', label: 'By gloves', text: 'Start from a pair of gloves and find the knives that go with it.' },
   { to: '/knives', label: 'By knife', text: 'Start from a knife and find the gloves that go with it.' },
-  { to: '/knife-order', label: 'Knife order', text: 'The order of knife types in every batch.' },
 ]
 
 export function HomePage() {
@@ -23,6 +23,11 @@ export function HomePage() {
   const [message, setMessage] = useState<string | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
   const count = drafts.data ?? 0
+  // The same pictures as the type grids: Sport Gloves' fixed finish and Karambit's Vanilla.
+  const pictures = [
+    useFinish('glove', 'sport', 'pandoras-box').data?.image_url,
+    useFinish('knife', 'karambit', 'vanilla').data?.image_url,
+  ]
 
   async function publishAll() {
     setBusy(true)
@@ -46,14 +51,17 @@ export function HomePage() {
       <h1 className="text-2xl font-semibold">Combos</h1>
       <p className="mt-2 text-white/70">Choose where to start.</p>
       <ul className="mt-6 grid gap-4 sm:grid-cols-2">
-        {DIRECTIONS.map((direction) => (
+        {DIRECTIONS.map((direction, i) => (
           <li key={direction.to}>
             <Link
               to={direction.to}
-              className="block rounded-lg border border-white/10 p-5 hover:border-accent"
+              className="flex items-center gap-4 rounded-lg border border-white/10 p-5 hover:border-accent"
             >
-              <span className="text-lg font-semibold text-accent">{direction.label}</span>
-              <span className="mt-1 block text-sm text-white/70">{direction.text}</span>
+              <Picture url={pictures[i]} size="md" />
+              <span className="min-w-0">
+                <span className="text-lg font-semibold text-accent">{direction.label}</span>
+                <span className="mt-1 block text-sm text-white/70">{direction.text}</span>
+              </span>
             </Link>
           </li>
         ))}
@@ -83,6 +91,13 @@ export function HomePage() {
             {failure}
           </p>
         )}
+      </div>
+      <div className="mt-6 rounded-lg border border-white/10 p-5">
+        <h2 className="font-semibold">Knife order</h2>
+        <p className="mt-1 text-sm text-white/70">The order of knife types in every batch, shared by every admin.</p>
+        <Link to="/knife-order" className={`${SECONDARY} mt-3 inline-block`}>
+          Change the order
+        </Link>
       </div>
       {confirming && (
         <ConfirmDialog

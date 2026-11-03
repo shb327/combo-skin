@@ -48,6 +48,12 @@ describe('the knife order page', () => {
     expect(screen.getByLabelText('Position of M9 Bayonet')).toHaveFocus()
   })
 
+  it('links back to Home', async () => {
+    renderApp('/knife-order', new FakeApi().withSession())
+    const main = await screen.findByRole('main')
+    expect(await within(main).findByRole('link', { name: 'Home' })).toHaveAttribute('href', '/')
+  })
+
   it('discards changes', async () => {
     const fake = new FakeApi().withSession()
     const { user } = renderApp('/knife-order', fake)
