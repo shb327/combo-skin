@@ -1,10 +1,10 @@
 """Admin endpoints for combos. Every route depends on `require_admin`."""
 
 import logging
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from combo_api.admins import clock
@@ -17,6 +17,7 @@ from combo_api.admins.deps import (
     refuse,
 )
 from combo_api.catalog.models import Finish
+from combo_api.catalog.snapshot import Kind
 from combo_api.combos import queries, rules
 from combo_api.combos.ids import new_public_id
 from combo_api.combos.models import Combo, Status
@@ -24,9 +25,11 @@ from combo_api.combos.schemas import (
     AdminCombo,
     Changed,
     ComboIn,
+    ComboPage,
     ComboUpdate,
     PublicId,
     PublishRequest,
+    Slug,
     UnpublishRequest,
     decimal,
 )
@@ -128,6 +131,78 @@ async def pairing_exists(db: AsyncSession, glove: Finish, knife: Finish) -> bool
         select(Combo.id).where(Combo.glove_finish_id == glove.id, Combo.knife_finish_id == knife.id)
     )
     return found is not None
+
+
+SlugQuery = Annotated[Slug | None, Query()]
+
+
+@router.get("/combos")
+async def list_combos(
+    current: AdminDep,
+    db: Session,
+    glove_type: SlugQuery = None,
+    glove_finish: SlugQuery = None,
+    knife_type: SlugQuery = None,
+    knife_finish: SlugQuery = None,
+    status_filter: Annotated[Status | None, Query(alias="status")] = None,
+    sort: Literal["rating", "updated"] = "rating",
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> ComboPage:
+    """Combos in any status, filtered by glove and knife type and finish (a finish needs its
+    type) and status. Sorted by rating, highest first, or by last change, newest first."""
+    query = queries.combos()
+    problems = rules.Problems()
+    sides: list[tuple[Kind, str | None, str | None, Any, Any]] = [
+        ("glove", glove_type, glove_finish, queries.GloveType.id, queries.GloveFinish.id),
+        ("knife", knife_type, knife_finish, queries.KnifeType.id, queries.KnifeFinish.id),
+    ]
+    for kind, type_slug, finish_slug, type_column, finish_column in sides:
+        filters = await finish_filter(db, kind, type_slug, finish_slug, problems)
+        if filters is not None:
+            item_type, finish = filters
+            query = query.where(type_column == item_type)
+            if finish is not None:
+                query = query.where(finish_column == finish)
+    if problems.errors:
+        raise problems.error()
+    if status_filter is not None:
+        query = query.where(Combo.status == status_filter)
+    total = await db.scalar(select(func.count()).select_from(query.subquery()))
+    order = (
+        (Combo.rating.desc(), Combo.id)
+        if sort == "rating"
+        else (Combo.updated_at.desc(), Combo.id.desc())
+    )
+    rows = (await db.execute(query.order_by(*order).limit(limit).offset(offset))).all()
+    return ComboPage(total=total or 0, items=[queries.admin_out(row) for row in rows])
+
+
+async def finish_filter(
+    db: AsyncSession,
+    kind: Kind,
+    type_slug: str | None,
+    finish_slug: str | None,
+    problems: rules.Problems,
+) -> tuple[int, int | None] | None:
+    """The type id and finish id a list filter names; retired ones included."""
+    if type_slug is None:
+        if finish_slug is not None:
+            problems.add(
+                ("query", f"{kind}_finish"), "value_error", f"Value error, needs {kind}_type"
+            )
+        return None
+    item_type = await rules.find_type(db, kind, type_slug)
+    if item_type is None:
+        problems.add(("query", f"{kind}_type"), "finish_not_found", f"No {kind} type has this slug")
+        return None
+    if finish_slug is None:
+        return item_type.id, None
+    finish = await rules.find_finish(db, item_type, finish_slug)
+    if finish is None:
+        problems.add(("query", f"{kind}_finish"), "finish_not_found", "No finish of this type")
+        return None
+    return item_type.id, finish.id
 
 
 @router.get("/combos/{combo_id}", responses=NOT_FOUND)

@@ -25,20 +25,26 @@ class Problems:
         return RequestValidationError(self.errors)
 
 
+async def find_type(db: AsyncSession, kind: Kind, slug: str) -> ItemType | None:
+    return await db.scalar(select(ItemType).where(ItemType.kind == kind, ItemType.slug == slug))
+
+
+async def find_finish(db: AsyncSession, item_type: ItemType, slug: str) -> Finish | None:
+    return await db.scalar(
+        select(Finish).where(Finish.item_type_id == item_type.id, Finish.slug == slug)
+    )
+
+
 async def resolve(
     db: AsyncSession, kind: Kind, ref: FinishRef, loc: Loc, problems: Problems, *, new: bool
 ) -> tuple[Finish, ItemType] | None:
     """The finish a request names, or None with a problem added. A new combo may not use a
     retired finish, or a finish of a retired type."""
-    item_type = await db.scalar(
-        select(ItemType).where(ItemType.kind == kind, ItemType.slug == ref.type_slug)
-    )
+    item_type = await find_type(db, kind, ref.type_slug)
     if item_type is None:
         problems.add((*loc, "type_slug"), "finish_not_found", f"No {kind} type has this slug")
         return None
-    finish = await db.scalar(
-        select(Finish).where(Finish.item_type_id == item_type.id, Finish.slug == ref.finish_slug)
-    )
+    finish = await find_finish(db, item_type, ref.finish_slug)
     if finish is None:
         problems.add((*loc, "finish_slug"), "finish_not_found", "No finish of this type")
         return None

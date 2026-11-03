@@ -141,6 +141,11 @@ class Changed(BaseModel):
     changed: int
 
 
+class ComboPage(BaseModel):
+    total: int
+    items: list[AdminCombo]
+
+
 class Item(BaseModel):
     type_slug: str
     type_name: str
