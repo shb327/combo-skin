@@ -2,7 +2,7 @@
 
 [![api](https://github.com/shb327/combo-skin/actions/workflows/api.yml/badge.svg)](https://github.com/shb327/combo-skin/actions/workflows/api.yml)
 
-The backend for Combo Skin: a FastAPI service on PostgreSQL, with SQLAlchemy 2 (async) and Alembic migrations. It serves health checks, its OpenAPI docs, the knife and glove catalog and admin login; combo endpoints come in later specs (see [`docs/specs/`](../docs/specs)).
+The backend for Combo Skin: a FastAPI service on PostgreSQL, with SQLAlchemy 2 (async) and Alembic migrations. It serves health checks, its OpenAPI docs, the knife and glove catalog, admin login, and combos: the admin endpoints that enter them and the public endpoints that list them (see [`docs/specs/`](../docs/specs)).
 
 ## Prerequisites
 
@@ -168,6 +168,25 @@ Typing a password on a command line puts it in shell history; use a throwaway lo
 
 Logins, failed and rate-limited logins, logouts and account changes are logged by the `combo_api.admins` logger, without passwords or tokens.
 
+## Combos
+
+A combo recommends one glove finish and one knife finish from the catalog as a pair. Each combo has:
+
+- **Conditions** for each item (the gloves and the knife): an optional float range, `float_from` and `float_to`, at most 4 decimals and inside the finish's own float range from the catalog; and a list of pattern seeds, 0 to 1000, at most 100, no duplicates, stored in ascending order. An empty list means any pattern. Vanilla knives take neither.
+- **A rating** from 0 to 10 with at most 2 decimals, stored exactly (`numeric(4,2)`) and returned as a JSON number, and an optional plain-text **description** of up to 1000 characters.
+- **A status**: `draft` when created, `published` (shown on the public endpoints) or `unpublished` (taken down after being published).
+- **A version**, which increases with every change to the rating, description or conditions, and who created and last changed it, and when.
+
+There is one combo per pairing of a glove finish and a knife finish, and a combo's pairing never changes. Combos are identified by a random 12-character `id`; the API never shows catalog ids. In the database they refer to catalog finishes by foreign key, so combos move to another database with a whole-database dump and restore. A retired finish cannot be used for a new combo, but existing combos with one keep working.
+
+**Editing safely.** Updates and removals carry the `version` the admin read; if another admin changed the combo since, the API answers 409 `version_conflict` and changes nothing. Publishing and unpublishing do not change the version. Removal deletes a draft or unpublished combo; a published one must be unpublished first (409 `combo_published`). The removed combo's content is written to the log.
+
+**Batches.** A batch pairs one glove finish with one knife finish name (`doppler-ruby`, `blue-steel`) across knife types. `GET /admin/batches/finishes` lists the names; `GET /admin/batches/candidates` lists every active knife type with that finish, in knife order, with the combo it already has with those gloves. `POST /admin/batches` creates the new combos and changes the rating and description of existing ones in one request, all or nothing. The dashboard computes ratings and batch-wide conditions; the API stores what it is sent.
+
+**Knife order.** Batches follow one shared knife order, editable by any admin with `PUT /admin/knife-order`. It starts as Butterfly, Karambit, M9 Bayonet, Talon, Skeleton, Stiletto, Bayonet, Flip, Nomad, Huntsman, Falchion, Bowie, Classic, Ursus, Kukri, Paracord, Survival, Gut, Shadow Daggers, Navaja. Knife types added by a game update follow in catalog order until placed; retired ones are skipped.
+
+Refused input gets 422 in FastAPI's list format, with `loc` pointing at the field (in a batch, at the item) and a `type` code such as `finish_not_found`, `finish_retired`, `float_outside_finish` or `duplicate_seed`. Conflicts get 409 with `{"detail": "<code>"}`. Every change is logged by the `combo_api.combos` logger with the admin's username.
+
 ## OpenAPI snapshot
 
 `openapi.json` is a committed copy of the API schema, used to generate TypeScript types for the website and admin. After changing any route, regenerate it from `api/`:
@@ -176,7 +195,7 @@ Logins, failed and rate-limited logins, logouts and account changes are logged b
 uv run python -m combo_api.openapi
 ```
 
-CI runs the same command with `--check` and fails if the committed file is out of date. Neither needs a database or an `.env` file.
+CI runs the same command with `--check` and fails if the committed file is out of date. Neither needs a database or an `.env` file. Then regenerate the admin dashboard's types in the same change: `npm run api:types` in `admin/`.
 
 ## Configuration
 
@@ -211,6 +230,13 @@ A missing or invalid setting stops startup with an error that names the variable
 | `POST /admin/login` | Log in; sets the session cookie. 401, 403, 415, 422 or 429 otherwise. |
 | `GET /admin/me` | The logged-in admin and the session's CSRF token, or 401. |
 | `POST /admin/logout` | Ends the session and clears the cookie; 204. |
+| `GET /gloves/{type}/{finish}/combos`, `GET /knives/{type}/{finish}/combos` | The finish's published combos, highest rating first. `[]` without combos, 404 for an unknown finish. |
+| `GET /admin/combos` | Combos in any status. Filters: `glove_type`, `glove_finish`, `knife_type`, `knife_finish`, `status`; `sort` (`rating` or `updated`), `limit` (up to 500), `offset`. |
+| `POST /admin/combos` | Create a draft combo. 409 `combo_exists` if the pairing has one. |
+| `GET`, `PUT`, `DELETE /admin/combos/{id}` | Read, update (with `version`) or remove (`?version=`) one combo. |
+| `POST /admin/combos/publish`, `POST /admin/combos/unpublish` | Publish `ids` or `all_drafts`; unpublish `ids`. All or nothing. |
+| `GET /admin/batches/finishes`, `GET /admin/batches/candidates`, `POST /admin/batches` | Batch finish names, candidates, and saving a batch. |
+| `GET`, `PUT /admin/knife-order` | Read or replace the knife order. |
 | `GET /docs`, `GET /openapi.json` | Interactive docs and the schema, unless `DOCS_ENABLED=false`. |
 
 ## Layout
@@ -223,6 +249,7 @@ A missing or invalid setting stops startup with an error that names the variable
 | `src/combo_api/health.py` | Health endpoints |
 | `src/combo_api/openapi.py` | Snapshot export and check |
 | `src/combo_api/catalog/` | Catalog data, commands, tables, import and endpoints |
+| `src/combo_api/combos/` | Combo and knife order tables, admin and public endpoints, catalog checks, batches |
 | `src/combo_api/admins/` | Admin tables, accounts command, passwords, sessions, rate limits, `require_admin` and login endpoints |
 | `migrations/` | Alembic environment and revisions |
 | `tests/` | pytest suite |
