@@ -407,6 +407,13 @@ Smaller changes, none affecting a requirement:
 - The workflow change was not checked with `actionlint` locally (not installed); it adds two `run` lines in the existing style.
 - Still open from spec 008: the API's error codes are not an enumeration in `api/openapi.json`.
 
+### Changes after the first audit (2026-11-03)
+
+The first audit, on commit 89ed84e, failed on Security S5 and found a race in the knife order. Both are fixed, each with a test; neither changes a requirement.
+
+- **S5 bounds.** `offset` on `GET /admin/combos` is at most 1,000,000; a larger value got a database error and a 500. The public routes' `type_slug` and `finish_slug` are 1 to 64 characters, like every other slug in the API; longer ones get 422 (`tests/combos/test_list.py::test_bad_filters`, `tests/combos/test_public.py::test_public_slugs_are_bounded`).
+- **Knife order, last write wins.** Replacing the order now locks the `knife_order` table first. Before, a replace that started while another was writing could not see that one's new rows, failed on the primary key and returned a 500 (`tests/combos/test_knife_order.py::test_concurrent_replaces_last_write_wins`, which reproduced the failure before the fix).
+
 ### Criterion coverage
 
 Test ids are relative to `api/`.
@@ -445,7 +452,7 @@ Test ids are relative to `api/`.
 | 30 | `tests/combos/test_schema.py::test_combo_operations_in_schema`, `::test_numbers_are_numbers`; `tests/test_openapi.py::test_snapshot_is_up_to_date`; `uv run python -m combo_api.openapi --check`: exit 0 |
 | 31 | In `admin/`: `npm run api:types:check`, `npm run lint`, `npm run typecheck`, `npm test` (117 passed), `npm run build`, `npm run check:bundle` all exit 0; `git diff --stat main...009-api-combos -- admin website` lists only `admin/src/api/schema.d.ts` |
 | 32 | `api/README.md`: first paragraph, "Combos" section, the OpenAPI snapshot section (regenerate the admin types too), Endpoints and Layout tables |
-| 33 | In `api/`: format check, lint, mypy, pytest (280 passed, 0 skipped), the OpenAPI and export checks all exit 0; `docker build` exits 0, image 228,512,150 bytes |
+| 33 | In `api/`: format check, lint, mypy, pytest (282 passed, 0 skipped), the OpenAPI and export checks all exit 0; `docker build` exits 0, image 228,512,150 bytes |
 | 34 | A separate Compose project from `api/.env.example` (database name and host ports changed so as not to touch another running stack): `migrate` and `catalog` exited 0, `/health/ready` ok, `GET /gloves/specialist/mogul/combos` returned `[]`, `GET /admin/combos` 401; removed with `down -v`. `.github/workflows/api.yml` checks both |
 | 35 | Pending: the `api` and `admin` workflow runs, after the owner pushes the branch |
 | 36 | `gitleaks dir . --no-banner --redact` and `gitleaks git --log-opts="origin/main..HEAD"`: no leaks. URLs in the branch diff: `localhost` in the workflow and the repository's own badge links |
