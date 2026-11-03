@@ -7,7 +7,7 @@ afterEach(() => {
 })
 
 // jsdom has no modal dialogs: open and close them as a browser would, without the top layer.
-if (!HTMLDialogElement.prototype.showModal) {
+if (typeof HTMLDialogElement !== 'undefined' && !HTMLDialogElement.prototype.showModal) {
   HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
     this.open = true
   }
