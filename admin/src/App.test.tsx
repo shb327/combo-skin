@@ -303,13 +303,15 @@ describe('csrf_failed twice', () => {
     await user.click(await screen.findByRole('button', { name: 'Log out' }))
     expect(await screen.findByRole('alert')).toHaveTextContent(MESSAGES.generic)
     expect(screen.getByText(USERNAME)).toBeInTheDocument()
-    const routes = fake.requests.map((r) => `${r.method} ${new URL(r.url).pathname}`)
+    const routes = fake.requests
+      .map((r) => `${r.method} ${new URL(r.url).pathname}`)
+      .filter((route) => route.endsWith('/admin/me') || route.endsWith('/admin/logout'))
     expect(routes).toEqual(['GET /admin/me', 'POST /admin/logout', 'GET /admin/me', 'POST /admin/logout'])
   })
 })
 
 describe('shell', () => {
-  it('has the header, the navigation and the placeholders', async () => {
+  it('has the header, the navigation and the combo screens', async () => {
     const { user } = renderApp('/', new FakeApi().withSession())
     const banner = await screen.findByRole('banner')
     expect(within(banner).getByRole('img', { name: 'Combo Skin' })).toBeInTheDocument()
@@ -330,13 +332,15 @@ describe('shell', () => {
 
     await user.click(within(nav).getByRole('link', { name: 'By gloves' }))
     expect(await screen.findByRole('heading', { name: 'By gloves' })).toBeInTheDocument()
-    expect(screen.getByRole('main')).toHaveTextContent('This screen comes in a later version')
+    expect(await screen.findByRole('combobox', { name: 'Find gloves' })).toBeInTheDocument()
+    expect(screen.getByRole('main')).not.toHaveTextContent('later version')
     expect(within(nav).getByRole('link', { name: 'By gloves' })).toHaveAttribute('aria-current', 'page')
     expect(within(nav).getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current')
 
     await user.click(within(nav).getByRole('link', { name: 'By knife' }))
     expect(await screen.findByRole('heading', { name: 'By knife' })).toBeInTheDocument()
-    expect(screen.getByRole('main')).toHaveTextContent('This screen comes in a later version')
+    expect(await screen.findByRole('combobox', { name: 'Find a knife' })).toBeInTheDocument()
+    expect(screen.getByRole('main')).not.toHaveTextContent('later version')
     expect(within(nav).getByRole('link', { name: 'By knife' })).toHaveAttribute('aria-current', 'page')
   })
 
@@ -357,9 +361,21 @@ describe('shell', () => {
     ['/', 'Home'],
     ['/gloves', 'By gloves'],
     ['/knives', 'By knife'],
+    ['/gloves/specialist', 'Specialist Gloves'],
+    ['/knives/karambit', 'Karambit'],
+    ['/gloves/specialist/crimson-kimono', 'Specialist Gloves | Crimson Kimono'],
+    ['/knives/karambit/doppler-ruby', 'Karambit | Doppler (Ruby)'],
+    ['/gloves/specialist/crimson-kimono/add', 'Add knife'],
+    ['/knives/karambit/doppler-ruby/add', 'Add gloves'],
+    ['/gloves/specialist/crimson-kimono/batch', 'Batch'],
+    ['/gloves/specialist/crimson-kimono/batch/doppler-ruby', 'Batch'],
+    ['/combos/c00000000001', 'Edit combo'],
+    ['/knife-order', 'Knife order'],
     ['/nope', 'Not found'],
   ])('titles %s', async (path, page) => {
-    renderApp(path, new FakeApi().withSession())
+    const fake = new FakeApi().withSession()
+    fake.store.add({ glove: 'specialist/crimson-kimono', knife: 'karambit/doppler-ruby', rating: 9 })
+    renderApp(path, fake)
     await waitFor(() => expect(document.title).toBe(`${page} · Combo Skin admin`))
   })
 

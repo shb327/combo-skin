@@ -1,10 +1,22 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { MESSAGES } from './api/errors'
-import { FakeApi, PASSWORD, USERNAME } from './test/fakeApi'
+import { COMBO_MESSAGES } from './combos/messages'
+import { FakeApi, ORIGIN, PASSWORD, USERNAME } from './test/fakeApi'
 import { logIn, renderApp, where } from './test/render'
 
 const WRONG_PASSWORD = 'a wrong placeholder password'
+/** Nothing in local or session storage, and no cookie. */
+function storageIsEmpty() {
+  // The guard rails forbid these everywhere; this test only reads them to prove they stay empty.
+  // eslint-disable-next-line no-restricted-globals
+  expect(localStorage.length).toBe(0)
+  // eslint-disable-next-line no-restricted-globals
+  expect(sessionStorage.length).toBe(0)
+  // eslint-disable-next-line no-restricted-properties, no-restricted-syntax
+  expect(document.cookie).toBe('')
+}
+
 const CONSOLE = ['log', 'info', 'warn', 'error', 'debug', 'trace', 'dir', 'table', 'group', 'groupCollapsed'] as const
 
 describe('a full session', () => {
@@ -28,13 +40,7 @@ describe('a full session', () => {
     const secrets = () => [PASSWORD, WRONG_PASSWORD, ...tokens()]
 
     function nothingLeaked() {
-      // The guard rails forbid these everywhere; this test only reads them to prove they stay empty.
-      // eslint-disable-next-line no-restricted-globals
-      expect(localStorage.length).toBe(0)
-      // eslint-disable-next-line no-restricted-globals
-      expect(sessionStorage.length).toBe(0)
-      // eslint-disable-next-line no-restricted-properties, no-restricted-syntax
-      expect(document.cookie).toBe('')
+      storageIsEmpty()
       const page = document.body.cloneNode(true) as HTMLElement
       page.querySelector('input[type="password"]')?.remove()
       for (const secret of secrets()) {
@@ -73,5 +79,60 @@ describe('a full session', () => {
     expect(fake.to('GET /admin/me')).toHaveLength(2)
     nothingLeaked()
     expect(tokens().length).toBeGreaterThanOrEqual(2)
+  })
+})
+
+describe('entering combos', () => {
+  it('keeps nothing in the browser, and sends every write to the API with the session token', async () => {
+    const fake = new FakeApi().withSession()
+    const { user } = renderApp('/gloves', fake)
+    function writesAreSafe() {
+      for (const write of fake.writes()) {
+        expect(write.url.startsWith(`${ORIGIN}/`)).toBe(true)
+        expect(write.credentials).toBe('include')
+        if (!write.url.endsWith('/admin/login')) expect(fake.issued).toContain(write.headers['x-csrf-token'])
+      }
+    }
+
+    // Search, then a batch.
+    await user.type(await screen.findByRole('combobox', { name: 'Find gloves' }), 'crimson{Enter}')
+    await user.click(await screen.findByRole('link', { name: 'Start a batch' }))
+    await user.click(await screen.findByRole('link', { name: /Doppler \(Ruby\)/ }))
+    await user.type(await screen.findByLabelText('Top rating'), '9.5')
+    storageIsEmpty()
+
+    // The session ends with the batch unsaved; it comes back after login.
+    fake.loggedIn = false
+    await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
+    await logIn(user)
+    expect(await screen.findByText('Restored unsaved changes.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Rating for M9 Bayonet')).toHaveValue('9.40')
+    storageIsEmpty()
+
+    await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
+    await user.click(await screen.findByRole('button', { name: 'Publish these 3 new combos' }))
+    expect(await screen.findByText('Published 3 combos.')).toBeInTheDocument()
+    storageIsEmpty()
+
+    // An edit that meets another admin's change.
+    const karambit = fake.store.combos.find((c) => c.knife.type_slug === 'karambit')
+    if (!karambit) throw new Error('No Karambit combo')
+    await user.click(screen.getByRole('link', { name: /Back to/ }))
+    await user.click(
+      within(await screen.findByRole('listitem', { name: 'Karambit | Doppler (Ruby)' })).getByRole('link', { name: 'Edit' }),
+    )
+    await user.clear(await screen.findByLabelText('Rating'))
+    await user.type(screen.getByLabelText('Rating'), '9.9')
+    fake.store.changeAsAnother(karambit.id, { rating: 9 })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(COMBO_MESSAGES.conflict)
+    storageIsEmpty()
+
+    expect(fake.writes().length).toBeGreaterThanOrEqual(5)
+    writesAreSafe()
+    // Writes after the second login carry that session's token, not the first one's.
+    const lastWrite = fake.writes().at(-1)
+    expect(lastWrite?.headers['x-csrf-token']).toBe(fake.csrfToken)
+    expect(fake.issued).toHaveLength(2)
   })
 })

@@ -5,23 +5,25 @@ import { BrowserRouter } from 'react-router'
 import { vi } from 'vitest'
 import { App } from '../App'
 import { createApi } from '../api/client'
+import { createQueryClient } from '../combos/queries'
 import { FakeApi, ORIGIN, PASSWORD, USERNAME } from './fakeApi'
 
 /** Render the whole app at a path, against the fake API. */
 export function renderApp(path: string, fake = new FakeApi(), { fakeTimers = false } = {}) {
   window.history.replaceState(null, '', path)
   const api = createApi({ baseUrl: ORIGIN, fetch: fake.respond })
+  const queryClient = createQueryClient()
   const user = userEvent.setup(fakeTimers ? { advanceTimers: vi.advanceTimersByTime } : {})
   // StrictMode, as in main.tsx: effects run twice in development, and the app must still ask
   // the API only once.
   render(
     <StrictMode>
       <BrowserRouter>
-        <App api={api} />
+        <App api={api} queryClient={queryClient} />
       </BrowserRouter>
     </StrictMode>,
   )
-  return { fake, api, user }
+  return { fake, api, user, queryClient }
 }
 
 /** The address bar: path and query string. */
