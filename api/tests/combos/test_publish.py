@@ -81,13 +81,14 @@ async def test_publish_refuses_bad_requests(admin_client: AsyncClient) -> None:
     errors = response.json()["detail"]
     assert [(e["loc"], e["type"]) for e in errors] == [(["body", "ids", 1], "combo_not_found")]
     assert {(await get(admin_client, combo_id))["status"] for combo_id in ids} == {"draft"}
-    for body in (
+    bodies: list[dict[str, Any]] = [
         {"ids": ids, "all_drafts": True},
         {},
         {"ids": []},
         {"ids": ["zzzzzzzzzzzz"] * 501},
         {"all_drafts": False},
-    ):
+    ]
+    for body in bodies:
         refused = await admin_client.post("/admin/combos/publish", json=body, headers=headers)
         assert refused.status_code == 422, body
     for body in ({"ids": []}, {}, {"ids": [ids[0], "zzzzzzzzzzzz"]}):
