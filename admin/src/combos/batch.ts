@@ -98,12 +98,20 @@ export function knifeBatchRange(rows: Row[]): FinishRange {
   return rows.length && rows.every((row) => row.vanilla) ? { min: null, max: null } : { min: 0, max: 1 }
 }
 
-/** A new row's own values, with batch-wide values where it has no override. */
+/** The description a row is saved with: its own if set (empty clears it), else the batch-wide
+ * one. A combo that already exists keeps its description while the batch-wide one is blank. */
+export function rowDescription(row: Row, text: BatchText): string {
+  if (row.text.description !== undefined) return row.text.description
+  if (row.existing && !text.description.trim()) return row.existing.description ?? ''
+  return text.description
+}
+
+/** A row's own values, with batch-wide values where it has no override. */
 export function resolved(row: Row, text: BatchText) {
   return {
     glove: row.text.glove ?? text.glove,
     knife: row.text.knife ?? (row.vanilla ? NO_CONDITIONS : text.knife),
-    description: row.text.description ?? text.description,
+    description: rowDescription(row, text),
   }
 }
 

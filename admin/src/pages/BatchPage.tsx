@@ -4,7 +4,7 @@ import { ApiError } from '../api/errors'
 import { useApi } from '../api/useApi'
 import type { components } from '../api/schema'
 import { useTitle } from '../components/useTitle'
-import { EMPTY_BATCH, batchRows, checkBatch, knifeBatchRange, type BatchText, type Row, type RowText } from '../combos/batch'
+import { EMPTY_BATCH, batchRows, checkBatch, knifeBatchRange, rowDescription, type BatchText, type Row, type RowText } from '../combos/batch'
 import { ConditionsFields, DescriptionField, RatingField } from '../combos/fields'
 import { FIELD_LABELS, fieldKey, itemErrors, type FieldErrors } from '../combos/form'
 import { COMBO_MESSAGES, comboErrorMessage, isCode } from '../combos/messages'
@@ -410,7 +410,7 @@ function BatchRow({
         <p className="mt-1 text-xs text-white/60">
           Description now: {row.existing.description ?? 'none'}
           {row.text.ticked
-            ? ` · after saving: ${resolvedDescription(row, batch) || 'none'}`
+            ? ` · after saving: ${rowDescription(row, batch).trim() || 'none'}`
             : ' · tick to update its rating and description.'}
         </p>
       )}
@@ -501,11 +501,6 @@ function BatchRow({
       )}
     </li>
   )
-}
-
-/** The description an updated row will be saved with. */
-function resolvedDescription(row: Row, batch: BatchText) {
-  return (row.text.description ?? batch.description).trim()
 }
 
 function overrides(row: Row) {

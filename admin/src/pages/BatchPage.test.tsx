@@ -152,7 +152,7 @@ describe('saving a batch', () => {
     const { fake, existing } = withKarambit()
     const { user } = renderApp(RUBY, fake)
     await user.click(await screen.findByRole('checkbox', { name: 'Update Karambit' }))
-    expect(row('Karambit')).toHaveTextContent('Description now: old · after saving: none')
+    expect(row('Karambit')).toHaveTextContent('Description now: old · after saving: old')
     await user.type(screen.getByLabelText('Top rating'), '9.5')
     await user.type(screen.getByLabelText('Description'), 'Ruby')
     expect(row('Karambit')).toHaveTextContent('after saving: Ruby')
@@ -172,6 +172,32 @@ describe('saving a batch', () => {
     expect(await screen.findByText('Published 1 combo.')).toBeInTheDocument()
     const created = fake.store.combos.find((c) => c.knife.type_slug === 'butterfly')
     expect(JSON.parse(fake.to('POST /admin/combos/publish')[0].body)).toEqual({ ids: [created?.id] })
+  })
+
+  it('keeps an updated combo description unless one is typed', async () => {
+    const { fake, existing } = withKarambit()
+    const { user } = renderApp(RUBY, fake)
+    await user.click(await screen.findByRole('checkbox', { name: 'Update Karambit' }))
+    await user.type(screen.getByLabelText('Top rating'), '9.5')
+    await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
+    await waitFor(() => expect(fake.to('POST /admin/batches')).toHaveLength(1))
+    expect(JSON.parse(fake.to('POST /admin/batches')[0].body).update).toEqual([
+      { id: existing.id, version: 1, rating: 9.5, description: 'old' },
+    ])
+    expect(fake.store.get(existing.id)?.description).toBe('old')
+  })
+
+  it('clears an updated combo description with an empty own description', async () => {
+    const { fake, existing } = withKarambit()
+    const { user } = renderApp(RUBY, fake)
+    await user.click(await screen.findByRole('checkbox', { name: 'Update Karambit' }))
+    await user.type(screen.getByLabelText('Top rating'), '9.5')
+    await user.click(screen.getByRole('button', { name: 'Own values for Karambit' }))
+    await user.click(screen.getByRole('button', { name: 'Set own description for Karambit' }))
+    expect(row('Karambit')).toHaveTextContent('after saving: none')
+    await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
+    await waitFor(() => expect(fake.to('POST /admin/batches')).toHaveLength(1))
+    expect(JSON.parse(fake.to('POST /admin/batches')[0].body).update[0]).toMatchObject({ id: existing.id, description: null })
   })
 
   it('sends nothing with no row ticked', async () => {
