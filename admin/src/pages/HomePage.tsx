@@ -4,14 +4,59 @@ import { useApi } from '../api/useApi'
 import { useTitle } from '../components/useTitle'
 import { comboErrorMessage } from '../combos/messages'
 import { Picture } from '../combos/Picture'
-import { useComboWrites, useDraftCount, useFinish } from '../combos/queries'
+import { useCatalog, useComboWrites, useCombos, useDraftCount, useFinish, type AdminCombo, type CatalogEntry, type Kind } from '../combos/queries'
 import { SECONDARY } from '../combos/styles'
-import { ConfirmDialog } from '../combos/ui'
+import { ConfirmDialog, QueryState } from '../combos/ui'
 
 const DIRECTIONS = [
   { to: '/gloves', label: 'By gloves', text: 'Start from a pair of gloves and find the knives that go with it.' },
   { to: '/knives', label: 'By knife', text: 'Start from a knife and find the gloves that go with it.' },
 ]
+
+/** Active finishes of a kind with no combo of any status. */
+function withoutCombo(entries: CatalogEntry[], combos: AdminCombo[], kind: Kind): number {
+  const used = new Set(combos.map((c) => (kind === 'glove' ? c.glove : c.knife)).map((i) => `${i.type_slug}/${i.finish_slug}`))
+  return entries.filter((entry) => !used.has(entry.id)).length
+}
+
+/** How many combos exist, and how many finishes of each kind still have none. */
+function Statistics() {
+  const gloves = useCatalog('glove')
+  const knives = useCatalog('knife')
+  const combos = useCombos({})
+  const failure = gloves.error ?? knives.error ?? combos.error
+  const figures =
+    gloves.data && knives.data && combos.data
+      ? [
+          [String(combos.data.length), combos.data.length === 1 ? 'combo' : 'combos'],
+          [`${withoutCombo(gloves.data, combos.data, 'glove')} of ${gloves.data.length}`, 'glove finishes without a combo'],
+          [`${withoutCombo(knives.data, combos.data, 'knife')} of ${knives.data.length}`, 'knife finishes without a combo'],
+        ]
+      : null
+  return (
+    <section aria-label="Statistics" className="mt-6">
+      {figures ? (
+        <ul className="grid gap-4 sm:grid-cols-3">
+          {figures.map(([value, label]) => (
+            <li key={label} className="rounded-lg border border-white/10 p-4">
+              <span className="block text-2xl font-semibold tabular-nums">{value}</span>
+              <span className="text-sm text-white/70">{label}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <QueryState
+          error={failure}
+          onRetry={() => {
+            if (gloves.error) gloves.refetch()
+            if (knives.error) knives.refetch()
+            if (combos.error) combos.refetch()
+          }}
+        />
+      )}
+    </section>
+  )
+}
 
 export function HomePage() {
   useTitle('Home')
@@ -66,7 +111,8 @@ export function HomePage() {
           </li>
         ))}
       </ul>
-      <div className="mt-8 rounded-lg border border-white/10 p-5">
+      <Statistics />
+      <div className="mt-6 rounded-lg border border-white/10 p-5">
         <h2 className="font-semibold">Drafts</h2>
         <p className="mt-1 text-sm text-white/70">
           {drafts.data === undefined

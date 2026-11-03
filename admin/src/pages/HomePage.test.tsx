@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { FakeApi } from '../test/fakeApi'
+import { FakeApi, error } from '../test/fakeApi'
 import { picture } from '../test/fakeCatalog'
 import { renderApp } from '../test/render'
 
@@ -18,8 +18,9 @@ describe('publish all drafts', () => {
     const fake = withDrafts()
     const { user } = renderApp('/', fake)
     expect(await screen.findByText('3 drafts across all finishes.')).toBeInTheDocument()
-    const [count] = fake.to('GET /admin/combos')
-    expect(Object.fromEntries(new URL(count.url).searchParams)).toEqual({ status: 'draft', limit: '1' })
+    // The draft count is its own small request, beside the statistics' full list.
+    const count = fake.to('GET /admin/combos').find((r) => new URL(r.url).searchParams.has('status'))
+    expect(Object.fromEntries(new URL(count?.url ?? '').searchParams)).toEqual({ status: 'draft', limit: '1' })
 
     await user.click(screen.getByRole('button', { name: 'Publish all drafts' }))
     let dialog = screen.getByRole('dialog', { name: 'Publish all 3 drafts?' })
@@ -51,5 +52,44 @@ describe('home', () => {
     const order = within(main).getByRole('link', { name: 'Change the order' })
     expect(order).toHaveAttribute('href', '/knife-order')
     expect(within(main).queryByRole('link', { name: /^Knife order/ })).toBeNull()
+  })
+})
+
+describe('statistics', () => {
+  const figures = () => within(screen.getByRole('region', { name: 'Statistics' })).getAllByRole('listitem').map((f) => f.textContent)
+
+  it('count combos, and glove and knife finishes without a combo, following new combos', async () => {
+    const { user } = renderApp('/', withDrafts())
+    await waitFor(() =>
+      expect(figures()).toEqual([
+        '4combos',
+        '2 of 4glove finishes without a combo',
+        '7 of 10knife finishes without a combo',
+      ]),
+    )
+
+    // Add a combo on Sport Gloves | Pandora's Box with Butterfly Knife | Blue Steel, then come back.
+    window.history.pushState(null, '', '/gloves/sport/pandoras-box/add')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    await user.type(await screen.findByRole('combobox', { name: 'Find a knife' }), 'butterfly blue{Enter}')
+    await user.type(screen.getByLabelText('Rating'), '8')
+    await user.click(screen.getByRole('button', { name: 'Save as draft' }))
+    await screen.findByText(/Saved a draft/)
+    await user.click(within(screen.getByRole('navigation')).getByRole('link', { name: 'Home' }))
+    await waitFor(() =>
+      expect(figures()).toEqual([
+        '5combos',
+        '1 of 4glove finishes without a combo',
+        '6 of 10knife finishes without a combo',
+      ]),
+    )
+  })
+
+  it('show an error with Try again when the combos cannot be loaded', async () => {
+    const fake = withDrafts()
+    fake.next('GET /admin/combos', error(500, 'boom'), error(500, 'boom'), error(500, 'boom'))
+    renderApp('/', fake)
+    const section = await screen.findByRole('region', { name: 'Statistics' })
+    expect(await within(section).findByRole('button', { name: 'Try again' })).toBeInTheDocument()
   })
 })
