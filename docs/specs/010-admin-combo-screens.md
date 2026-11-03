@@ -1,6 +1,6 @@
 # 010: Admin combo screens
 
-**Status:** Implemented
+**Status:** Audited
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** admin
@@ -420,4 +420,73 @@ Test ids are relative to `admin/`.
 
 ## Audit
 
-Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
+**Date:** 2026-11-03 · **Branch:** 010-admin-combo-screens · **Commit:** 538534e (code: 4632560; the last commit changes only this spec)
+**Verdict:** Pass with follow-ups
+
+A first audit, on commit 3467bec, failed: an independent read of the code and tests against each criterion found that a delete refused for a stale version could not succeed from the same page, that a batch hid an existing combo's description it was about to replace, and that Publish selected could include combos hidden by a filter, plus smaller defects and tests weaker than their criteria. All were fixed with tests (Implementation notes, "Changes after the first audit"). A second independent read of the diff since 3467bec reverted each fix in a scratch clone and saw its test fail, then pass with the fix. This table is for commit 538534e.
+
+All commands ran on a fresh clone of the branch with no `admin/.env`. The manual criteria (33 to 36) were checked during implementation against a throwaway Compose stack and a placeholder admin, both deleted afterwards; the code they exercise changed since only as listed under "Changes after the first audit", each covered by a test. Test ids are relative to `admin/`.
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | Fresh clone: seven commands exit 0, no chunk warning | Pass | `npm ci`, `api:types:check`, `lint`, `typecheck`, `test` (241 passed), `build` (no chunk-size warning), `check:bundle` all exit 0 |
+| 2 | Exactly six runtime dependencies | Pass | The `node -p` command prints `@fontsource/montserrat @tanstack/react-query openapi-fetch react react-dom react-router` |
+| 3 | Guard rails, CSP and bundle check untouched; three lint exceptions | Pass | `git diff --stat origin/main...HEAD` over the three files prints nothing; three `eslint-disable` lines, all in `src/flow.test.tsx`; `src/lint.test.ts` passes |
+| 4 | Rating parsing, formatting and steps | Pass | `src/combos/values.test.ts::parseRating` |
+| 5 | Float range checks | Pass | `src/combos/values.test.ts::checkConditions` |
+| 6 | Seeds, duplicates and note | Pass | `src/combos/values.test.ts::parseSeeds`; the note in `src/pages/AddComboPage.test.tsx::creates one draft…` |
+| 7 | Description | Pass | `src/combos/values.test.ts::checkDescription` |
+| 8 | Batch fill | Pass | `src/combos/fill.test.ts`; Refill from top on two rows in `src/pages/BatchPage.test.tsx::the batch rows::fills ratings…` |
+| 9 | Search, order, 50 results | Pass | `src/combos/search.test.ts`; `src/pages/FinishesPage.test.tsx::shows at most 50 results…` |
+| 10 | 422 paths and fixed messages; server text dropped | Pass | `src/combos/problems.test.ts` |
+| 11 | Searches by keyboard, catalog loaded once | Pass | `src/pages/FinishesPage.test.tsx::finding a finish` |
+| 12 | Finish page list, filters, sorts, paging | Pass | `src/pages/FinishPage.test.tsx::a glove finish page` (offsets 0 and 500, 501 listed), `::a knife finish page` |
+| 13 | Retired and unknown finishes | Pass | `src/pages/FinishPage.test.tsx::retired and unknown finishes` |
+| 14 | Add one combo; errors; 409 link | Pass | `src/pages/AddComboPage.test.tsx` |
+| 15 | Batch finish names and rows | Pass | `src/pages/BatchPage.test.tsx::choosing the knife finish`, `::the batch rows::lists every knife type…` |
+| 16 | Fill on screen | Pass | `src/pages/BatchPage.test.tsx::the batch rows::fills ratings…` |
+| 17 | Batch-wide values, overrides, row checks, Vanilla | Pass | `src/pages/BatchPage.test.tsx::the batch rows::applies batch-wide values…`, `::clears an override…` |
+| 18 | Batch request, result, publish these | Pass | `src/pages/BatchPage.test.tsx::saving a batch::creates the ticked rows…`, `::sends nothing with no row ticked` |
+| 19 | Batch 422 on the sent row; 409 reload | Pass | `src/pages/BatchPage.test.tsx::saving a batch::shows a refusal…` (a row unticked), `::reloads the rows…` |
+| 20 | Edit page and save with version | Pass | `src/pages/EditComboPage.test.tsx::shows the pairing…` |
+| 21 | Conflict view; 404 | Pass | `src/pages/EditComboPage.test.tsx` (conflict, theirs, 404 on read and save) |
+| 22 | Publish and unpublish, selection | Pass | `src/pages/FinishPage.test.tsx::managing combos from the list` (one combo, exact selected ids, shown selections only); `src/pages/EditComboPage.test.tsx::publishes, unpublishes…` |
+| 23 | Delete rules and refusals | Pass | `src/pages/FinishPage.test.tsx::managing combos from the list` (delete, refusals, reload after a stale version); `src/pages/EditComboPage.test.tsx` (delete, unpublished, refusal, reload after a stale version) |
+| 24 | Publish all drafts | Pass | `src/pages/HomePage.test.tsx` |
+| 25 | Knife order | Pass | `src/pages/KnifeOrderPage.test.tsx` |
+| 26 | Restore after a session end, four forms, and after expiry | Pass | `src/combos/drafts.test.tsx::the $name form`, `::unsaved changes::come back after the session expires` |
+| 27 | Leave and return; gone after save | Pass | `src/combos/drafts.test.tsx::unsaved changes::stay when leaving the form…` |
+| 28 | Another admin; logout confirmation | Pass | `src/combos/drafts.test.tsx::unsaved changes::are not shown to another admin`, `::make logout ask first…` |
+| 29 | Leave-page warning | Pass | `src/combos/drafts.test.tsx::unsaved changes::make the browser warn before a reload` |
+| 30 | Full combo flow: no storage; writes to the API with the token | Pass | `src/flow.test.tsx::entering combos` (tokens compared with those issued) |
+| 31 | Text, never HTML | Pass | `src/pages/FinishPage.test.tsx::renders names and descriptions as text`; `src/pages/EditComboPage.test.tsx::renders the description as text` |
+| 32 | Bundle check; CSP unchanged | Pass | `scripts/csp.test.ts`; `npm run check:bundle` exits 0 |
+| 33 | README walkthrough against the real API | Pass | Implementation notes, criterion 33: 15 drafts saved and published, public route returns them rated 9.50 to 8.80, adds from both directions, the two-tab conflict, the knife order followed by a new batch |
+| 34 | Idle end keeps the batch; reload warning | Pass | Implementation notes, criterion 34 |
+| 35 | Built app: no CSP violations, two origins, nothing stored | Pass | Implementation notes, criterion 35 |
+| 36 | 375 and 1440 px | Pass | Implementation notes, criterion 36 |
+| 37 | Navigation and titles | Pass | `src/App.test.tsx::shell::has the header, the navigation and the combo screens`, `::titles %s` |
+| 38 | `admin` workflow succeeds | Pending | Runs when the owner pushes the branch |
+| 39 | Admin README | Pass | `admin/README.md`: first paragraph, Screens, Tests, Project structure |
+| 40 | No change outside `admin/` and the spec | Pass | `git diff --stat origin/main...HEAD -- api website compose.yaml .github` prints nothing |
+| 41 | Allowed URLs; gitleaks clean | Pass | Added URLs: the repository, `localhost`, `example.com` placeholders, and npm registry metadata in the lockfile; `gitleaks dir` on the clone and `gitleaks git --log-opts="origin/main..HEAD"`: no leaks |
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Install | `npm ci` (Node 24, npm 11) | Pass |
+| Lint | `npm run lint` | Pass |
+| Type check | `npm run typecheck` | Pass |
+| Tests | `npm test`: 241 passed | Pass |
+| Build | `npm run build`, `npm run check:bundle` | Pass |
+| Secret scan | `gitleaks dir`, `gitleaks git --log-opts="origin/main..HEAD"` | Pass |
+| Public exposure | Manual review of the diff and log: placeholders only, `localhost` and `example.com` addresses, no private hosts or paths, nothing private tracked (`.claude/` and `CLAUDE.md` ignored); every commit authored by the owner with a one-line message and no trailers | Pass |
+| Design conformance | Two independent reads and manual review against Requirements, Design, API / data model and Security | Pass; differences are recorded in Implementation notes |
+
+**Findings**
+
+- (follow-up) Criterion 38 waits for the push: the `admin` workflow has not run on this branch yet.
+- (follow-up) After a delete refused for a stale version, the edit page enables its buttons before the combo has been read again (`admin/src/pages/EditComboPage.tsx`, `remove`); a Delete clicked in that moment sends the old version and gets another 409, harmlessly.
+- (follow-up) A form counts as unsaved once changed, even when changed back, so the logout confirmation and the leave-page warning can appear with nothing to lose.
+- (follow-up) Saving a batch replaces an updated combo's description with the batch-wide one (R13), now shown on the row before saving. Keeping the current description unless one is typed would be safer; that is a requirement change for the owner to decide.
+- (follow-up) The searches load the catalog in 9 or 21 requests per page load (API follow-up in Design).
+- (follow-up) The manual criteria were not repeated after the first audit's fixes; each fix is covered by a test.
