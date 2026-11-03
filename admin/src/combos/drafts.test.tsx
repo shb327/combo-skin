@@ -53,7 +53,7 @@ const FORMS: Form[] = [
       await user.type(screen.getByLabelText('Rating for M9 Bayonet'), '9.9')
       await user.type(within(knifeGroup()).getByLabelText('Float from'), '0')
       await user.type(within(knifeGroup()).getByLabelText('Float to'), '0.02')
-      await user.click(within(screen.getByRole('listitem', { name: 'Karambit' })).getByRole('button', { name: /Own values/ }))
+      await user.click(screen.getByRole('button', { name: 'Own values for Karambit' }))
       await user.click(screen.getByRole('button', { name: 'Set own description for Karambit' }))
       await user.type(screen.getByLabelText('Description, Karambit only'), 'Own')
     },
@@ -63,7 +63,7 @@ const FORMS: Form[] = [
       expect(screen.getByLabelText('Rating for Karambit')).toHaveValue('9.50')
       expect(screen.getByLabelText('Rating for M9 Bayonet')).toHaveValue('9.90')
       expect(within(knifeGroup()).getByLabelText('Float to')).toHaveValue('0.02')
-      expect(screen.getAllByRole('button', { name: /Own values \(description\)/ })).toHaveLength(1)
+      expect(screen.getByRole('button', { name: 'Own values for Karambit (description)' })).toBeInTheDocument()
     },
     stored() {
       expect(screen.getByLabelText('Top rating')).toHaveValue('')

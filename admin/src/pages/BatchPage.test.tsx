@@ -97,7 +97,7 @@ describe('the batch rows', () => {
     await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
     expect(fake.to('POST /admin/batches')).toHaveLength(0)
 
-    await user.click(within(row('M9 Bayonet')).getByRole('button', { name: /Own values/ }))
+    await user.click(screen.getByRole('button', { name: 'Own values for M9 Bayonet' }))
     await user.click(screen.getByRole('button', { name: 'Set own knife values for M9 Bayonet' }))
     const own = screen.getByRole('group', { name: 'Knife, M9 Bayonet only' })
     await user.clear(within(own).getByLabelText('Float from'))
@@ -125,7 +125,7 @@ describe('the batch rows', () => {
     const { user } = renderApp(`${BATCH}/vanilla`, fake)
     await user.type(await screen.findByLabelText('Top rating'), '5')
     expect(within(screen.getByRole('group', { name: 'Knife' })).getByText('Vanilla has no float or pattern.')).toBeInTheDocument()
-    await user.click(within(row('Karambit')).getByRole('button', { name: /Own values/ }))
+    await user.click(screen.getByRole('button', { name: 'Own values for Karambit' }))
     expect(screen.queryByRole('button', { name: 'Set own knife values for Karambit' })).toBeNull()
     await user.click(screen.getByRole('button', { name: 'Set own description for Karambit' }))
     await user.type(screen.getByLabelText('Description, Karambit only'), 'Plain')

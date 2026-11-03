@@ -418,7 +418,8 @@ function BatchRow({
             onChange={(rating) => onChange({ byHand: true, rating })}
           />
           <button type="button" className={`${SECONDARY} mb-0.5`} aria-expanded={open} onClick={onToggleOpen}>
-            Own values{overrides(row) ? ` (${overrides(row)})` : ''}
+            Own values <span className="sr-only">for {name}</span>
+            {overrides(row) ? ` (${overrides(row)})` : ''}
           </button>
         </div>
       )}
