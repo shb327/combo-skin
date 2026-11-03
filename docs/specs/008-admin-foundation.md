@@ -375,4 +375,64 @@ Test ids are relative to `admin/`.
 
 ## Audit
 
-Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
+**Date:** 2026-11-03 · **Branch:** 008-admin-foundation · **Commit:** fe06a1c (code; later commits change only this spec)
+**Verdict:** Pass with follow-ups
+
+All commands ran on a fresh clone of the branch from GitHub; the browser checks ran against a throwaway Compose stack from `api/.env.example` with a placeholder admin, both deleted afterwards. Paths are relative to `admin/`. The tests behind criteria 4 and 6 to 26 were read against each criterion. A first read, on commit ff4c229, found weak assertions and gaps in the client, lint and bundle checks; they were fixed before this audit and are listed under Implementation notes, "Changes after a review before the audit". The owner's branding change (logo and ADMIN) landed before it too.
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | Fresh clone, no `.env`: seven commands exit 0, no chunk warning | Pass | `npm ci`, `api:types:check`, `lint`, `typecheck`, `test` (117 passed), `build`, `check:bundle` all exit 0; the build output has no chunk-size warning |
+| 2 | Exactly five runtime dependencies | Pass | The `node -p` command prints `@fontsource/montserrat openapi-fetch react react-dom react-router` |
+| 3 | Port 5174, strict for dev and preview | Pass | Dev and preview served http://localhost:5174; with the port held, `npx vite` and `npx vite preview` exit 1, "Port 5174 is already in use" |
+| 4 | Origin check values; bad value stops the build | Pass | `src/api/origin.test.ts` (every value of the criterion); `VITE_API_BASE_URL=api.example.com npx vite build` exits 1 naming the variable |
+| 5 | Colour tokens and Montserrat | Pass | `src/index.css` `@theme`; the built CSS contains both colours; 8 Montserrat files in `dist/assets/`; the browser shows Montserrat from the bundle and the dark background |
+| 6 | Types check fails when the snapshot changes; offline | Pass | `scripts/api-types.test.ts`; the script reads only local files |
+| 7 | Types come only from the generated file | Pass | Removing `csrf_token` from the generated `AdminSession` breaks `tsc -b` (checked and reverted during implementation); `src/api/` aliases the schema types only |
+| 8 | Origin, credentials, CSRF header, JSON | Pass | `src/api/client.test.ts::requests` (also `redirect: 'error'`), `::per-request options` |
+| 9 | Refuses absolute, `//` and relative paths without a request | Pass | `src/api/client.test.ts::requests::refuse %s without sending anything` |
+| 10 | `csrf_failed`: one refresh, one retry, then an error; 401 goes to login | Pass | `src/api/client.test.ts::csrf_failed`; `src/App.test.tsx::csrf_failed twice`, `::session end::goes to login when the CSRF refresh finds the session ended` |
+| 11 | Each guard rail fires; `fetch` allowed in the client | Pass | `src/lint.test.ts` (23 cases, including aliases and other objects) |
+| 12 | One `/admin/me`; loading only; neither page first | Pass | `src/App.test.tsx::loading` (mutation observer in both directions, under `StrictMode`) |
+| 13 | Login returns to path and query; else home | Pass | `src/App.test.tsx::login::returns to the requested path and query`, `::goes home without a return path` |
+| 14 | Every login outcome, countdown, no server text | Pass | `src/App.test.tsx::login` outcome tests (exact message text; disabled at 89 s, enabled at 90 s) |
+| 15 | Field attributes; post form; no request when empty or in flight | Pass | `src/App.test.tsx::login::has labelled fields…`, `::sends nothing with an empty field, or while a login is in flight` |
+| 16 | Login first, then back; session end notice and return | Pass | `src/App.test.tsx::session end` |
+| 17 | Unsafe return paths go home | Pass | `src/App.test.tsx::login::ignores the return path %s` (9 values) |
+| 18 | Re-check at expiry and after a minute hidden only | Pass | `src/App.test.tsx::session end::re-checks…` (fake timers) |
+| 19 | `/login` with a session goes home | Pass | `src/App.test.tsx::login::sends a live session from /login to home` |
+| 20 | Logout on 204 only; otherwise stays with an error | Pass | `src/App.test.tsx::logout`; `src/api/client.test.ts::logout` |
+| 21 | Header, navigation, Home directions, placeholders, not found | Pass | `src/App.test.tsx::shell`, `::login::shows the logo and ADMIN…` |
+| 22 | Page titles | Pass | `src/App.test.tsx::shell::titles %s`, `::titles the login page` |
+| 23 | 375 and 1440 px, no horizontal scroll, navigation reachable | Pass | Browser on the final build: login, Home, By gloves and By knife have `scrollWidth` equal to the width at both sizes; the Menu button opens the navigation below 768 px |
+| 24 | Bundle check and its failing samples | Pass | `scripts/check-bundle.test.ts` (16 cases); `npm run check:bundle` exits 0 on the build |
+| 25 | Full flow leaks no password or token | Pass | `src/flow.test.tsx` (every address the app moves to, all console methods, storage, cookies, page text) |
+| 26 | Only `VITE_API_BASE_URL`; no secrets after a build | Pass | The grep prints `import.meta.env.VITE_API_BASE_URL`; `gitleaks dir .` after a build: no leaks |
+| 27 | No CSP violations; requests to the two origins only; nothing stored | Pass | Final build under `npm run preview`: login, reloads and logout log no CSP message; requests only to `localhost:5174` and `localhost:8000`; the app stores nothing (the browser's other local data was there before and is unchanged) |
+| 28 | Workflow lint, triggers, permissions, pins, steps | Pass | actionlint 1.7.12 exit 0; every `uses:` pinned to a 40-character SHA; no `secrets.` or `pull_request_target`; `permissions: contents: read`, `persist-credentials: false`, Node 24 with the cache on `admin/package-lock.json`, the six steps, `cancel-in-progress` |
+| 29 | `admin` workflow succeeds for the latest commit | Pass | Commit fe06a1c: push run 41615586535 and pull request run 41615590588 (117 tests) |
+| 30 | README followed literally against the real API | Pass | Done on a fresh clone during implementation (Implementation notes, criterion 30): wrong password, login, reloads, logout, `ADMIN_ORIGINS` emptied, 5-minute idle with return; login, reload and logout repeated on the final build |
+| 31 | Admin README badge and sections | Pass | `admin/README.md`: badge on line 3; sections for the app, prerequisites, getting started, scripts, configuration (public `VITE_` values, open at `localhost`), API types, tests, project structure |
+| 32 | Root README and font credit | Pass | Badge on line 5, `admin/` row linking its README, only `deploy/` planned; `THIRD_PARTY_NOTICES.md` has Montserrat under the SIL Open Font License 1.1 |
+| 33 | No change to `api`, `website` or `compose.yaml` | Pass | `git diff --stat origin/main...HEAD -- api website compose.yaml` prints nothing |
+| 34 | Only allowed URLs; gitleaks clean | Pass | Added URLs are the repository, `localhost`, `example.com` placeholders, public documentation and the font licence's own links; gitleaks on the clone and over the branch: no leaks |
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Install | `npm ci` (Node 24, npm 11) | Pass |
+| Lint | `npm run lint` | Pass |
+| Type check | `npm run typecheck` | Pass |
+| Tests | `npm test`: 117 passed, three extra runs too; CI 117 passed | Pass |
+| Build | `npm run build`, `npm run check:bundle` | Pass |
+| Secret scan | `gitleaks dir . --no-banner --redact`, `gitleaks git --log-opts="origin/main..HEAD"` | Pass |
+| Public exposure | Manual review of diff and log: placeholders only, no private hosts or paths, nothing private tracked; all commits authored by the owner with one-line messages and no trailers | Pass |
+| Design conformance | Manual review against Design, Security and API / data model | Pass; every difference is recorded in Implementation notes |
+
+**Findings**
+
+- (follow-up) The lint guard rails and the bundle check are pattern checks: code written to dodge them (for example a computed property name) still could. The built Content Security Policy is the backstop for network access.
+- (follow-up) The Content Security Policy is a `<meta>` tag; `frame-ancestors`, HSTS and `X-Robots-Tag` wait for the `deploy/` spec's headers.
+- (follow-up) On load, the app shows the login page when the API is down, and says it cannot reach the API only once a login is tried.
+- (follow-up) The API's error codes are not an enumeration in `api/openapi.json`, so the admin's error handling is typed as a string (Design's follow-ups).
+- (follow-up) Browser developer tools list a logout's 204 as aborted, because the client never reads the empty body. Harmless, but it can look like a failure.
+- (follow-up) Criterion 30's hidden tab was signalled in the page, because the browser used cannot hide a tab; worth repeating once in a desktop browser.
