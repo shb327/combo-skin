@@ -346,6 +346,23 @@ None that change a requirement. Smaller choices, all within Design:
 
 Found in the manual check (criterion 33) and fixed: the fifteen "Own values" buttons of a batch all had the same accessible name; each is now "Own values for <knife>" (`src/pages/BatchPage.test.tsx`).
 
+### Changes after the first audit (2026-11-03)
+
+The first audit, on commit 3467bec, failed: an independent read of the code and tests found three defects, each against Design or a user's data, and several tests weaker than their criteria. All are fixed with tests; none changes a requirement.
+
+- **A delete refused for a stale version could never succeed from the same page.** Design says the owner checks the combo and deletes again, but neither the list nor the edit page read the combo again, so the second delete sent the same version. Both now reload it after 409 `version_conflict` (`src/pages/FinishPage.test.tsx::managing combos from the list::reloads the list after a delete refused…`, `src/pages/EditComboPage.test.tsx::reads the combo again after a delete refused…`).
+- **A batch update showed only the existing rating.** Design says an existing row shows its current values; the description was missing, so a blank batch-wide description could replace an existing one unseen. The row now shows its current description and, when ticked, the one it will be saved with (`src/pages/BatchPage.test.tsx::the batch rows::lists every knife type…`, `::saving a batch::creates the ticked rows…`).
+- **Publish or Unpublish selected included combos hidden by a filter.** A selection made before a filter change stayed in the request. The buttons now act only on the selected combos that are shown, and count only those (`src/pages/FinishPage.test.tsx::managing combos from the list::publishes only the selected combos that are shown`).
+- **Smaller.** The add form showed "Vanilla has no float or pattern." for the item not chosen yet; until it is chosen, its fields take values checked as floats from 0 to 1, without a range hint (`src/pages/AddComboPage.test.tsx::takes float and pattern values before a knife is picked…`). The knife order page could move focus back to the last-used Move button after any change, such as using a position list (`src/pages/KnifeOrderPage.test.tsx::leaves focus on a position list used after a button`). "Published 1 combos." now reads "Published 1 combo.".
+- **Tests made stricter** (criteria 6, 8, 9, 11, 12, 14, 17, 19, 20, 22, 23, 26, 30): the "1 duplicate removed" note and the "Type more" note are checked on screen; Refill from top is checked on two rows; the searches are driven by the keyboard alone, for knives too, and returning sends no catalog request; paging uses a full first page of 500 and checks offset 500; a combo is added from the finish page's Add knife link with exactly one request; a knife range override is cleared back to the batch-wide value; a refusal is mapped through the rows as sent with a row unticked; the edit page shows the last change; Publish selected sends exactly the selected ids; Delete is offered on an unpublished combo, and Cancel and a refusal are checked on the edit page; a restored batch shows the batch-wide range and the override's value; the CSRF header of each write is one the fake issued, and the last one the current session's.
+
+Recorded, unchanged:
+
+- When a save gets no answer, the batch reloads its candidates; the add and edit pages have no list to reload and keep the values, as Design asks.
+- The drafts store records one owner for all its entries rather than a username per entry; the behaviour Design asks for (another admin sees none) is the same.
+- A form counts as unsaved once it is changed, even if changed back (the knife order excepted), so the logout confirmation and the leave-page warning can appear with nothing to lose.
+- A finish's own details (`GET /{kind}/{type}/{finish}`) are kept for the page load, like the catalog searches; finishes change only with a catalog import.
+
 ### Follow-ups
 
 - The searches load the catalog with 9 requests for gloves and 21 for knives on each page load (Design, Follow-ups: one API request for every finish of a kind).
@@ -359,15 +376,15 @@ Test ids are relative to `admin/`.
 
 | Criterion | Covered by |
 | --- | --- |
-| 1 | In the worktree: `npm run api:types:check`, `lint`, `typecheck`, `test` (234 passed), `build` (no chunk-size warning) and `check:bundle` exit 0; on a fresh clone in the audit |
+| 1 | In the worktree: `npm run api:types:check`, `lint`, `typecheck`, `test` (241 passed), `build` (no chunk-size warning) and `check:bundle` exit 0; on a fresh clone in the audit |
 | 2 | The `node -p` command prints `@fontsource/montserrat @tanstack/react-query openapi-fetch react react-dom react-router` |
 | 3 | `git diff --stat origin/main...HEAD -- admin/eslint.config.js admin/vite.config.ts admin/scripts/check-bundle.mjs` prints nothing; `grep -rn eslint-disable src` lists the three lines of `src/flow.test.tsx`; `src/lint.test.ts` |
 | 4 | `src/combos/values.test.ts::parseRating` |
 | 5 | `src/combos/values.test.ts::checkConditions` |
-| 6 | `src/combos/values.test.ts::parseSeeds` |
+| 6 | `src/combos/values.test.ts::parseSeeds`; the note on screen in `src/pages/AddComboPage.test.tsx::creates one draft…` |
 | 7 | `src/combos/values.test.ts::checkDescription` |
 | 8 | `src/combos/fill.test.ts::fillRatings` |
-| 9 | `src/combos/search.test.ts::search` |
+| 9 | `src/combos/search.test.ts::search`; `src/pages/FinishesPage.test.tsx::shows at most 50 results, and asks for more words` |
 | 10 | `src/combos/problems.test.ts` (`httpError`, `batchPlace`, `formField`, `problemMessage`) |
 | 11 | `src/pages/FinishesPage.test.tsx::finding a finish` |
 | 12 | `src/pages/FinishPage.test.tsx::a glove finish page` (first three tests), `::a knife finish page` |
@@ -380,8 +397,8 @@ Test ids are relative to `admin/`.
 | 19 | `src/pages/BatchPage.test.tsx::saving a batch::shows a refusal on the row…`, `::reloads the rows when combos changed…` |
 | 20 | `src/pages/EditComboPage.test.tsx::shows the pairing, status and history…` |
 | 21 | `src/pages/EditComboPage.test.tsx::shows a conflict…`, `::takes their values`, `::says when the combo no longer exists`, `::says so when a save finds it removed` |
-| 22 | `src/pages/FinishPage.test.tsx::managing combos from the list::publishes and unpublishes one combo`, `::publishes a selection…`; `src/pages/EditComboPage.test.tsx::publishes, unpublishes…` |
-| 23 | `src/pages/FinishPage.test.tsx::managing combos from the list::deletes a draft…`, `::keeps the combo listed when delete is refused`; `src/pages/EditComboPage.test.tsx::deletes after confirmation…` |
+| 22 | `src/pages/FinishPage.test.tsx::managing combos from the list::publishes and unpublishes one combo`, `::publishes a selection…`, `::publishes only the selected combos that are shown`; `src/pages/EditComboPage.test.tsx::publishes, unpublishes…` |
+| 23 | `src/pages/FinishPage.test.tsx::managing combos from the list::deletes a draft…`, `::keeps the combo listed when delete is refused`, `::reloads the list after a delete refused…`; `src/pages/EditComboPage.test.tsx::deletes after confirmation…`, `::offers delete on an unpublished combo…`, `::reads the combo again after a delete refused…` |
 | 24 | `src/pages/HomePage.test.tsx` |
 | 25 | `src/pages/KnifeOrderPage.test.tsx` |
 | 26 | `src/combos/drafts.test.tsx::the $name form` (add, batch, edit, knife order), `::unsaved changes::come back after the session expires` |
