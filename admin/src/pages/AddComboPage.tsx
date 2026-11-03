@@ -7,7 +7,7 @@ import { ComboFields } from '../combos/ComboFields'
 import { FinishSearch } from '../combos/FinishSearch'
 import { EMPTY_COMBO, checkCombo, problemErrors, summaryEntries, type ComboText, type FieldErrors } from '../combos/form'
 import { COMBO_MESSAGES, comboErrorMessage, isCode } from '../combos/messages'
-import { finishPath } from '../combos/paths'
+import { SEARCH_EXAMPLE, finishPath } from '../combos/paths'
 import { loadCombos, useCatalog, useComboWrites, type CatalogEntry, type Kind } from '../combos/queries'
 import { LINK, PRIMARY, SECONDARY } from '../combos/styles'
 import { ErrorSummary, QueryState, RestoredNotice, type SummaryEntry } from '../combos/ui'
@@ -157,6 +157,7 @@ export function AddComboPage({ kind }: { kind: Kind }) {
             <FinishSearch
               label={otherKind === 'knife' ? 'Find a knife' : 'Find gloves'}
               inputId={OTHER_ID}
+              placeholder={SEARCH_EXAMPLE[otherKind]}
               entries={catalog.data}
               onSelect={(entry) => change({ ...values, other: entry })}
             />

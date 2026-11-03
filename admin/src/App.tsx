@@ -16,6 +16,7 @@ import { HomePage } from './pages/HomePage'
 import { KnifeOrderPage } from './pages/KnifeOrderPage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { TypePage } from './pages/TypePage'
 
 /** A page mounted afresh for each path, so its form starts from that path's values. */
 function ByPath({ children }: { children: ReactNode }) {
@@ -40,11 +41,13 @@ export function App({ api, queryClient }: { api: Api; queryClient: QueryClient }
               >
                 <Route index element={<HomePage />} />
                 <Route path="gloves" element={<FinishesPage kind="glove" />} />
+                <Route path="gloves/:type" element={<ByPath><TypePage kind="glove" /></ByPath>} />
                 <Route path="gloves/:type/:finish" element={<ByPath><FinishPage kind="glove" /></ByPath>} />
                 <Route path="gloves/:type/:finish/add" element={<ByPath><AddComboPage kind="glove" /></ByPath>} />
                 <Route path="gloves/:type/:finish/batch" element={<ByPath><BatchPage /></ByPath>} />
                 <Route path="gloves/:type/:finish/batch/:knifeFinish" element={<ByPath><BatchPage /></ByPath>} />
                 <Route path="knives" element={<FinishesPage kind="knife" />} />
+                <Route path="knives/:type" element={<ByPath><TypePage kind="knife" /></ByPath>} />
                 <Route path="knives/:type/:finish" element={<ByPath><FinishPage kind="knife" /></ByPath>} />
                 <Route path="knives/:type/:finish/add" element={<ByPath><AddComboPage kind="knife" /></ByPath>} />
                 <Route path="combos/:id" element={<ByPath><EditComboPage /></ByPath>} />

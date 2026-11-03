@@ -15,12 +15,14 @@ export function FinishSearch<T extends SearchEntry>({
   onSelect,
   autoFocus = false,
   inputId,
+  placeholder = 'For example: crimson kimono',
 }: {
   label: string
   entries: T[]
   onSelect(entry: T): void
   autoFocus?: boolean
   inputId?: string
+  placeholder?: string
 }) {
   const id = useId()
   const input = inputId ?? `${id}-input`
@@ -55,7 +57,7 @@ export function FinishSearch<T extends SearchEntry>({
         aria-controls={`${id}-list`}
         aria-activedescendant={shown && active >= 0 && results.length ? optionId(active) : undefined}
         value={query}
-        placeholder="For example: crimson kimono"
+        placeholder={placeholder}
         className={INPUT}
         onChange={(event) => {
           setQuery(event.target.value)

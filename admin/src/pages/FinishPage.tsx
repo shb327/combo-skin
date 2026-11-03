@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router'
 import { useTitle } from '../components/useTitle'
 import { ComboList } from '../combos/ComboList'
 import { COMBO_MESSAGES } from '../combos/messages'
-import { BASE, DIRECTION, finishPath } from '../combos/paths'
+import { BASE, DIRECTION, finishPath, typePath } from '../combos/paths'
 import type { Kind } from '../combos/queries'
 import { LINK, SECONDARY } from '../combos/styles'
 import { detailLabel, isRetired, useFinishPage } from '../combos/useFinishPage'
@@ -24,6 +24,10 @@ export function FinishPage({ kind }: { kind: Kind }) {
       <p className="text-sm">
         <Link to={BASE[kind]} className={LINK}>
           {DIRECTION[kind]}
+        </Link>
+        <span className="text-white/40"> / </span>
+        <Link to={typePath(kind, type)} className={LINK}>
+          {data.item_type.name}
         </Link>
       </p>
       <h1 className="mt-1 text-2xl font-semibold">{detailLabel(data)}</h1>

@@ -361,6 +361,8 @@ describe('shell', () => {
     ['/', 'Home'],
     ['/gloves', 'By gloves'],
     ['/knives', 'By knife'],
+    ['/gloves/specialist', 'Specialist Gloves'],
+    ['/knives/karambit', 'Karambit'],
     ['/gloves/specialist/crimson-kimono', 'Specialist Gloves | Crimson Kimono'],
     ['/knives/karambit/doppler-ruby', 'Karambit | Doppler (Ruby)'],
     ['/gloves/specialist/crimson-kimono/add', 'Add knife'],

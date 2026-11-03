@@ -193,3 +193,20 @@ export function useComboWrites() {
       client.invalidateQueries({ queryKey: keys.candidates }),
     ])
 }
+
+export interface CatalogType {
+  slug: string
+  name: string
+  finishes: CatalogEntry[]
+}
+
+/** The types of a loaded catalog, in its order, each with its finishes. */
+export function catalogTypes(entries: CatalogEntry[]): CatalogType[] {
+  const types = new Map<string, CatalogType>()
+  for (const entry of entries) {
+    const type = types.get(entry.typeSlug) ?? { slug: entry.typeSlug, name: entry.typeName, finishes: [] }
+    type.finishes.push(entry)
+    types.set(entry.typeSlug, type)
+  }
+  return [...types.values()]
+}
