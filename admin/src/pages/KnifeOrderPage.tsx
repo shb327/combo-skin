@@ -24,15 +24,18 @@ export function KnifeOrderPage() {
   const [failure, setFailure] = useState<string | null>(null)
   const [mismatch, setMismatch] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [focus, setFocus] = useState<{ slug: string; action: Action } | null>(null)
+  // The button a move was made with, to focus once the list has moved; cleared when used.
+  const focus = useRef<{ slug: string; action: Action } | null>(null)
   const buttons = useRef(new Map<string, HTMLButtonElement>())
 
   useEffect(() => {
-    if (!focus) return
-    const other: Action = focus.action === 'up' ? 'down' : 'up'
+    const target = focus.current
+    if (!target) return
+    focus.current = null
+    const other: Action = target.action === 'up' ? 'down' : 'up'
     // The button used may be gone at the top or bottom of the list; then the other one.
-    ;(buttons.current.get(`${focus.slug}:${focus.action}`) ?? buttons.current.get(`${focus.slug}:${other}`))?.focus()
-  }, [focus, draft.values])
+    ;(buttons.current.get(`${target.slug}:${target.action}`) ?? buttons.current.get(`${target.slug}:${other}`))?.focus()
+  })
 
   if (!order.data) return <QueryState error={order.error} onRetry={() => order.refetch()} />
   const names = new Map(order.data.map((t) => [t.slug, t.name]))
@@ -47,7 +50,7 @@ export function KnifeOrderPage() {
     if (next.join() === saved.join()) draft.forget()
     else draft.set(() => next)
     setAnnouncement(`${names.get(slug)} moved to position ${to + 1}.`)
-    if (action) setFocus({ slug, action })
+    focus.current = action ? { slug, action } : null
   }
 
   async function save() {

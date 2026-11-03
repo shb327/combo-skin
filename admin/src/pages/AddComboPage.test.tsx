@@ -13,6 +13,14 @@ async function pickKnife(user: ReturnType<typeof renderApp>['user'], words: stri
 }
 
 describe('adding a knife to gloves', () => {
+  it('takes float and pattern values before a knife is picked, without calling it Vanilla', async () => {
+    renderApp(ADD, new FakeApi().withSession())
+    const knife = within(await screen.findByRole('group', { name: 'Knife' }))
+    expect(knife.getByLabelText('Float from')).toBeInTheDocument()
+    expect(knife.queryByText('Vanilla has no float or pattern.')).toBeNull()
+    expect(knife.queryByText(/This finish/)).toBeNull()
+  })
+
   it('creates one draft and lists it on the finish page', async () => {
     const fake = new FakeApi().withSession()
     const { user } = renderApp(ADD, fake)

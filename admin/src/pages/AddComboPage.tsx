@@ -58,7 +58,8 @@ export function AddComboPage({ kind }: { kind: Kind }) {
 
   const values = draft.values
   const own = { min: data.float_min, max: data.float_max }
-  const other = values.other ? { min: values.other.floatMin, max: values.other.floatMax } : { min: null, max: null }
+  // Until the other item is chosen, its values are only checked as floats from 0 to 1.
+  const other = values.other ? { min: values.other.floatMin, max: values.other.floatMax } : { min: 0, max: 1 }
   const ranges = kind === 'glove' ? { glove: own, knife: other } : { glove: other, knife: own }
   const checked = checkCombo(values, ranges, attempted)
   const errors: FieldErrors = { ...checked.errors, ...serverErrors }
@@ -164,7 +165,14 @@ export function AddComboPage({ kind }: { kind: Kind }) {
         ) : (
           <QueryState error={catalog.error} onRetry={() => catalog.refetch()} />
         )}
-        <ComboFields prefix={PREFIX} values={values} ranges={ranges} errors={errors} onChange={(next) => change({ ...values, ...next })} />
+        <ComboFields
+          prefix={PREFIX}
+          values={values}
+          ranges={ranges}
+          errors={errors}
+          unknown={values.other ? undefined : otherKind}
+          onChange={(next) => change({ ...values, ...next })}
+        />
         <div className="mt-6 flex flex-wrap gap-3">
           <button type="submit" className={PRIMARY} disabled={busy}>
             Save as draft

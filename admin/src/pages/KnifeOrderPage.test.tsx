@@ -39,6 +39,15 @@ describe('the knife order page', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Move Butterfly Knife down' })).toHaveFocus())
   })
 
+  it('leaves focus on a position list used after a button', async () => {
+    const { user } = renderApp('/knife-order', new FakeApi().withSession())
+    await user.click(await screen.findByRole('button', { name: 'Move Karambit down' }))
+    const select = screen.getByLabelText('Position of M9 Bayonet')
+    await user.selectOptions(select, '1')
+    await waitFor(() => expect(names()).toEqual(['M9 Bayonet', 'Butterfly Knife', 'Karambit']))
+    expect(screen.getByLabelText('Position of M9 Bayonet')).toHaveFocus()
+  })
+
   it('discards changes', async () => {
     const fake = new FakeApi().withSession()
     const { user } = renderApp('/knife-order', fake)

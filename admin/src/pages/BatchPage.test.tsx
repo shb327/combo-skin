@@ -161,7 +161,7 @@ describe('saving a batch', () => {
     expect(saved).toHaveTextContent('Karambit | Doppler (Ruby)9.50Updated')
 
     await user.click(screen.getByRole('button', { name: 'Publish these 1 new combo' }))
-    expect(await screen.findByText('Published 1 combos.')).toBeInTheDocument()
+    expect(await screen.findByText('Published 1 combo.')).toBeInTheDocument()
     const created = fake.store.combos.find((c) => c.knife.type_slug === 'butterfly')
     expect(JSON.parse(fake.to('POST /admin/combos/publish')[0].body)).toEqual({ ids: [created?.id] })
   })

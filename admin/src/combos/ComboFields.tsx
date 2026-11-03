@@ -9,12 +9,15 @@ export function ComboFields({
   ranges,
   errors,
   onChange,
+  unknown,
 }: {
   prefix: string
   values: ComboText
   ranges: { glove: FinishRange; knife: FinishRange }
   errors: FieldErrors
   onChange(values: ComboText): void
+  /** The item not chosen yet: its range is not one finish's, so it is not shown. */
+  unknown?: 'glove' | 'knife'
 }) {
   return (
     <>
@@ -31,6 +34,7 @@ export function ComboFields({
         legend="Gloves"
         value={values.glove}
         range={ranges.glove}
+        showRange={unknown !== 'glove'}
         errors={itemErrors(errors, 'glove')}
         onChange={(glove) => onChange({ ...values, glove })}
       />
@@ -39,6 +43,7 @@ export function ComboFields({
         legend="Knife"
         value={values.knife}
         range={ranges.knife}
+        showRange={unknown !== 'knife'}
         errors={itemErrors(errors, 'knife')}
         onChange={(knife) => onChange({ ...values, knife })}
       />

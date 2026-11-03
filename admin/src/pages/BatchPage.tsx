@@ -151,7 +151,8 @@ function BatchRows({
             const { data } = await api.request('post', '/admin/combos/publish', {
               body: { ids: saved.created.map((c) => c.id) },
             })
-            setPublished(`Published ${data?.changed ?? 0} combos.`)
+            const changed = data?.changed ?? 0
+            setPublished(`Published ${changed} ${changed === 1 ? 'combo' : 'combos'}.`)
             await writes()
           } catch (error) {
             setFailure(comboErrorMessage(error))
