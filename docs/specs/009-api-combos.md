@@ -1,6 +1,6 @@
 # 009: Combos API
 
-**Status:** Implemented
+**Status:** Audited
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api, admin
@@ -459,10 +459,12 @@ Test ids are relative to `api/`.
 
 ## Audit
 
-**Date:** 2026-11-03 · **Branch:** 009-api-combos · **Commit:** 89ed84e
-**Verdict:** Fail
+**Date:** 2026-11-03 · **Branch:** 009-api-combos · **Commit:** 46310ba (code; later commits change only this spec)
+**Verdict:** Pass with follow-ups
 
-All checks ran on a fresh clone of the branch from GitHub, with `api/.env` from `api/.env.example` (database name changed so as not to touch another local database). Test ids are relative to `api/`. Every test named in Implementation notes exists and passes. The tests behind criteria 1 to 30 were also read against each criterion by a reviewer who had not written them. Where a committed test is weaker than its criterion, the behaviour was checked with throwaway tests run in the clone and not committed ("probe" below). Every acceptance criterion passes. The verdict is Fail on Security S5 (see Findings).
+A first audit, on commit 89ed84e, failed on Security S5: `offset` on the admin list had no upper bound (a huge value gave a 500), and the public routes' slugs had no length bound. It also found that two concurrent knife order replaces could fail with a 500. Both were fixed with tests (Implementation notes, "Changes after the first audit"); this table is for commit 46310ba.
+
+All checks ran on a fresh clone of the branch from GitHub, with `api/.env` from `api/.env.example` (database name changed so as not to touch another local database). Test ids are relative to `api/`. Every test named in Implementation notes exists and passes. The tests behind criteria 1 to 30 were read against each criterion by a reviewer who had not written them. Where a committed test is weaker than its criterion, the behaviour was checked with throwaway tests run in a clone and not committed ("probe" below). The probes ran on 89ed84e; the code they exercise is unchanged since, except the knife order lock, whose path `tests/combos/test_knife_order.py::test_replace_the_order` still covers.
 
 | # | Criterion | Result | Evidence |
 | --- | --- | --- | --- |
@@ -473,7 +475,7 @@ All checks ran on a fresh clone of the branch from GitHub, with `api/.env` from 
 | 5 | Same pairing 409 | Pass | `tests/combos/test_admin_combos.py::test_same_pairing_is_refused` |
 | 6 | Create refusals | Pass | `tests/combos/test_admin_combos.py::test_create_refuses_invalid_input` (21 cases, `loc` and listed codes asserted, nothing stored), `::test_finish_bounds_are_inclusive` |
 | 7 | Read one; 404; blank description | Pass | `tests/combos/test_admin_combos.py::test_read_one` |
-| 8 | Update with version; stale 409 | Pass | `tests/combos/test_admin_combos.py::test_update`, `::test_update_checks_conditions`; probe: the glove range is stored, and slugs sent inside `glove` and `knife` change neither item (the committed test asserts the knife finish slug only) |
+| 8 | Update with version; stale 409 | Pass | `tests/combos/test_admin_combos.py::test_update`, `::test_update_checks_conditions`; probe: the glove range is stored, and slugs sent inside `glove` and `knife` change neither item |
 | 9 | Update after the finish retired | Pass | `tests/combos/test_admin_combos.py::test_update_after_the_finish_retired` |
 | 10 | Remove | Pass | `tests/combos/test_admin_combos.py::test_remove`, `tests/combos/test_publish.py::test_published_combo_cannot_be_removed` |
 | 11 | Publish and unpublish by id | Pass | `tests/combos/test_publish.py::test_publish_and_unpublish_by_id` |
@@ -481,26 +483,26 @@ All checks ran on a fresh clone of the branch from GitHub, with `api/.env` from 
 | 13 | Publish refusals | Pass | `tests/combos/test_publish.py::test_publish_refuses_bad_requests` |
 | 14 | Publishing keeps an open edit valid | Pass | `tests/combos/test_publish.py::test_publishing_does_not_break_an_open_edit` |
 | 15 | Filters and totals | Pass | `tests/combos/test_list.py::test_filters`, `::test_bad_filters` |
-| 16 | Sorting and paging | Pass | `tests/combos/test_list.py::test_sorting_and_paging`, `::test_bad_filters`; probe: after an update the changed combo comes first with `sort=updated` (the committed fixture cannot tell last change from creation order) |
+| 16 | Sorting and paging | Pass | `tests/combos/test_list.py::test_sorting_and_paging`, `::test_bad_filters` (now also an `offset` over the bound); probe: after an update the changed combo comes first with `sort=updated` |
 | 17 | Batch finish names | Pass | `tests/combos/test_batches.py::test_batch_finishes` |
 | 18 | Candidates | Pass | `tests/combos/test_batches.py::test_candidates`, `::test_candidates_refusals`, `::test_no_knife_has_the_finish` |
 | 19 | Save a batch | Pass | `tests/combos/test_batches.py::test_save_a_batch` |
 | 20 | Batch refusals, nothing written | Pass | `tests/combos/test_batches.py::test_batch_refusals` (12 cases, count and every combo unchanged); see findings on a retired knife finish |
 | 21 | Exact rating steps | Pass | `tests/combos/test_batches.py::test_ratings_step_exactly` |
 | 22 | Read the knife order | Pass | `tests/combos/test_knife_order.py::test_read_the_seeded_order` |
-| 23 | Replace the knife order | Pass | `tests/combos/test_knife_order.py::test_replace_the_order`, `::test_refuse_a_wrong_order` |
-| 24 | Public glove finish combos | Pass | `tests/combos/test_public.py::test_glove_finish_combos`; probe: with Karambit moved before Butterfly in the knife order, their tie reverses (in the committed test, catalog order gives the same result) |
-| 25 | Public knife finish combos | Pass | `tests/combos/test_public.py::test_knife_finish_combos`; probe: with the Sport Gloves combo created first, Specialist Gloves still comes first in the tie (in the committed test, id order gives the same result) |
+| 23 | Replace the knife order | Pass | `tests/combos/test_knife_order.py::test_replace_the_order`, `::test_refuse_a_wrong_order`, `::test_concurrent_replaces_last_write_wins` |
+| 24 | Public glove finish combos | Pass | `tests/combos/test_public.py::test_glove_finish_combos`; probe: with Karambit moved before Butterfly in the knife order, their tie reverses |
+| 25 | Public knife finish combos | Pass | `tests/combos/test_public.py::test_knife_finish_combos`, `::test_public_slugs_are_bounded`; probe: with the Sport Gloves combo created first, Specialist Gloves still comes first in the tie |
 | 26 | No session needed | Pass | `tests/combos/test_public.py::test_public_routes_need_no_session` |
 | 27 | Route guard; 401 and 403 | Pass | `tests/admins/test_require_admin.py::test_every_write_route_requires_an_admin`, `::test_the_guard_finds_an_unprotected_write`; `tests/combos/test_guard.py::test_admin_routes_refuse_without_a_session`, `::test_admin_writes_need_the_csrf_token` |
 | 28 | `Cache-Control: no-store` | Pass | `tests/combos/test_guard.py` (401s, 403s, 404, 409 `combo_exists`, 422s, reads); probe: 201 create, 200 update, 409 `version_conflict` and `combo_published`, 200 unpublish, 204 remove, 200 batch and 200 knife order replace all carry it |
 | 29 | Log events | Pass | `tests/combos/test_guard.py::test_log_events`, `tests/combos/test_admin_combos.py::test_remove` |
-| 30 | Schema operations and number types | Pass | `tests/combos/test_schema.py::test_combo_operations_in_schema`, `::test_numbers_are_numbers`; `BatchCreate` and `BatchUpdate` ratings are also `number` in the clone's schema; `uv run python -m combo_api.openapi --check` exit 0 |
+| 30 | Schema operations and number types | Pass | `tests/combos/test_schema.py::test_combo_operations_in_schema`, `::test_numbers_are_numbers`; `BatchCreate` and `BatchUpdate` ratings are also `number`; `uv run python -m combo_api.openapi --check` exit 0 |
 | 31 | Admin checks; only the types changed | Pass | Clone: `npm ci`, `npm run api:types:check`, `lint`, `typecheck`, `test` (117 passed), `build` (no chunk-size warning), `check:bundle` all exit 0; `git diff --stat origin/main...HEAD -- admin website compose.yaml` lists only `admin/src/api/schema.d.ts` |
 | 32 | README | Pass | `api/README.md`: first paragraph, Combos section, OpenAPI snapshot section, Endpoints rows for all 14 operations, Layout row |
-| 33 | API checks; image builds | Pass | Clone: `uv sync --locked`, format check, lint, mypy, pytest (280 passed, 0 skipped), OpenAPI and export checks all exit 0; `docker build` exit 0, 228,512,150 bytes |
-| 34 | Compose: `[]` and 401 | Pass | Clone, separate Compose project: `migrate` and `catalog` exited 0, `/health/ready` ok, `GET /gloves/specialist/mogul/combos` `[]`, `GET /admin/combos` 401, removed with `down -v`; `.github/workflows/api.yml` has both steps |
-| 35 | CI succeeds | Pass | Commit 89ed84e: `api` push run 41625853711 (jobs `check` and `docker` succeeded), `admin` 41625853592 and `website` 41625853580 succeeded |
+| 33 | API checks; image builds | Pass | Clone: `uv sync --locked`, format check, lint, mypy, pytest (282 passed, 0 skipped), OpenAPI and export checks all exit 0; `docker build` exit 0, 228,512,662 bytes |
+| 34 | Compose: `[]` and 401 | Pass | Clone, separate Compose project: `migrate` and `catalog` exited 0, `/health/ready` ok, `GET /gloves/specialist/mogul/combos` `[]`, `GET /admin/combos` 401 (and a 65-character slug 422), removed with `down -v`; `.github/workflows/api.yml` has both steps |
+| 35 | CI succeeds | Pass | Commit 46310ba: `api` push run 41627625286 (jobs `check` and `docker` succeeded), `admin` 41627625175 and `website` 41627625149 succeeded |
 | 36 | No secrets; allowed URLs | Pass | `gitleaks git --log-opts="origin/main..HEAD"` and `gitleaks dir .` on the clone: no leaks; added URLs are `localhost` in the workflow and the repository's own badge links |
 
 | Check | Command | Result |
@@ -508,21 +510,20 @@ All checks ran on a fresh clone of the branch from GitHub, with `api/.env` from 
 | Install | `uv sync --locked`; `npm ci` (fresh clone) | Pass |
 | Lint | `uv run ruff format --check .`, `uv run ruff check .`; `npm run lint` | Pass |
 | Type check | `uv run mypy`; `npm run typecheck` | Pass |
-| Tests | `uv run pytest` (280 passed, 0 skipped); `npm test` (117 passed); CI | Pass |
+| Tests | `uv run pytest` (282 passed, 0 skipped); `npm test` (117 passed); CI | Pass |
 | Snapshot checks | `uv run python -m combo_api.openapi --check`, `export-website --check`, `npm run api:types:check` | Pass |
 | Build | `docker build`; `npm run build`, `npm run check:bundle`; Compose | Pass |
 | Secret scan | `gitleaks git --log-opts="origin/main..HEAD"`, `gitleaks dir .` | Pass |
-| Public exposure | Manual review of diff and log: placeholders only, `localhost` and `example.test` addresses, no private hosts or paths; local tool configuration is ignored through the repository's exclude file and nothing private or `.env` is tracked; all 16 commits authored by the owner with one-line messages and no trailers | Pass |
-| Design conformance | Independent read and manual review against Requirements, Design, API / data model and Security | Fail: Security S5 (see findings) |
+| Public exposure | Manual review of diff and log: placeholders only, `localhost` and `example.test` addresses, no private hosts or paths; local tool configuration is ignored through the repository's exclude file and nothing private or `.env` is tracked; all 21 commits authored by the owner with one-line messages and no trailers | Pass |
+| Design conformance | Independent read and manual review against Requirements, Design, API / data model and Security; the diff since 89ed84e reviewed in full | Pass; the differences below are follow-ups |
 
 **Findings**
 
-- (blocking) Security S5 says every input has a bound. `offset` on `GET /admin/combos` has none (`api/src/combo_api/combos/admin_routes.py:146`): probe, `offset=10^20` makes the database raise "bigint out of range", a 500. The public routes' `type_slug` and `finish_slug` have no length bound either (`api/src/combo_api/combos/public_routes.py:41`, `:62`). Not recorded in Implementation notes. Fix: an upper bound on `offset` and a length bound on both path parameters, each with a test.
-- (follow-up) Design says the knife order is "last write wins". Two replaces at the same moment make the second fail on the primary key instead (probe: delete-then-insert in two transactions gives an integrity error, a 500), because the second delete cannot see the first one's new rows (`api/src/combo_api/combos/order.py:30`). Not recorded. Locking the table, or one row, before the delete would make it last write wins.
 - (follow-up) Spec wording: criterion 20 says a `create` item whose knife type has no active finish of the batch's slug gets `finish_not_found`, but Design (Retired finishes) gives `finish_retired` for a retired one. The code follows Design (probe: 422 `finish_retired` at `["body", "create", 0]`), and the test covers only a type without the finish. The owner should settle the wording.
 - (follow-up) R18 says existing combos on a retired finish can still be updated. A batch with only `update` items on a retired glove finish is refused with 422 `finish_retired` (probe; `api/src/combo_api/combos/batches.py:64`), though a single `PUT` works and candidates refuse a retired glove anyway. Not recorded.
 - (follow-up) Unrecorded 422 codes: `value_error` for a finish filter without its type in the list query, and `string_too_long` for a long description.
 - (follow-up) Ratings and float bounds are lax number fields: a rating sent as the string `"8.88"` is accepted (probe: 201). Design says a JSON number. Low risk; strict fields would refuse it.
+- (follow-up) `version` (in update and batch bodies and the remove query) has no upper bound. It is only compared in Python and never reaches the database, so a huge value gets 409 `version_conflict`; a bound would match S5 to the letter.
 - (follow-up) Design says the first refusal stops a batch; the code reports every 422 problem of the batch at once, then 409s. Harmless, not recorded.
 - (follow-up) Row locks are taken in request order (publish and unpublish by `IN` without `ORDER BY`, batch updates one by one), so two concurrent requests over the same combos in different orders could deadlock and one would get a 500. Not probed; rare with a few admins.
 - (follow-up) Committed tests weaker than their criteria, confirmed by the probes above: 8 (glove range and full pairing), 16 (`sort=updated` after a change), 24 and 25 (tie order), 28 (`no-store` on successful writes and other 409s), 30 (batch rating types).
