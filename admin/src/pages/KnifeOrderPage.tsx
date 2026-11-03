@@ -103,7 +103,7 @@ export function KnifeOrderPage() {
           )}
         </div>
       )}
-      <ol className="mt-4 max-w-xl space-y-2">
+      <ol aria-label="Knife types" className="mt-4 max-w-xl space-y-2">
         {slugs.map((slug, i) => {
           const name = names.get(slug) ?? slug
           return (
