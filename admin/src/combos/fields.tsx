@@ -30,6 +30,7 @@ export function RatingField({
   error,
   onChange,
   className = '',
+  disabled = false,
 }: {
   id: string
   label: string
@@ -37,6 +38,7 @@ export function RatingField({
   error?: string | null
   onChange(value: string): void
   className?: string
+  disabled?: boolean
 }) {
   return (
     <div className={className}>
@@ -49,10 +51,11 @@ export function RatingField({
         inputMode="decimal"
         autoComplete="off"
         value={value}
+        disabled={disabled}
         placeholder="8.88"
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : undefined}
-        className={`${INPUT} max-w-28`}
+        className={`${INPUT} max-w-28 disabled:opacity-60`}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={(event) => {
           if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return

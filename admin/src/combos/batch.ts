@@ -24,6 +24,8 @@ export interface RowText {
   /** The rating was typed in this row; otherwise it follows the fill. */
   byHand: boolean
   rating: string
+  /** The row's own rating, for this row only: the fill passes through it. */
+  ownRating?: string
   /** Overrides of the batch-wide values; absent means the batch-wide value. */
   glove?: ConditionsText
   knife?: ConditionsText
@@ -75,7 +77,12 @@ export function batchRows(candidates: Candidate[], text: BatchText): Row[] {
     text: text.rows[candidate.knife.type_slug] ?? defaultRow(candidate),
   }))
   const filled = fillRatings(
-    rows.map(({ text: row }) => ({ included: row.ticked, byHand: row.byHand, value: ratingValue(row.rating) })),
+    rows.map(({ text: row }) => ({
+      included: row.ticked,
+      byHand: row.byHand,
+      value: ratingValue(row.rating),
+      ...(row.ownRating !== undefined ? { own: ratingValue(row.ownRating) } : {}),
+    })),
     ratingValue(text.top),
   )
   return rows.map(({ candidate, text: row }, i) => {
@@ -85,7 +92,16 @@ export function batchRows(candidates: Candidate[], text: BatchText): Row[] {
       candidate,
       text: row,
       existing: candidate.existing,
-      rating: row.byHand ? row.rating : fill === null ? '' : formatRating(fill),
+      rating:
+        row.ownRating !== undefined
+          ? fill === null
+            ? row.ownRating
+            : formatRating(fill)
+          : row.byHand
+            ? row.rating
+            : fill === null
+              ? ''
+              : formatRating(fill),
       vanilla: candidate.knife.float_min === null || candidate.knife.float_max === null,
       range: { min: candidate.knife.float_min, max: candidate.knife.float_max },
     }
@@ -156,7 +172,9 @@ export function checkBatch(
     const own: FieldErrors = {}
     const rating = parseRating(row.rating)
     // A row without a rating because the top rating is missing is reported once, at the top.
-    if (!rating.ok && (row.text.byHand || rating.error !== CHECKS.ratingMissing)) own.rating = rating.error
+    if (!rating.ok && (row.text.byHand || row.text.ownRating !== undefined || rating.error !== CHECKS.ratingMissing)) {
+      own.rating = rating.error
+    }
     const values = resolved(row, text)
     const rowDescription = checkDescription(values.description)
     if (!rowDescription.ok && row.text.description !== undefined) own.description = rowDescription.error

@@ -3,6 +3,7 @@ import { fillRatings, type FillRow } from './fill'
 
 const auto = (included = true): FillRow => ({ included, byHand: false, value: null })
 const hand = (value: number | null): FillRow => ({ included: true, byHand: true, value })
+const own = (value: number | null, byHand = false): FillRow => ({ included: true, byHand, value: null, own: value })
 
 describe('fillRatings', () => {
   it('steps 0.05 down from the top rating', () => {
@@ -34,6 +35,14 @@ describe('fillRatings', () => {
   it('leaves rows empty without a top rating, and passes over an invalid hand value', () => {
     expect(fillRatings([auto(), auto()], null)).toEqual([null, null])
     expect(fillRatings([auto(), hand(null), auto()], 950)).toEqual([950, null, 945])
+  })
+
+  it('uses an own rating for its row only, and fills past it as if it followed', () => {
+    expect(fillRatings([own(700), auto(), auto()], 849)).toEqual([700, 844, 839])
+    expect(fillRatings([auto(), hand(900), own(100), auto()], 950)).toEqual([950, 900, 100, 890])
+    // An own rating replaces a rating typed in the row, which then plays no part.
+    expect(fillRatings([own(700, true), auto()], 849)).toEqual([700, 844])
+    expect(fillRatings([own(null), auto()], 849)).toEqual([null, 844])
   })
 
   it('is exact over twenty rows', () => {

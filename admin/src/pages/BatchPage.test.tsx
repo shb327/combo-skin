@@ -84,6 +84,52 @@ describe('the batch rows', () => {
     expect(rows.map((r) => r.getAttribute('aria-label'))).toEqual(['Karambit', 'Butterfly Knife', 'M9 Bayonet'])
   })
 
+  it('gives one knife its own rating without moving the others', async () => {
+    const fake = new FakeApi().withSession()
+    const { user } = renderApp(RUBY, fake)
+    await user.type(await screen.findByLabelText('Top rating'), '8.49')
+    await user.click(screen.getByRole('button', { name: 'Own values for Karambit' }))
+    await user.click(screen.getByRole('button', { name: 'Set own rating for Karambit' }))
+    const ownField = screen.getByLabelText('Rating, Karambit only')
+    expect(ownField).toHaveValue('8.49')
+    await user.clear(ownField)
+    await user.type(ownField, '7')
+    expect(rating('Karambit')).toHaveValue('7.00')
+    expect(rating('Karambit')).toBeDisabled()
+    expect(row('Karambit')).toHaveTextContent('Own rating')
+    expect(rating('Butterfly Knife')).toHaveValue('8.44')
+    expect(rating('M9 Bayonet')).toHaveValue('8.39')
+
+    // A rating typed in a row still carries on down; Refill from top keeps the own rating.
+    await user.clear(rating('Butterfly Knife'))
+    await user.type(rating('Butterfly Knife'), '6')
+    expect(rating('M9 Bayonet')).toHaveValue('5.95')
+    await user.click(screen.getByRole('button', { name: 'Refill from top' }))
+    expect(rating('Karambit')).toHaveValue('7.00')
+    expect(rating('Butterfly Knife')).toHaveValue('8.44')
+
+    await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
+    await waitFor(() => expect(fake.to('POST /admin/batches')).toHaveLength(1))
+    const body = JSON.parse(fake.to('POST /admin/batches')[0].body)
+    expect(body.create.map((c: { knife_type: string; rating: number }) => [c.knife_type, c.rating])).toEqual([
+      ['karambit', 7],
+      ['butterfly', 8.44],
+      ['m9-bayonet', 8.39],
+    ])
+  })
+
+  it('returns a knife to the fill when its own rating is cleared', async () => {
+    const { user } = renderApp(RUBY, new FakeApi().withSession())
+    await user.type(await screen.findByLabelText('Top rating'), '8.49')
+    await user.click(screen.getByRole('button', { name: 'Own values for Karambit' }))
+    await user.click(screen.getByRole('button', { name: 'Set own rating for Karambit' }))
+    await user.clear(screen.getByLabelText('Rating, Karambit only'))
+    await user.type(screen.getByLabelText('Rating, Karambit only'), '7')
+    await user.click(screen.getByRole('button', { name: 'Clear own rating for Karambit' }))
+    expect(rating('Karambit')).toHaveValue('8.49')
+    expect(rating('Karambit')).toBeEnabled()
+  })
+
   it('applies batch-wide values, overrides per row, and checks each row against its finish', async () => {
     const fake = new FakeApi().withSession()
     const { user } = renderApp(`${BATCH}/blue-steel`, fake)
