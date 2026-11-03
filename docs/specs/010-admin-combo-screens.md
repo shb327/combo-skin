@@ -117,6 +117,12 @@ Specs 001 to 009 are Audited and merged into `main`.
 - R33. The navigation has Home, By gloves, By knife and Knife order. Every new page sets its document title and works without horizontal scrolling from 375 px wide.
 - R34. `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` and `npm run check:bundle` pass in `admin/`; `admin/README.md` describes the new screens and how unsaved changes are kept.
 
+**Browsing** (owner's change after the audit, 2026-11-03)
+
+- R35. By gloves and By knife also show, below the search, every type of that kind (Specialist Gloves, Karambit, ...) in catalog display order, each with its number of finishes and a link to the type's page, as the website does. Text only: no pictures.
+- R36. A type's page (`/gloves/<type>`, `/knives/<type>`) lists that type's finishes in catalog display order, each with its rarity colour, its float range, and how many combos and drafts it has, and links to the finish's page.
+- R37. A finish page links back to its type's page.
+
 ## Design
 
 | Decision | Chosen | Alternatives rejected, and why |
@@ -144,7 +150,8 @@ Specs 001 to 009 are Audited and merged into `main`.
 | Publish all drafts | On Home: the draft count from `GET /admin/combos?status=draft&limit=1` (`total`), and a button that opens a confirmation dialog with that number. Confirm sends `{"all_drafts": true}` and shows `changed` | On each finish page: the action is global, so it belongs on a global page. Without confirmation: one click publishes every draft on the website |
 | Dialogs | A native `<dialog>` opened with `showModal()`, focus on Cancel, Escape cancels | A dialog library: a dependency for two confirmations |
 | Routes | `/gloves`, `/gloves/:type/:finish`, `/gloves/:type/:finish/add`, `/gloves/:type/:finish/batch`, `/gloves/:type/:finish/batch/:knifeFinish`, `/knives`, `/knives/:type/:finish`, `/knives/:type/:finish/add`, `/combos/:id`, `/knife-order` | Dialogs over the finish page for add and batch: no address to return to after a session ends, and lost on reload |
-| Page titles | `By gloves`, `<type> \| <finish>` on a finish page, `Add knife`, `Add gloves`, `Batch`, `Edit combo`, `Knife order`, each followed by ` · Combo Skin admin` | The finish name alone: the add and list pages of one finish would look the same in two tabs |
+| Browsing (owner's choice after the audit) | Text only, like the website's type and finish grids but without pictures: cards with the name, the rarity colour of each finish, the float range, and counts. The type grid comes from the catalog already loaded for the search; a type page asks for its combos once (`GET /admin/combos` with `glove_type` or `knife_type`, paged as the finish page) and counts them per finish in the browser. Types in catalog display order, as the website shows them, not the knife order of batches | Pictures as on the website: bundled type pictures, and finish pictures from the game's image host, which needs the CSP and spec 008 S4 changed. A list without counts: the owner could not see which finishes still have no combos. A request per finish for counts: up to 30 requests per type page |
+| Page titles | `By gloves`, `<type>` on a type page, `<type> \| <finish>` on a finish page, `Add knife`, `Add gloves`, `Batch`, `Edit combo`, `Knife order`, each followed by ` · Combo Skin admin` | The finish name alone: the add and list pages of one finish would look the same in two tabs |
 | Navigation | Home, By gloves, By knife, Knife order. Spec 008 criterion 21 and its test change to four links | Knife order under By gloves only: it is shared by every admin and both directions |
 | Number formats | Ratings with two decimals (`9.50`); float values as stored with trailing zeros removed (`0.06`, `0.8`); dates as the browser's locale date and time | Ratings as typed (`9.5`): a column of ratings would not line up |
 | Retired finishes | Pages for a retired finish (reached by link or address) show "No longer in the game" and hide Add and Start a batch. Searches list active finishes only, as the catalog routes return | Allowing the forms and relying on the API's `finish_retired`: an avoidable refusal |
@@ -170,12 +177,14 @@ No API change. The dashboard uses the catalog routes and the routes of spec 009 
 | Path | Page |
 | --- | --- |
 | `/` | Home: the two directions, Knife order, draft count and Publish all drafts |
-| `/gloves` | Glove finish search |
+| `/gloves` | Glove finish search and the glove types |
+| `/gloves/:type` | Glove type: its finishes with combo counts |
 | `/gloves/:type/:finish` | Glove finish: its combos, Add knife, Start a batch |
 | `/gloves/:type/:finish/add` | Add one knife |
 | `/gloves/:type/:finish/batch` | Batch: pick a knife finish name |
 | `/gloves/:type/:finish/batch/:knifeFinish` | Batch rows, save and result |
-| `/knives` | Knife finish search |
+| `/knives` | Knife finish search and the knife types |
+| `/knives/:type` | Knife type: its finishes with combo counts |
 | `/knives/:type/:finish` | Knife finish: its combos, Add gloves |
 | `/knives/:type/:finish/add` | Add one pair of gloves |
 | `/combos/:id` | Edit one combo |
@@ -185,7 +194,8 @@ No API change. The dashboard uses the catalog routes and the routes of spec 009 
 
 | Screen | Reads | Writes |
 | --- | --- | --- |
-| Searches | `GET /gloves` and `GET /gloves/{type}` for each type, or the same under `/knives`; once per page load | |
+| Searches and type grids | `GET /gloves` and `GET /gloves/{type}` for each type, or the same under `/knives`; once per page load | |
+| Type page | The catalog, as above; `GET /admin/combos` with `glove_type` (or `knife_type`), `limit=500`, `offset` | |
 | Finish page | `GET /{kind}/{type}/{finish}` (name, range, `active`); `GET /admin/combos` with `glove_type` and `glove_finish` (or `knife_type` and `knife_finish`), `limit=500`, `offset` | `POST /admin/combos/publish` and `/unpublish` with `ids`; `DELETE /admin/combos/{id}?version=` |
 | Add | The finish, as above; the other kind's search | `POST /admin/combos` |
 | Batch | `GET /admin/batches/finishes`; `GET /admin/batches/candidates` | `POST /admin/batches`; then `POST /admin/combos/publish` with the created ids |
@@ -289,6 +299,9 @@ Commands run in `admin/` unless stated. "The fake" is the test fake API with its
 39. `admin/README.md` describes the screens (By gloves with batches, By knife, editing and publishing, knife order), that unsaved changes are kept in memory across a session end but not across a reload, and the project structure with `src/combos/`; its first paragraph no longer says the combo screens come later.
 40. `git diff --stat main...010-admin-combo-screens -- api website compose.yaml .github` prints nothing.
 41. The only URLs in the changed files point to `github.com/shb327/combo-skin`, public documentation, `localhost` or `example.com` placeholders; `gitleaks dir . --no-banner --redact` on a clean clone and `gitleaks git --log-opts="main..010-admin-combo-screens" --no-banner --redact` report no findings.
+42. Tests: `/gloves` shows, below the search, a link for each glove type of the fake catalog, in catalog order, each with its number of active finishes and pointing to `/gloves/<type>`; `/knives` does the same for knife types; neither sends a catalog request beyond those of criterion 11. No `img` element is added for a type or finish.
+43. Tests: `/gloves/specialist` shows the type's name and a link to each of its active finishes in catalog order, each pointing to its finish page and showing its float range and its number of combos and drafts, counted from one `GET /admin/combos` with `glove_type=specialist` and `limit=500` (further pages as in criterion 12); a finish without combos says so. `/knives/karambit` does the same, with "No float range" for Vanilla. An unknown type shows a not-found message with a link back to the search. Its document title is the type's name.
+44. Tests: a glove finish page and a knife finish page each link to their type's page.
 
 ## Test plan
 
@@ -306,6 +319,7 @@ Commands run in `admin/` unless stated. "The fake" is the test fake API with its
 | 37 | Vitest: shell tests in `src/App.test.tsx` |
 | 38 | The workflow run page for the branch's latest commit (checked after the owner pushes) |
 | 39 | Read `admin/README.md` |
+| 42 to 44 | Vitest: browse and type page tests |
 | 40, 41 | The commands in the criteria; `git diff main...010-admin-combo-screens \| grep -oE 'https?://[^ )>"]+' \| sort -u` |
 
 Section commands, run in `admin/`:
