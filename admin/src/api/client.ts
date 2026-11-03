@@ -10,6 +10,17 @@ type Listener = (session: AdminSession | null, change: SessionChange) => void
 
 const WRITES = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 export const CSRF_HEADER = 'X-CSRF-Token'
+// The only per-request options a caller may pass. Everything else (another fetch, base URL,
+// middleware, credentials or redirect mode) is dropped, so no call can be sent anywhere else.
+const REQUEST_OPTIONS = new Set(['params', 'body', 'headers', 'signal', 'parseAs'])
+
+/** A request that would leave the API origin. Never sent. */
+export class OutsideOriginError extends Error {
+  constructor(url: string) {
+    super(`Refused a request outside the API origin: ${new URL(url).origin}`)
+    this.name = 'OutsideOriginError'
+  }
+}
 
 export interface ApiOptions {
   /** The API origin, already checked by `checkApiOrigin`. */
@@ -37,21 +48,32 @@ export function checkPath(path: string): void {
   }
 }
 
+function allowedOptions(init: unknown[]): unknown[] {
+  const [options] = init
+  if (typeof options !== 'object' || options === null) return []
+  return [Object.fromEntries(Object.entries(options).filter(([key]) => REQUEST_OPTIONS.has(key)))]
+}
+
 export function createApi({ baseUrl, fetch: fetchImpl }: ApiOptions): Api {
   let session: AdminSession | null = null
   const listeners = new Set<Listener>()
 
   const csrf: Middleware = {
     onRequest({ request }) {
-      if (!request.url.startsWith(`${baseUrl}/`)) throw new Error('Request outside the API origin')
       if (session && WRITES.has(request.method)) request.headers.set(CSRF_HEADER, session.csrf_token)
       return request
     },
   }
+  const send = fetchImpl ?? ((request: Request) => fetch(request))
   const client = createClient<paths>({
     baseUrl,
     credentials: 'include',
-    fetch: fetchImpl ?? ((request) => fetch(request)),
+    redirect: 'error',
+    // The last check before the network, after every middleware.
+    fetch: (request) => {
+      if (!request.url.startsWith(`${baseUrl}/`)) throw new OutsideOriginError(request.url)
+      return send(request)
+    },
   })
   client.use(csrf)
 
@@ -66,16 +88,17 @@ export function createApi({ baseUrl, fetch: fetchImpl }: ApiOptions): Api {
       result = await (client.request as (...args: unknown[]) => Promise<typeof result>)(
         method,
         path,
-        ...init,
+        ...allowedOptions(init),
       )
-    } catch {
+    } catch (failure) {
+      if (failure instanceof OutsideOriginError) throw failure
       throw new ApiError('network')
     }
     if (result.response.ok) return result
     throw httpError(result.response, result.error)
   }
 
-  async function send(method: string, path: string, init: unknown[]) {
+  async function call(method: string, path: string, init: unknown[]) {
     checkPath(path)
     const withSession = session !== null
     try {
@@ -97,7 +120,7 @@ export function createApi({ baseUrl, fetch: fetchImpl }: ApiOptions): Api {
   }
 
   const request = ((method: string, path: string, ...init: unknown[]) =>
-    send(method, path, init)) as Client<paths>['request']
+    call(method, path, init)) as Client<paths>['request']
 
   async function me(): Promise<AdminSession> {
     const { data } = await request('get', '/admin/me')
@@ -112,7 +135,9 @@ export function createApi({ baseUrl, fetch: fetchImpl }: ApiOptions): Api {
       return data as AdminSession
     },
     async logout() {
-      await request('post', '/admin/logout')
+      // Only 204 means the API ended the session (spec 007 also answers 204 without one).
+      const { response } = await request('post', '/admin/logout')
+      if (response.status !== 204) throw new ApiError('http', response.status)
     },
     setSession(next) {
       session = next

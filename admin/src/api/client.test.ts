@@ -25,6 +25,8 @@ describe('requests', () => {
     for (const request of fake.requests) {
       expect(request.url.startsWith(`${ORIGIN}/`)).toBe(true)
       expect(request.credentials).toBe('include')
+      // A redirect, even to the API's own origin, fails instead of carrying the token elsewhere.
+      expect(request.redirect).toBe('error')
     }
     const [login, me, logout] = fake.requests
     expect(login.headers['x-csrf-token']).toBeUndefined()
@@ -48,6 +50,35 @@ describe('requests', () => {
       expect(fake.requests).toEqual([])
     },
   )
+})
+
+describe('per-request options', () => {
+  it('cannot change where a request goes or how it is sent', async () => {
+    const { fake, api } = await loggedIn()
+    const elsewhere = vi.fn(async () => new Response(null, { status: 204 }))
+    const swap = vi.fn(({ request }: { request: Request }) => new Request('https://evil.example.com/x', request))
+    await api.request('get', '/admin/me', {
+      baseUrl: 'https://evil.example.com',
+      fetch: elsewhere,
+      middleware: [{ onRequest: swap }],
+      credentials: 'omit',
+      redirect: 'follow',
+    } as never)
+    expect(elsewhere).not.toHaveBeenCalled()
+    expect(swap).not.toHaveBeenCalled()
+    const last = fake.requests.at(-1)
+    expect(last?.url).toBe(`${ORIGIN}/admin/me`)
+    expect(last?.credentials).toBe('include')
+    expect(last?.redirect).toBe('error')
+  })
+})
+
+describe('logout', () => {
+  it.each([200, 202])('treats %i as a failure: only 204 ends the session', async (status) => {
+    const { fake, api } = await loggedIn()
+    fake.next('POST /admin/logout', new Response(null, { status }))
+    await expect(api.logout()).rejects.toMatchObject({ kind: 'http', status })
+  })
 })
 
 describe('errors', () => {

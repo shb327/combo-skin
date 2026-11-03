@@ -16,6 +16,7 @@ export interface Recorded {
   url: string
   method: string
   credentials: RequestCredentials
+  redirect: RequestRedirect
   headers: Record<string, string>
   body: string
 }
@@ -76,6 +77,7 @@ export class FakeApi {
       url: request.url,
       method: request.method,
       credentials: request.credentials,
+      redirect: request.redirect,
       headers,
       body,
     })
