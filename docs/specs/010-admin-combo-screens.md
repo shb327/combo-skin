@@ -1,6 +1,6 @@
 # 010: Admin combo screens
 
-**Status:** Approved
+**Status:** Implemented
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** admin
@@ -326,7 +326,80 @@ None. On 2026-11-03 the owner chose every recommendation of the first draft, rec
 
 ## Implementation notes
 
-Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+Built on `010-admin-combo-screens`, from `main` at the merge of spec 009. `@tanstack/react-query` is locked at 5.105.3.
+
+### Deviations
+
+None that change a requirement. Smaller choices, all within Design:
+
+- **Files.** Design's Files names the pieces; the code splits them further. The drafts store is `src/combos/DraftsProvider.tsx` (the component) and `src/combos/useDrafts.ts` (context and hook), because the fast refresh lint rule wants component files to export only components; `src/combos/useFinishPage.tsx` holds the finish lookup shared by four pages for the same reason. Also in `src/combos/`: `batch.ts` (batch rows, overrides, checks and the request), `form.ts` (one combo's form checks and field keys), `messages.ts` (fixed messages for refusals), `paths.ts`, `styles.ts`, `ComboFields.tsx`, `ComboList.tsx`, `FinishSearch.tsx`, `fields.tsx` (rating, conditions and description inputs) and `ui.tsx` (status badge, confirmation dialog, error summary, restored notice). `src/api/useApi.ts` gives pages the client. One `FinishesPage` and one `FinishPage` take a `kind` instead of separate glove and knife pages. `src/test/fakeCatalog.ts` holds the fake's catalog and combo store, and `scripts/csp.test.ts` checks the policy (it runs in Node, because importing `vite.config.ts` fails under jsdom).
+- **Query client.** Created by `createQueryClient()` in `main.tsx` and in the test render helper, and passed to `App` as a prop.
+- **Pages keyed by path.** Routes with a form are wrapped so that each path mounts its page afresh; a page reads whether its values were restored when it mounts.
+- **Combobox.** No option is highlighted until Down is pressed; Enter takes the highlighted option or, with none, the first. With Down highlighting the second option first, "kimono, Down, Enter" would skip the only obvious choice.
+- **Top rating.** Required only while some included row follows the fill. A row left without a rating because the top rating is missing is reported once, at the top, rather than on every row.
+- **Messages not listed in Design.** A float that is not a number says "Enter a number such as 0.15."; the 422 codes `finish_not_found`, `duplicate_seed` and `decimal_max_places` say "This finish was not found.", "A seed is listed twice." and "Too many decimals.".
+- **Retired finishes.** The add and batch pages of a retired finish also show "No longer in the game." and no form, as its finish page does.
+- **After a delete on the edit page** the app returns to the page the edit was opened from, or to the glove finish page, with "Deleted the combo.".
+- **Knife order buttons** show "Up" and "Down" and are named "Move <knife> up" and "Move <knife> down" for assistive technology.
+- **Spec 008 tests.** The `csrf_failed` test now compares only login and session requests, because Home loads the draft count; the shell test checks four links and the new pages instead of the placeholders.
+- **Tests.** jsdom has no modal dialogs; `src/test/setup.ts` opens and closes them as a browser would.
+
+Found in the manual check (criterion 33) and fixed: the fifteen "Own values" buttons of a batch all had the same accessible name; each is now "Own values for <knife>" (`src/pages/BatchPage.test.tsx`).
+
+### Follow-ups
+
+- The searches load the catalog with 9 requests for gloves and 21 for knives on each page load (Design, Follow-ups: one API request for every finish of a kind).
+- On the edit page, "Keep mine" after a conflict on a form with no unsaved changes keeps the stored values of the new version, since there were none of the owner's own.
+- Home asks for the draft count each time it is shown.
+- Added URLs outside the repository and `localhost` are the npm registry and package metadata in `admin/package-lock.json`, and `example.com` placeholders in the test fake.
+
+### Criterion coverage
+
+Test ids are relative to `admin/`.
+
+| Criterion | Covered by |
+| --- | --- |
+| 1 | In the worktree: `npm run api:types:check`, `lint`, `typecheck`, `test` (234 passed), `build` (no chunk-size warning) and `check:bundle` exit 0; on a fresh clone in the audit |
+| 2 | The `node -p` command prints `@fontsource/montserrat @tanstack/react-query openapi-fetch react react-dom react-router` |
+| 3 | `git diff --stat origin/main...HEAD -- admin/eslint.config.js admin/vite.config.ts admin/scripts/check-bundle.mjs` prints nothing; `grep -rn eslint-disable src` lists the three lines of `src/flow.test.tsx`; `src/lint.test.ts` |
+| 4 | `src/combos/values.test.ts::parseRating` |
+| 5 | `src/combos/values.test.ts::checkConditions` |
+| 6 | `src/combos/values.test.ts::parseSeeds` |
+| 7 | `src/combos/values.test.ts::checkDescription` |
+| 8 | `src/combos/fill.test.ts::fillRatings` |
+| 9 | `src/combos/search.test.ts::search` |
+| 10 | `src/combos/problems.test.ts` (`httpError`, `batchPlace`, `formField`, `problemMessage`) |
+| 11 | `src/pages/FinishesPage.test.tsx::finding a finish` |
+| 12 | `src/pages/FinishPage.test.tsx::a glove finish page` (first three tests), `::a knife finish page` |
+| 13 | `src/pages/FinishPage.test.tsx::retired and unknown finishes` |
+| 14 | `src/pages/AddComboPage.test.tsx` |
+| 15 | `src/pages/BatchPage.test.tsx::choosing the knife finish`, `::the batch rows::lists every knife type in knife order…` |
+| 16 | `src/pages/BatchPage.test.tsx::the batch rows::fills ratings 0.05 apart…` |
+| 17 | `src/pages/BatchPage.test.tsx::the batch rows::applies batch-wide values…`, `::clears an override…` |
+| 18 | `src/pages/BatchPage.test.tsx::saving a batch::creates the ticked rows…`, `::sends nothing with no row ticked` |
+| 19 | `src/pages/BatchPage.test.tsx::saving a batch::shows a refusal on the row…`, `::reloads the rows when combos changed…` |
+| 20 | `src/pages/EditComboPage.test.tsx::shows the pairing, status and history…` |
+| 21 | `src/pages/EditComboPage.test.tsx::shows a conflict…`, `::takes their values`, `::says when the combo no longer exists`, `::says so when a save finds it removed` |
+| 22 | `src/pages/FinishPage.test.tsx::managing combos from the list::publishes and unpublishes one combo`, `::publishes a selection…`; `src/pages/EditComboPage.test.tsx::publishes, unpublishes…` |
+| 23 | `src/pages/FinishPage.test.tsx::managing combos from the list::deletes a draft…`, `::keeps the combo listed when delete is refused`; `src/pages/EditComboPage.test.tsx::deletes after confirmation…` |
+| 24 | `src/pages/HomePage.test.tsx` |
+| 25 | `src/pages/KnifeOrderPage.test.tsx` |
+| 26 | `src/combos/drafts.test.tsx::the $name form` (add, batch, edit, knife order), `::unsaved changes::come back after the session expires` |
+| 27 | `src/combos/drafts.test.tsx::unsaved changes::stay when leaving the form…` |
+| 28 | `src/combos/drafts.test.tsx::unsaved changes::are not shown to another admin`, `::make logout ask first…` |
+| 29 | `src/combos/drafts.test.tsx::unsaved changes::make the browser warn before a reload` |
+| 30 | `src/flow.test.tsx::entering combos` |
+| 31 | `src/pages/FinishPage.test.tsx::renders names and descriptions as text`; `src/pages/EditComboPage.test.tsx::renders the description as text` |
+| 32 | `scripts/csp.test.ts`; `npm run build && npm run check:bundle` exits 0 |
+| 33 | A throwaway Compose project from the worktree with `api/.env.example` (host ports moved so as not to touch the running stack) and a placeholder admin made with spec 007's tool, both deleted afterwards; the dev server pointed at it. "crimson kimono" found Specialist Gloves \| Crimson Kimono; the Doppler (Ruby) batch listed 18 knife types in the seeded order, Butterfly first; with Ursus, Paracord and Survival unticked, the top rating 9.50 and Karambit's own knife range 0 to 0.01, Save created 15 drafts; "Publish these 15 new combos" published them, and `GET /gloves/specialist/crimson-kimono/combos` returned 15 combos rated 9.50 down to 8.80 by 0.05, Karambit with its range. Ursus Doppler (Ruby) added from By gloves (rating typed `8,7`) and Sport Gloves \| Vice added from By knife. The same combo saved in two tabs: the second showed the conflict with 9.60 theirs and 9.30 yours. Karambit moved to position 1 with the keyboard, focus kept on its Move down button; a new batch listed it first |
+| 34 | Same stack with `SESSION_IDLE_MINUTES=5`: half a batch filled (top rating 8.80, Talon unticked), more than five minutes without a request, then login showed with the session-ended notice and `next` set to the batch; logging in returned to it with "Restored unsaved changes.", the top rating and Talon unticked. A `beforeunload` event on the page with unsaved changes is cancelled |
+| 35 | `vite build` against the check API and `vite preview` on port 5174: every page of the routes table visited, a search typed; no Content Security Policy violation reported or logged; resources only from `localhost:5174` and the API origin; session storage and IndexedDB empty, and the app added nothing to local storage or cookies (the browser already held another local app's entries for `localhost`, left untouched) |
+| 36 | At 375 px every page of the routes table has `scrollWidth` equal to the width, and a batch of 17 rows was filled and saved at that width; at desktop width the same pages were used for criterion 33 |
+| 37 | `src/App.test.tsx::shell::has the header, the navigation and the combo screens`, `::titles %s` (every page of the routes table) |
+| 38 | Pending: the `admin` workflow run after the branch is pushed |
+| 39 | `admin/README.md`: first paragraph, Screens (with unsaved changes), Tests, Project structure |
+| 40 | `git diff --stat origin/main...HEAD -- api website compose.yaml .github` prints nothing |
+| 41 | `gitleaks dir .` and `gitleaks git --log-opts="origin/main..HEAD"`: no leaks; added URLs as in Follow-ups |
 
 ## Audit
 
