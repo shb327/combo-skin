@@ -129,6 +129,34 @@ describe('retired and unknown finishes', () => {
 })
 
 describe('managing combos from the list', () => {
+  it('reloads the list after a delete refused for a changed combo, so it can be deleted again', async () => {
+    const fake = withCombos()
+    const { user } = renderApp(GLOVES, fake)
+    const butterfly = await screen.findByRole('listitem', { name: 'Butterfly Knife | Doppler (Ruby)' })
+    fake.store.changeAsAnother(fake.store.combos[1].id, { rating: 9.46 })
+    await user.click(within(butterfly).getByRole('button', { name: 'Delete' }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(COMBO_MESSAGES.deleteConflict)
+    await waitFor(() => expect(butterfly).toHaveTextContent('9.46'))
+    await user.click(within(butterfly).getByRole('button', { name: 'Delete' }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(screen.queryByRole('listitem', { name: 'Butterfly Knife | Doppler (Ruby)' })).toBeNull())
+    const versions = fake.to('DELETE /admin/combos/{id}').map((r) => new URL(r.url).searchParams.get('version'))
+    expect(versions).toEqual(['1', '2'])
+  })
+
+  it('publishes only the selected combos that are shown', async () => {
+    const fake = withCombos()
+    const { user } = renderApp(GLOVES, fake)
+    await screen.findByRole('listitem', { name: 'Karambit | Doppler (Ruby)' })
+    await user.click(screen.getByRole('checkbox', { name: 'Select Butterfly Knife | Doppler (Ruby)' }))
+    await user.selectOptions(screen.getByLabelText('Knife finish'), 'Blue Steel')
+    await user.click(screen.getByRole('checkbox', { name: 'Select Karambit | Blue Steel' }))
+    await user.click(screen.getByRole('button', { name: 'Publish selected (1)' }))
+    await waitFor(() => expect(fake.to('POST /admin/combos/publish')).toHaveLength(1))
+    expect(JSON.parse(fake.to('POST /admin/combos/publish')[0].body)).toEqual({ ids: [fake.store.combos[3].id] })
+  })
+
   it('publishes and unpublishes one combo', async () => {
     const fake = withCombos()
     const { user } = renderApp(GLOVES, fake)

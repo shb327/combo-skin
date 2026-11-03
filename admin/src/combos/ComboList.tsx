@@ -48,7 +48,8 @@ export function ComboList({ side, filters }: { side: Kind; filters: ComboFilters
         ? hundredths(b.rating) - hundredths(a.rating) || a.id.localeCompare(b.id)
         : b.updated_at.localeCompare(a.updated_at) || a.id.localeCompare(b.id),
     )
-  const chosen = all.filter((c) => selected.has(c.id))
+  // Only selected combos that the filters show: a filter change never publishes a hidden combo.
+  const chosen = shown.filter((c) => selected.has(c.id))
   const canPublish = chosen.filter((c) => c.status !== 'published')
   const canUnpublish = chosen.filter((c) => c.status === 'published')
   const allShownSelected = shown.length > 0 && shown.every((c) => selected.has(c.id))
@@ -90,7 +91,10 @@ export function ComboList({ side, filters }: { side: Kind; filters: ComboFilters
       setMessage('Deleted the combo.')
       await writes()
     } catch (error) {
-      setFailure(isCode(error, 'version_conflict') ? COMBO_MESSAGES.deleteConflict : comboErrorMessage(error))
+      const changed = isCode(error, 'version_conflict')
+      setFailure(changed ? COMBO_MESSAGES.deleteConflict : comboErrorMessage(error))
+      // Someone changed it: show the stored combo, whose version a second delete then sends.
+      if (changed) await writes()
     } finally {
       setBusy(false)
       setDeleting(null)

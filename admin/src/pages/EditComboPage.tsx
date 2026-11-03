@@ -157,20 +157,23 @@ export function EditComboPage() {
     }
   }
 
-  async function remove(combo: AdminCombo) {
+  async function remove(target: AdminCombo) {
     setBusy(true)
     clearMessages()
     try {
       await api.request('delete', '/admin/combos/{combo_id}', {
-        params: { path: { combo_id: id }, query: { version: combo.version } },
+        params: { path: { combo_id: id }, query: { version: target.version } },
       })
       draft.forget()
       await writes()
       navigate(back, { state: { saved: 'Deleted the combo.' } })
     } catch (error) {
-      setFailure(isCode(error, 'version_conflict') ? COMBO_MESSAGES.deleteConflict : comboErrorMessage(error))
+      const changed = isCode(error, 'version_conflict')
+      setFailure(changed ? COMBO_MESSAGES.deleteConflict : comboErrorMessage(error))
       setBusy(false)
       setDeleting(false)
+      // Someone changed it: show the stored combo, whose version a second delete then sends.
+      if (changed) await combo.refetch()
     }
   }
 

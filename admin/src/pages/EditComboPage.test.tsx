@@ -123,6 +123,34 @@ describe('editing a combo', () => {
     expect(fake.store.combos).toHaveLength(0)
   })
 
+  it('reads the combo again after a delete refused for a changed combo, so it can be deleted again', async () => {
+    const { fake, combo, path } = withCombo()
+    const { user } = renderApp(path, fake)
+    await user.click(await screen.findByRole('button', { name: 'Delete' }))
+    fake.store.changeAsAnother(combo.id, { rating: 7.5 })
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(COMBO_MESSAGES.deleteConflict)
+    await waitFor(() => expect(screen.getByRole('main')).toHaveTextContent('Version 2'))
+    expect(screen.getByLabelText('Rating')).toHaveValue('7.50')
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(fake.store.combos).toHaveLength(0))
+  })
+
+  it('offers delete on an unpublished combo, and keeps it when delete is refused', async () => {
+    const { fake, path } = withCombo()
+    fake.store.combos[0].status = 'unpublished'
+    fake.next('DELETE /admin/combos/{id}', error(409, 'combo_published'))
+    const { user } = renderApp(path, fake)
+    await user.click(await screen.findByRole('button', { name: 'Delete' }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }))
+    expect(fake.to('DELETE /admin/combos/{id}')).toHaveLength(0)
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(COMBO_MESSAGES.published)
+    expect(screen.getByRole('heading', { name: 'Edit combo' })).toBeInTheDocument()
+  })
+
   it('renders the description as text', async () => {
     const { fake, combo, path } = withCombo()
     combo.description = '<img src=x onerror=alert(1)>'
