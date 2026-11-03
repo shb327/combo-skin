@@ -287,7 +287,68 @@ None. The owner chose every recommendation in Design: the CSRF token in memory o
 
 ## Implementation notes
 
-Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+The branch was rebased onto `main` after spec 007 was merged (pull request 8), so `api/openapi.json` has the three admin routes. The merged API matches spec 007 as this spec describes it. Two details reach the generated types: the login password is a write-only password field, and errors are typed as `{"detail": string}`, not an enumeration of codes (the Follow-ups item stays open).
+
+Locked versions: React 19.3.1, `react-router` 7.18.5, `openapi-fetch` 0.17.0, `openapi-typescript` 7.13.0, Vite 7.3.7, Vitest 5.1.0 with jsdom 29.1.1, TypeScript 5.9.3, Tailwind 4.3.4, ESLint 9.39.5, `@fontsource/montserrat` 5.3.0. They are the website's majors; React is a newer 19 minor than the website's 19.2.
+
+### Deviations
+
+None that change a requirement. Smaller additions and choices:
+
+- **Files.** Besides those in Design: `src/auth/useSession.ts` holds the session context and hook, apart from the provider in `session.tsx`, because React's fast refresh lint rule wants component files to export only components. `src/pages/Placeholder.tsx` is shared by By gloves and By knife. Also `src/components/useTitle.ts` (page titles), `src/test/render.tsx` and `src/test/setup.ts` (test helpers), `src/vite-env.d.ts`, `src/logo.svg` (the website's logo), and the tests `src/lint.test.ts`, `src/flow.test.tsx`, `scripts/api-types.test.ts`, `scripts/check-bundle.test.ts`.
+- **The client's interface.** `createApi` returns `me`, `login`, `logout`, and `request`, which is `openapi-fetch`'s typed `request` with the path check, the CSRF header, the retry and error mapping around it, for later screens. The client also refuses, in a middleware, any built request whose URL is not under the API origin, and its path check also refuses backslashes.
+- **Lint exceptions.** The storage and cookie rules apply to tests too. The full-flow test reads `localStorage`, `sessionStorage` and `document.cookie` to prove they stay empty, with three line-level, commented exceptions.
+- **After logout.** The login page shows without a return path. A page visited after that keeps its return path again, as R10 says.
+- **A failed first `/admin/me`** for a reason other than 401 (the API down) shows the login page, where a login attempt then shows "cannot reach the API".
+- **Bundle check allow-list.** URLs that are never fetched: the W3C namespaces under `http://www.w3.org/` (React and the logo), `https://react.dev/errors/` (React), `https://reactrouter.com/` and `https://github.com/ungap/url-search-params` (react-router warning text), and exactly `http://localhost`, react-router's base for parsing relative URLs. An entry ending in `/` allows everything under it; others match exactly.
+- **Header on small screens (2026-11-03).** Found during the 375 px check (criterion 23): the product name and the logout button wrapped, and the username was cut to two letters. Below 640 px the logo is hidden and the username takes its own line.
+- **A test race (2026-11-03).** The `admin` pull request run for commit fae1feb failed once in `returns to the requested path and query`: the address changes a moment before the shell renders, and the test looked for the username in between. It now waits for it.
+
+### Follow-ups
+
+- The Content Security Policy is a `<meta>` tag; `frame-ancestors` needs the `deploy/` spec's response header (already in Design's follow-ups).
+- On load, the app does not say that the API is unreachable until a login is tried.
+
+### Criterion coverage
+
+Test ids are relative to `admin/`.
+
+| Criterion | Covered by |
+| --- | --- |
+| 1 | Fresh clone, no `admin/.env`: the seven commands exit 0; `npm run build` prints no chunk-size warning |
+| 2 | `node -p "Object.keys(require('./package.json').dependencies).sort().join(' ')"` prints `@fontsource/montserrat openapi-fetch react react-dom react-router` |
+| 3 | `npm run dev` serves http://localhost:5174 (used for criterion 30); with the port held, `npx vite` and `npx vite preview` exit 1 with "Port 5174 is already in use" |
+| 4 | `src/api/origin.test.ts` (all values of the criterion, plus `#x`, `ftp:`, upper case and empty); `VITE_API_BASE_URL=api.example.com npx vite build` exits 1 with an error naming `VITE_API_BASE_URL` |
+| 5 | `src/index.css`; the built CSS contains `#0a0a0c` and `#00de12` and `dist/assets/` has the Montserrat `woff2` and `woff` files; in the browser the pages use Montserrat (loaded from the bundle), background `rgb(10, 10, 12)` and the accent colour |
+| 6 | `scripts/api-types.test.ts`; `npm run api:types:check` exits 0 |
+| 7 | Removing `csrf_token` from `AdminSession` in `src/api/schema.d.ts` makes `tsc -b` fail in `client.ts` and `fakeApi.ts` (reverted); `src/api/` aliases the generated types and defines none of its own |
+| 8 | `src/api/client.test.ts::requests` |
+| 9 | `src/api/client.test.ts::requests::refuse %s without sending anything` |
+| 10 | `src/api/client.test.ts::csrf_failed` (three tests); `src/App.test.tsx::csrf_failed twice`, `::session end::goes to login when the CSRF refresh finds the session ended` |
+| 11 | `src/lint.test.ts` |
+| 12 | `src/App.test.tsx::loading` |
+| 13 | `src/App.test.tsx::login::returns to the requested path and query`, `::goes home without a return path` |
+| 14 | `src/App.test.tsx::login::keeps the username and clears the password after wrong credentials`, `::counts down Retry-After and keeps submit disabled until it ends`, `::enables submit without a usable Retry-After`, `::shows a fixed message for %s` |
+| 15 | `src/App.test.tsx::login::has labelled fields with the right attributes, in a post form`, `::sends nothing with an empty field, or while a login is in flight` |
+| 16 | `src/App.test.tsx::session end::asks for login first, then returns to the path`, `::shows login with a notice when a request finds the session ended, and returns after` |
+| 17 | `src/App.test.tsx::login::ignores the return path %s` |
+| 18 | `src/App.test.tsx::session end::re-checks when expires_at passes`, `::re-checks after a minute hidden, not after less` |
+| 19 | `src/App.test.tsx::login::sends a live session from /login to home` |
+| 20 | `src/App.test.tsx::logout::ends the session after a 204`, `::stays logged in after %s` |
+| 21 | `src/App.test.tsx::shell::has the header, the navigation and the placeholders`, `::shows not found inside the shell`, `::asks for login before not found` |
+| 22 | `src/App.test.tsx::shell::titles %s`, `::titles the login page` |
+| 23 | In the browser at 375 and 1440 px: the login page, Home, By gloves and By knife have `scrollWidth` equal to the window width; below 768 px the Menu button opens the navigation (`aria-expanded="true"`), above it the sidebar shows. The header fix under Deviations came from this check |
+| 24 | `scripts/check-bundle.test.ts`; `npm run build && npm run check:bundle` exits 0 |
+| 25 | `src/flow.test.tsx` |
+| 26 | The grep prints only `import.meta.env.VITE_API_BASE_URL`; `gitleaks dir admin --no-banner --redact` after a build: no leaks |
+| 27 | Local stack from `api/.env.example`, `npm run build && npm run preview`: login, reload, logout, login, reload and logout show no CSP message in the console; the network list shows requests only to `localhost:5174` and `localhost:8000`; session storage and IndexedDB are empty, and the app added nothing to local storage or cookies. The browser used for the check already held another local app's entries for `localhost`, left untouched. A logout `POST` shows as aborted in the network list after its 204, because the client does not read the empty body; the app handles it as a success |
+| 28 | actionlint 1.7.12 exits 0; no `uses:` without a 40-character SHA; no `secrets.` or `pull_request_target`; read the workflow |
+| 29 | CI_29 |
+| 30 | Fresh clone of the branch, `admin/README.md` followed literally with a throwaway Compose stack from `api/.env.example` and a placeholder admin made with spec 007's tool (both deleted afterwards): a wrong password shows the wrong-credentials message; login works; reloads keep the session; logout returns to login. With `ADMIN_ORIGINS` emptied and the API restarted, login shows "cannot reach the API". With `SESSION_IDLE_MINUTES=5` and the API restarted, a page hidden for 5 minutes 48 seconds shows login with the session-ended notice when visible again, and logging in returns to the page. The browser used cannot hide a tab, so hidden and visible were signalled by overriding `document.visibilityState` and firing `visibilitychange`, as the browser does |
+| 31 | `admin/README.md` |
+| 32 | `README.md`, `THIRD_PARTY_NOTICES.md` (Montserrat with the full SIL Open Font License 1.1) |
+| 33 | `git diff --stat main...008-admin-foundation -- api website compose.yaml` prints nothing |
+| 34 | URL grep of the changed files; `gitleaks dir .` and `gitleaks git` over the branch: no leaks |
 
 ## Audit
 
