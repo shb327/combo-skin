@@ -40,22 +40,25 @@ export function Layout() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-white/10 px-4 py-3">
         <button
           type="button"
-          className="rounded-md border border-white/15 px-2 py-1 text-sm md:hidden"
+          className="rounded-md border border-white/15 px-2 py-1 text-sm whitespace-nowrap md:hidden"
           aria-expanded={menuOpen}
           aria-controls="sections"
           onClick={() => setMenuOpen((open) => !open)}
         >
           Menu
         </button>
-        <img src={logo} alt="" className="h-6 w-auto" />
-        <span className="font-semibold">Combo Skin admin</span>
-        <span className="ml-auto truncate text-sm text-white/70">{username}</span>
+        <img src={logo} alt="" className="hidden h-6 w-auto sm:block" />
+        <span className="font-semibold whitespace-nowrap">Combo Skin admin</span>
+        {/* Below 640 px the username takes its own line under the others. */}
+        <span className="order-last w-full truncate text-sm text-white/70 sm:order-none sm:ml-auto sm:w-auto">
+          {username}
+        </span>
         <button
           type="button"
-          className="rounded-md border border-white/15 px-3 py-1 text-sm hover:border-accent disabled:opacity-50"
+          className="ml-auto rounded-md border border-white/15 px-3 py-1 text-sm whitespace-nowrap hover:border-accent disabled:opacity-50 sm:ml-0"
           onClick={onLogout}
           disabled={busy}
         >
