@@ -401,6 +401,10 @@ The owner found the screens hard to scan without pictures and asked for the game
 
 Checked in the browser with a production build under its CSP, against a throwaway Compose stack with a placeholder admin and sample combos, both deleted afterwards: the 8 glove types and 20 knife types show their pictures, a type page shows all 35 of its finishes', and the finish page, combo rows and batch rows show theirs; no CSP violation; resources only from the app, the API and the image host; no horizontal scroll at 375 px.
 
+### Owner's change: Home and the navigation (2026-11-03)
+
+The owner asked for pictures beside By gloves and By knife on Home, and for the knife order to have less weight: out of the navigation, and a section of Home below Drafts that looks like Drafts. R21, R33, R38, the Navigation row of Design, the routes and requests tables, criterion 37 and a new criterion 47 were updated. Home asks for the two pictures' finishes (`GET /gloves/sport/pandoras-box`, `GET /knives/karambit/vanilla`); the knife order page links back to Home. Covered by `src/pages/HomePage.test.tsx::home`, `src/pages/KnifeOrderPage.test.tsx::links back to Home` and `src/App.test.tsx::shell`; checked in the browser on a throwaway stack with a placeholder admin, deleted afterwards, at desktop width and at 375 px.
+
 ### Follow-ups
 
 - The searches load the catalog with 9 requests for gloves and 21 for knives on each page load (Design, Follow-ups: one API request for every finish of a kind).
@@ -450,7 +454,7 @@ Test ids are relative to `admin/`.
 | 34 | Same stack with `SESSION_IDLE_MINUTES=5`: half a batch filled (top rating 8.80, Talon unticked), more than five minutes without a request, then login showed with the session-ended notice and `next` set to the batch; logging in returned to it with "Restored unsaved changes.", the top rating and Talon unticked. A `beforeunload` event on the page with unsaved changes is cancelled |
 | 35 | `vite build` against the check API and `vite preview` on port 5174: every page of the routes table visited, a search typed; no Content Security Policy violation reported or logged; resources only from `localhost:5174` and the API origin; session storage and IndexedDB empty, and the app added nothing to local storage or cookies (the browser already held another local app's entries for `localhost`, left untouched) |
 | 36 | At 375 px every page of the routes table has `scrollWidth` equal to the width, and a batch of 17 rows was filled and saved at that width; at desktop width the same pages were used for criterion 33 |
-| 37 | `src/App.test.tsx::shell::has the header, the navigation and the combo screens`, `::titles %s` (every page of the routes table) |
+| 37 | `src/App.test.tsx::shell::has the header, the navigation and the combo screens` (three links), `::titles %s` (every page of the routes table) |
 | 38 | Pending: the `admin` workflow run after the branch is pushed |
 | 39 | `admin/README.md`: first paragraph, Screens (with unsaved changes), Tests, Project structure |
 | 40 | `git diff --stat origin/main...HEAD -- api website compose.yaml .github` prints nothing |
@@ -460,6 +464,7 @@ Test ids are relative to `admin/`.
 | 44 | `src/pages/TypePage.test.tsx::finish pages` |
 | 45 | `src/combos/pictures.test.tsx` (type grids, type page, search options, finish page and combo rows, batch rows and edit page) |
 | 46 | `src/api/images.test.ts`; `src/combos/pictures.test.tsx::never come from another host, and a failed one is removed` |
+| 47 | `src/pages/HomePage.test.tsx::home`; `src/pages/KnifeOrderPage.test.tsx::links back to Home` |
 
 ## Audit
 
@@ -572,4 +577,10 @@ The owner's pictures change (`git diff ec86a9b..HEAD`) was read by an independen
 - (follow-up) The bundle check accepts the image host as text anywhere in the built files, so a script using it for something other than a picture would pass the check; the CSP's `connect-src` still blocks such a request at run time.
 - (follow-up) Lazy loading inside the scrolling search list cannot be tested in jsdom; it was seen working in the browser.
 - (follow-up) Replace the pictures when the screenshot storage spec lands.
+
+### Check of the Home and navigation change
+
+**Date:** 2026-11-03 · **Verdict:** Pass
+
+A small change to Home and the navigation (Implementation notes, "Owner's change: Home and the navigation"), checked against R21, R33, R38 and criteria 37 and 47 without a separate reviewer: `npm run lint`, `typecheck`, `test` (286 passed), `build` and `check:bundle` exit 0 on a fresh clone; the browser check is in Implementation notes.
 
