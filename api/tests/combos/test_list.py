@@ -97,6 +97,8 @@ async def test_bad_filters(admin_client: AsyncClient, made: list[Made]) -> None:
         ({"limit": 0}, ["query", "limit"]),
         ({"limit": 501}, ["query", "limit"]),
         ({"offset": -1}, ["query", "offset"]),
+        ({"offset": 10**20}, ["query", "offset"]),
+        ({"offset": 1_000_001}, ["query", "offset"]),
     ]
     for params, loc in bad:
         response = await admin_client.get("/admin/combos", params=params)

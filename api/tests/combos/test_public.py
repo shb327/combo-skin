@@ -114,3 +114,19 @@ async def test_public_routes_need_no_session(clients: Any, admin_client: AsyncCl
         with_session = await admin_client.get(path)
         assert with_session.json() == without.json()
         assert "set-cookie" not in with_session.headers
+
+
+async def test_public_slugs_are_bounded(clients: Any) -> None:
+    anonymous = clients("127.0.0.9")
+    long = "x" * 65
+    for path, loc in (
+        (f"/gloves/{long}/crimson-kimono/combos", ["path", "type_slug"]),
+        (f"/gloves/specialist/{long}/combos", ["path", "finish_slug"]),
+        (f"/knives/{long}/doppler-ruby/combos", ["path", "type_slug"]),
+        (f"/knives/karambit/{long}/combos", ["path", "finish_slug"]),
+    ):
+        response = await anonymous.get(path)
+        assert response.status_code == 422, path
+        assert [e["loc"] for e in response.json()["detail"]] == [loc]
+    ok = await anonymous.get(f"/knives/karambit/{'x' * 64}/combos")
+    assert ok.status_code == 404

@@ -130,6 +130,8 @@ async def create_combo(combo: ComboIn, current: AdminDep, db: Session) -> AdminC
 
 
 SlugQuery = Annotated[Slug | None, Query()]
+# Far beyond any real catalog of combos; keeps the value inside the database's integer range.
+OFFSET_MAX = 1_000_000
 
 
 @router.get("/combos")
@@ -143,7 +145,7 @@ async def list_combos(
     status_filter: Annotated[Status | None, Query(alias="status")] = None,
     sort: Literal["rating", "updated"] = "rating",
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    offset: Annotated[int, Query(ge=0, le=OFFSET_MAX)] = 0,
 ) -> ComboPage:
     """Combos in any status, filtered by glove and knife type and finish (a finish needs its
     type) and status. Sorted by rating, highest first, or by last change, newest first."""

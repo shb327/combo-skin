@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,10 +11,12 @@ from combo_api.catalog.routes import NOT_FOUND
 from combo_api.catalog.snapshot import Kind
 from combo_api.combos import queries
 from combo_api.combos.models import Combo, KnifeOrder
-from combo_api.combos.schemas import PublicCombo
+from combo_api.combos.schemas import SLUG_MAX, PublicCombo
 from combo_api.db import get_session
 
 Session = Annotated[AsyncSession, Depends(get_session)]
+
+SlugPath = Annotated[str, Path(min_length=1, max_length=SLUG_MAX)]
 
 router = APIRouter(tags=["combos"])
 
@@ -38,7 +40,7 @@ async def published(db: AsyncSession, query: Select[*queries.ComboColumns]) -> l
 
 @router.get("/gloves/{type_slug}/{finish_slug}/combos", responses=NOT_FOUND)
 async def list_glove_finish_combos(
-    type_slug: str, finish_slug: str, db: Session
+    type_slug: SlugPath, finish_slug: SlugPath, db: Session
 ) -> list[PublicCombo]:
     """The published combos of one glove finish, highest rating first; ties in knife order."""
     finish = await finish_of(db, "glove", type_slug, finish_slug)
@@ -59,7 +61,7 @@ async def list_glove_finish_combos(
 
 @router.get("/knives/{type_slug}/{finish_slug}/combos", responses=NOT_FOUND)
 async def list_knife_finish_combos(
-    type_slug: str, finish_slug: str, db: Session
+    type_slug: SlugPath, finish_slug: SlugPath, db: Session
 ) -> list[PublicCombo]:
     """The published combos of one knife finish, highest rating first; ties in glove order."""
     finish = await finish_of(db, "knife", type_slug, finish_slug)
