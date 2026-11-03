@@ -67,6 +67,8 @@ jobs:
       - run: curl -fsS http://localhost:8000/health/ready
       - run: test "$(curl -fsS http://localhost:8000/knives | jq length)" -eq 20
       - run: test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/admin/me)" -eq 401
+      - run: test "$(curl -fsS http://localhost:8000/gloves/specialist/mogul/combos)" = "[]"
+      - run: test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/admin/combos)" -eq 401
       - if: failure()
         run: docker compose logs
       - if: always()

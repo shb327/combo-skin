@@ -1,0 +1,54 @@
+from typing import Any
+
+from combo_api.main import create_app
+
+OPERATIONS = {
+    ("/admin/combos", "get"): ("list_combos", "admin"),
+    ("/admin/combos", "post"): ("create_combo", "admin"),
+    ("/admin/combos/{combo_id}", "get"): ("get_combo", "admin"),
+    ("/admin/combos/{combo_id}", "put"): ("update_combo", "admin"),
+    ("/admin/combos/{combo_id}", "delete"): ("remove_combo", "admin"),
+    ("/admin/combos/publish", "post"): ("publish_combos", "admin"),
+    ("/admin/combos/unpublish", "post"): ("unpublish_combos", "admin"),
+    ("/admin/batches/finishes", "get"): ("list_batch_finishes", "admin"),
+    ("/admin/batches/candidates", "get"): ("get_batch_candidates", "admin"),
+    ("/admin/batches", "post"): ("save_batch", "admin"),
+    ("/admin/knife-order", "get"): ("get_knife_order", "admin"),
+    ("/admin/knife-order", "put"): ("replace_knife_order", "admin"),
+    ("/gloves/{type_slug}/{finish_slug}/combos", "get"): ("list_glove_finish_combos", "combos"),
+    ("/knives/{type_slug}/{finish_slug}/combos", "get"): ("list_knife_finish_combos", "combos"),
+}
+
+
+def test_combo_operations_in_schema() -> None:
+    schema = create_app().openapi()
+    found = {
+        (path, method): (operation["operationId"], operation["tags"])
+        for path, methods in schema["paths"].items()
+        for method, operation in methods.items()
+        if "combo" in path or "batches" in path or "knife-order" in path
+    }
+    assert found == {key: (op, [tag]) for key, (op, tag) in OPERATIONS.items()}
+    for (path, method), (_, tag) in OPERATIONS.items():
+        responses = schema["paths"][path][method]["responses"]
+        if tag == "admin":
+            assert {"401", "403"} <= set(responses), path
+        else:
+            assert "401" not in responses and "404" in responses, path
+
+
+def number(schema: dict[str, Any], model: str, field: str) -> bool:
+    prop = schema["components"]["schemas"][model]["properties"][field]
+    options = prop.get("anyOf", [prop])
+    return {o["type"] for o in options} <= {"number", "null"} and "number" in {
+        o["type"] for o in options
+    }
+
+
+def test_numbers_are_numbers() -> None:
+    schema = create_app().openapi()
+    for model in ("ComboIn", "ComboUpdate", "AdminCombo", "PublicCombo", "Existing"):
+        assert number(schema, model, "rating"), model
+    for model in ("Conditions", "ItemIn", "Item"):
+        assert number(schema, model, "float_from"), model
+        assert number(schema, model, "float_to"), model
