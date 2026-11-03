@@ -471,7 +471,7 @@ Test ids are relative to `admin/`.
 | 35 | `vite build` against the check API and `vite preview` on port 5174: every page of the routes table visited, a search typed; no Content Security Policy violation reported or logged; resources only from `localhost:5174` and the API origin; session storage and IndexedDB empty, and the app added nothing to local storage or cookies (the browser already held another local app's entries for `localhost`, left untouched) |
 | 36 | At 375 px every page of the routes table has `scrollWidth` equal to the width, and a batch of 17 rows was filled and saved at that width; at desktop width the same pages were used for criterion 33 |
 | 37 | `src/App.test.tsx::shell::has the header, the navigation and the combo screens` (three links), `::titles %s` (every page of the routes table) |
-| 38 | Pending: the `admin` workflow run after the branch is pushed |
+| 38 | Commit ad4f3ae: `admin` push run 41690089760 and pull request run 41690095091 succeeded, as did the `api` (41690089752, 41690094974) and `website` (41690089737, 41690094928) runs |
 | 39 | `admin/README.md`: first paragraph, Screens (with unsaved changes), Tests, Project structure |
 | 40 | `git diff --stat origin/main...HEAD -- api website compose.yaml .github` prints nothing |
 | 41 | `gitleaks dir .` and `gitleaks git --log-opts="origin/main..HEAD"`: no leaks; added URLs as in Follow-ups |
@@ -531,7 +531,7 @@ All commands ran on a fresh clone of the branch with no `admin/.env`. The manual
 | 35 | Built app: no CSP violations, two origins, nothing stored | Pass | Implementation notes, criterion 35 |
 | 36 | 375 and 1440 px | Pass | Implementation notes, criterion 36 |
 | 37 | Navigation and titles | Pass | `src/App.test.tsx::shell::has the header, the navigation and the combo screens`, `::titles %s` |
-| 38 | `admin` workflow succeeds | Pending | Runs when the owner pushes the branch |
+| 38 | `admin` workflow succeeds | Pass | Commit ad4f3ae: `admin` push run 41690089760 and pull request run 41690095091 succeeded, as did the `api` (41690089752, 41690094974) and `website` (41690089737, 41690094928) runs |
 | 39 | Admin README | Pass | `admin/README.md`: first paragraph, Screens, Tests, Project structure |
 | 40 | No change outside `admin/` and the spec | Pass | `git diff --stat origin/main...HEAD -- api website compose.yaml .github` prints nothing |
 | 41 | Allowed URLs; gitleaks clean | Pass | Added URLs: the repository, `localhost`, `example.com` placeholders, and npm registry metadata in the lockfile; `gitleaks dir` on the clone and `gitleaks git --log-opts="origin/main..HEAD"`: no leaks |
@@ -549,7 +549,7 @@ All commands ran on a fresh clone of the branch with no `admin/.env`. The manual
 
 **Findings**
 
-- (follow-up) Criterion 38 waits for the push: the `admin` workflow has not run on this branch yet.
+- (resolved) Criterion 38: the `admin` workflow passed on the branch's last code commit (see the table).
 - (follow-up) After a delete refused for a stale version, the edit page enables its buttons before the combo has been read again (`admin/src/pages/EditComboPage.tsx`, `remove`); a Delete clicked in that moment sends the old version and gets another 409, harmlessly.
 - (follow-up) A form counts as unsaved once changed, even when changed back, so the logout confirmation and the leave-page warning can appear with nothing to lose.
 - (follow-up) The owner's two changes after this audit were audited on their own; see "Audit of the owner's changes" below.
@@ -573,7 +573,7 @@ Both changes made after the audit above (existing descriptions kept in a batch; 
 **Findings**
 
 - (follow-up) The new pages were checked in the browser before the reviewer's fixes, against a throwaway stack; the fixes are covered by tests, not rechecked by hand.
-- (follow-up) Criterion 38 still waits for the `admin` workflow on the pushed branch.
+- (resolved) Criterion 38: the `admin` workflow passed on commit ad4f3ae, which includes every change above.
 
 ### Audit of the pictures change
 
