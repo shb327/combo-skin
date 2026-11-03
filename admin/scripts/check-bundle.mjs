@@ -41,7 +41,17 @@ const policy = [
 
 const problems = []
 const decode = (text) => text.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&')
+// JavaScript strings may escape slashes: https:\/\/host.
+const unescapeSlashes = (text) => text.replace(/\\\//g, '/').replace(/\\u002f/gi, '/')
 const external = (url) => /^(https?:)?\/\//i.test(url.trim())
+const isAllowed = (url) => {
+  const lower = url.toLowerCase()
+  return (
+    lower === origin ||
+    lower.startsWith(`${origin}/`) ||
+    NEVER_FETCHED.some((known) => lower === known || (known.endsWith('/') && lower.startsWith(known)))
+  )
+}
 
 function files(folder) {
   return readdirSync(folder, { withFileTypes: true }).flatMap((entry) => {
@@ -69,26 +79,29 @@ if (!csp) {
   }
 }
 
-for (const [, tag, url] of html.matchAll(/<(script|link|img)\b[^>]*?\b(?:src|href)="([^"]*)"/g)) {
-  if (external(url)) problems.push(`index.html: <${tag}> loads ${url} from another host`)
-}
 
 for (const file of files(dir)) {
   if (!/\.(html|js|css|svg|json|txt|map)$/.test(file)) continue
-  const text = readFileSync(file, 'utf8')
+  const text = unescapeSlashes(readFileSync(file, 'utf8'))
   const name = relative(dir, file)
+  if (file.endsWith('.html')) {
+    const tags = /<(script|link|img|iframe|source|video|audio|embed)\b[^>]*?\b(?:src|href|srcset)\s*=\s*(["']?)([^"'\s>]*)\2/gi
+    for (const [, tag, , url] of text.matchAll(tags)) {
+      if (external(url)) problems.push(`${name}: <${tag}> loads ${url} from another host`)
+    }
+  }
   if (file.endsWith('.css')) {
-    for (const [, url] of text.matchAll(/url\(\s*['"]?([^'")]+)/g)) {
+    for (const [, url] of text.matchAll(/url\(\s*['"]?([^'")]+)/gi)) {
       if (external(url)) problems.push(`${name}: url() loads ${url} from another host`)
     }
   }
-  for (const [match] of text.matchAll(/https?:\/\/[^\s"'`()<>\\,;]+/g)) {
+  for (const [match] of text.matchAll(/https?:\/\/[^\s"'`()<>\\,;]+/gi)) {
     const url = match.replace(/[.]+$/, '')
-    const allowed =
-      url === origin ||
-      url.startsWith(`${origin}/`) ||
-      NEVER_FETCHED.some((known) => url === known || (known.endsWith('/') && url.startsWith(known)))
-    if (!allowed) problems.push(`${name}: unexpected absolute URL ${url}`)
+    if (!isAllowed(url)) problems.push(`${name}: unexpected absolute URL ${url}`)
+  }
+  // Protocol-relative URLs inside strings or CSS: "//host.tld/...".
+  for (const [, url] of text.matchAll(/["'`(=\s](\/\/(?:[a-z0-9-]+\.)+[a-z]{2,}[^\s"'`()<>\\,;]*)/gi)) {
+    problems.push(`${name}: protocol-relative URL ${url}`)
   }
 }
 
