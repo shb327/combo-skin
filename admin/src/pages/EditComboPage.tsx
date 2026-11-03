@@ -189,15 +189,19 @@ export function EditComboPage() {
       </p>
       <h1 className="mt-1 text-2xl font-semibold">Edit combo</h1>
       <div className="mt-2 flex flex-wrap items-center gap-3 text-lg">
-        <Picture url={stored.glove.image_url} size="md" />
-        <Link to={finishPath('glove', stored.glove.type_slug, stored.glove.finish_slug)} className={LINK}>
-          {finishLabel(stored.glove)}
-        </Link>{' '}
+        <span className="inline-flex items-center gap-3">
+          <Picture url={stored.glove.image_url} size="md" />
+          <Link to={finishPath('glove', stored.glove.type_slug, stored.glove.finish_slug)} className={LINK}>
+            {finishLabel(stored.glove)}
+          </Link>
+        </span>{' '}
         <span>with</span>{' '}
-        <Picture url={stored.knife.image_url} size="md" />
-        <Link to={finishPath('knife', stored.knife.type_slug, stored.knife.finish_slug)} className={LINK}>
-          {finishLabel(stored.knife)}
-        </Link>
+        <span className="inline-flex items-center gap-3">
+          <Picture url={stored.knife.image_url} size="md" />
+          <Link to={finishPath('knife', stored.knife.type_slug, stored.knife.finish_slug)} className={LINK}>
+            {finishLabel(stored.knife)}
+          </Link>
+        </span>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-white/70">
         <StatusBadge status={stored.status} />

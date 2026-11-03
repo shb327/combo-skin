@@ -12,6 +12,12 @@ function expectPicture(img: HTMLImageElement | undefined, src: string) {
   expect(img?.getAttribute('src')).toBe(src)
   expect(img?.getAttribute('referrerpolicy')).toBe('no-referrer')
   expect(img?.getAttribute('loading')).toBe('lazy')
+  expect(img?.getAttribute('alt')).toBe('')
+}
+
+/** Every picture in an element is a proper one. */
+function expectPictures(element: HTMLElement) {
+  for (const img of imagesIn(element)) expectPicture(img, img.getAttribute('src') as string)
 }
 
 function withCombo() {
@@ -30,7 +36,23 @@ describe('pictures', () => {
       [picture('karambit', 'vanilla')],
       [picture('m9-bayonet', 'vanilla')],
     ])
-    expectPicture(imagesIn(knives[0])[0], picture('butterfly', 'vanilla'))
+    expectPictures(screen.getByRole('list', { name: 'Knife types' }))
+  })
+
+  it('show a knife type its Vanilla even when it is not the first finish', async () => {
+    const fake = new FakeApi().withSession()
+    fake.next('GET /knives', json(200, [{ slug: 'karambit', name: 'Karambit', def_index: 507, codename: 'k', finish_count: 2 }]))
+    const finish = (slug: string) => ({
+      slug, name: slug, phase: null, display_name: slug, paint_index: 1, paint_codename: null,
+      rarity: { code: 'c', name: 'Covert', color: '#eb4b4b' }, float_min: 0, float_max: 1,
+      image_url: picture('karambit', slug), active: true,
+    })
+    fake.next('GET /knives/{type}', json(200, {
+      slug: 'karambit', name: 'Karambit', def_index: 507, codename: 'k', finish_count: 2, finishes: [finish('fade'), finish('vanilla')],
+    }))
+    renderApp('/knives', fake)
+    await screen.findByRole('combobox', { name: 'Find a knife' })
+    expect(sources(screen.getByRole('list', { name: 'Knife types' }))).toEqual([picture('karambit', 'vanilla')])
   })
 
   it('show Specialist Gloves as Crimson Kimono and Sport Gloves as Pandora\'s Box', async () => {
@@ -41,6 +63,7 @@ describe('pictures', () => {
       [picture('specialist', 'crimson-kimono')],
       [picture('sport', 'pandoras-box')],
     ])
+    expectPictures(screen.getByRole('list', { name: 'Glove types' }))
   })
 
   it('show a glove type without a fixed finish as its first finish', async () => {
@@ -97,6 +120,7 @@ describe('pictures', () => {
       [picture('butterfly', 'doppler-ruby')],
       [picture('m9-bayonet', 'doppler-ruby')],
     ])
+    expectPictures(screen.getByRole('list', { name: 'Knives' }))
     window.history.pushState(null, '', `/combos/${combo.id}`)
     window.dispatchEvent(new PopStateEvent('popstate'))
     await screen.findByRole('heading', { name: 'Edit combo' })
@@ -127,7 +151,13 @@ describe('pictures', () => {
     await screen.findByRole('heading', { name: 'Karambit' })
     const cards = within(screen.getByRole('list', { name: 'Finishes' })).getAllByRole('listitem')
     expect(cards.map((c) => imagesIn(c).length)).toEqual([0, 0, 0, 1])
+    const size = imagesIn(cards[3])[0].className.match(/h-\d+ w-\d+/)?.[0]
     fireEvent.error(imagesIn(cards[3])[0])
     expect(imagesIn(cards[3])).toHaveLength(0)
+    // An empty box of the same size takes its place, as for the pictures refused above.
+    for (const card of cards) {
+      const box = card.querySelector('span[aria-hidden="true"].rounded')
+      expect(box?.className).toContain(size)
+    }
   })
 })

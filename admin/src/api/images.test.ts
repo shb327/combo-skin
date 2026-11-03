@@ -11,6 +11,7 @@ describe('pictureUrl', () => {
     'http://community.akamai.steamstatic.com/a.png',
     'https://community.akamai.steamstatic.com.example.com/a.png',
     'https://user@community.akamai.steamstatic.com/a.png',
+    'https://community.akamai.steamstatic.com:8443/a.png',
     '/economy/image/abc',
     'javascript:alert(1)',
     '',

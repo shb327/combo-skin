@@ -147,8 +147,10 @@ export function AddComboPage({ kind }: { kind: Kind }) {
           <div>
             <p className="text-sm">{otherKind === 'knife' ? 'Knife' : 'Gloves'}</p>
             <p className="mt-1 flex flex-wrap items-center gap-3">
-              <Picture url={values.other.imageUrl} size="md" />
-              <span className="font-semibold">{values.other.label}</span>
+              <span className="inline-flex items-center gap-3">
+                <Picture url={values.other.imageUrl} size="md" />
+                <span className="font-semibold">{values.other.label}</span>
+              </span>
               <button type="button" className={SECONDARY} onClick={() => change({ ...values, other: null })}>
                 Change
               </button>
