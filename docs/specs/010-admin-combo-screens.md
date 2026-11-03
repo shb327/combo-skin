@@ -90,7 +90,7 @@ Specs 001 to 009 are Audited and merged into `main`.
 
 **Knife order**
 
-- R21. A Knife order page lists the knife types in the saved order. Any admin can move a type up or down, or to a position, with mouse or keyboard alone, and save the whole order; changes can be discarded before saving.
+- R21. A Knife order page, reached from a section of Home below Drafts that looks like the Drafts section (owner's change, 2026-11-03), lists the knife types in the saved order. Any admin can move a type up or down, or to a position, with mouse or keyboard alone, and save the whole order; changes can be discarded before saving.
 
 **Values**
 
@@ -114,7 +114,7 @@ Specs 001 to 009 are Audited and merged into `main`.
 
 **Shell and checks**
 
-- R33. The navigation has Home, By gloves, By knife and Knife order. Every new page sets its document title and works without horizontal scrolling from 375 px wide.
+- R33. The navigation has Home, By gloves and By knife (Knife order left out of it on the owner's request, 2026-11-03). Every new page sets its document title and works without horizontal scrolling from 375 px wide.
 - R34. `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` and `npm run check:bundle` pass in `admin/`; `admin/README.md` describes the new screens and how unsaved changes are kept.
 
 **Browsing** (owner's change after the audit, 2026-11-03)
@@ -125,7 +125,7 @@ Specs 001 to 009 are Audited and merged into `main`.
 
 **Pictures** (owner's change, 2026-11-03)
 
-- R38. Pictures help the owner find their way: a knife type shows its Vanilla finish; a glove type, which has no Vanilla, shows one fixed finish of its own (Sport Gloves: Pandora's Box); a finish shows its own picture. They appear on the type grids, the type pages, in search results, on the finish page, beside each combo in a list (the other item), on each batch row (the knife), and on the edit page (both items), and beside the item chosen on the add page. Pictures come from the catalog's `image_url`, on the game's public image host, until the screenshot storage spec replaces them.
+- R38. Pictures help the owner find their way: a knife type shows its Vanilla finish; a glove type, which has no Vanilla, shows one fixed finish of its own (Sport Gloves: Pandora's Box); a finish shows its own picture. They appear on Home's By gloves and By knife (Sport Gloves | Pandora's Box and Karambit's Vanilla), on the type grids, the type pages, in search results, on the finish page, beside each combo in a list (the other item), on each batch row (the knife), and on the edit page (both items), and beside the item chosen on the add page. Pictures come from the catalog's `image_url`, on the game's public image host, until the screenshot storage spec replaces them.
 
 ## Design
 
@@ -156,7 +156,7 @@ Specs 001 to 009 are Audited and merged into `main`.
 | Routes | `/gloves`, `/gloves/:type/:finish`, `/gloves/:type/:finish/add`, `/gloves/:type/:finish/batch`, `/gloves/:type/:finish/batch/:knifeFinish`, `/knives`, `/knives/:type/:finish`, `/knives/:type/:finish/add`, `/combos/:id`, `/knife-order` | Dialogs over the finish page for add and batch: no address to return to after a session ends, and lost on reload |
 | Browsing (owner's choice after the audit) | Like the website's type and finish grids: cards with a picture (Finish images), the name, the rarity colour of each finish, the float range, and counts. The type grid comes from the catalog already loaded for the search; a type page asks for its combos once (`GET /admin/combos` with `glove_type` or `knife_type`, paged as the finish page) and counts them per finish in the browser. Types in catalog display order, as the website shows them, not the knife order of batches | Text only (the first choice): see Finish images. A list without counts: the owner could not see which finishes still have no combos. A request per finish for counts: up to 30 requests per type page |
 | Page titles | `By gloves`, `<type>` on a type page, `<type> \| <finish>` on a finish page, `Add knife`, `Add gloves`, `Batch`, `Edit combo`, `Knife order`, each followed by ` · Combo Skin admin` | The finish name alone: the add and list pages of one finish would look the same in two tabs |
-| Navigation | Home, By gloves, By knife, Knife order. Spec 008 criterion 21 and its test change to four links | Knife order under By gloves only: it is shared by every admin and both directions |
+| Navigation (owner's change, 2026-11-03) | Home, By gloves, By knife. Knife order is a section of Home below Drafts, shown the same way (a heading, one line, a plain link), because it is rarely used; its page links back to Home. Spec 008 criterion 21 and its test change to these links | A fourth navigation link (the first version): gave a rarely used page as much weight as the two directions. Under By gloves only: it is shared by every admin and both directions |
 | Number formats | Ratings with two decimals (`9.50`); float values as stored with trailing zeros removed (`0.06`, `0.8`); dates as the browser's locale date and time | Ratings as typed (`9.5`): a column of ratings would not line up |
 | Retired finishes | Pages for a retired finish (reached by link or address) show "No longer in the game" and hide Add and Start a batch. Searches list active finishes only, as the catalog routes return | Allowing the forms and relying on the API's `finish_retired`: an avoidable refusal |
 | Tests | The fake API gains a small in-memory catalog (2 glove types including Specialist Gloves with Crimson Kimono, 3 knife types including Karambit, a few finishes each, Vanilla, Doppler (Ruby) on all 3 knives, one retired finish) and an in-memory combo store that implements the routes of spec 009 the screens use, with its version, status and all-or-nothing rules; `next()` still overrides any route with a queued reply. Its bodies are typed from the generated schema. Pure functions (parsing, fill, search, error paths) have their own unit tests. One test file per page | MSW: still one more dependency for what the fake already does. Testing against the real API in CI: admins are created only at a terminal (spec 008 Follow-ups); the manual criterion covers the real API |
@@ -180,7 +180,7 @@ No API change. The dashboard uses the catalog routes and the routes of spec 009 
 
 | Path | Page |
 | --- | --- |
-| `/` | Home: the two directions, Knife order, draft count and Publish all drafts |
+| `/` | Home: the two directions with pictures, draft count and Publish all drafts, then a link to Knife order |
 | `/gloves` | Glove finish search and the glove types |
 | `/gloves/:type` | Glove type: its finishes with combo counts |
 | `/gloves/:type/:finish` | Glove finish: its combos, Add knife, Start a batch |
@@ -204,7 +204,7 @@ No API change. The dashboard uses the catalog routes and the routes of spec 009 
 | Add | The finish, as above; the other kind's search | `POST /admin/combos` |
 | Batch | `GET /admin/batches/finishes`; `GET /admin/batches/candidates` | `POST /admin/batches`; then `POST /admin/combos/publish` with the created ids |
 | Edit | `GET /admin/combos/{id}` | `PUT /admin/combos/{id}`; publish, unpublish, delete |
-| Home | `GET /admin/combos?status=draft&limit=1` | `POST /admin/combos/publish` with `all_drafts: true` |
+| Home | `GET /admin/combos?status=draft&limit=1`; `GET /gloves/sport/pandoras-box` and `GET /knives/karambit/vanilla` for the two pictures | `POST /admin/combos/publish` with `all_drafts: true` |
 | Knife order | `GET /admin/knife-order` | `PUT /admin/knife-order` |
 
 **Batch request built from the rows:** `glove` is the page's finish; `knife_finish` the chosen name; `create` holds the ticked new rows in list order, each `{knife_type, rating, description, glove: Conditions, knife: Conditions}` with batch-wide values or overrides resolved; `update` holds the ticked existing rows in list order, each `{id, version, rating, description}` with `version` from the candidates. The index of each row in `create` or `update` is kept to map a 422 `loc` back to the row.
@@ -299,7 +299,7 @@ Commands run in `admin/` unless stated. "The fake" is the test fake API with its
 
 **Shell, CI and docs**
 
-37. Tests: the navigation has Home, By gloves, By knife and Knife order in that order, the current one with `aria-current="page"`; the document titles are those of Design on each page. The placeholder text of spec 008 no longer appears.
+37. Tests: the navigation has Home, By gloves and By knife in that order, and no Knife order link, the current one with `aria-current="page"`; the document titles are those of Design on each page. The placeholder text of spec 008 no longer appears.
 38. After the branch is pushed, the `admin` workflow run for its latest commit succeeds on GitHub.
 39. `admin/README.md` describes the screens (By gloves with batches, By knife, editing and publishing, knife order), that unsaved changes are kept in memory across a session end but not across a reload, and the project structure with `src/combos/`; its first paragraph no longer says the combo screens come later.
 40. `git diff --stat main...010-admin-combo-screens -- api website compose.yaml .github` prints nothing.
@@ -309,6 +309,7 @@ Commands run in `admin/` unless stated. "The fake" is the test fake API with its
 44. Tests: a glove finish page and a knife finish page each link to their type's page.
 45. Tests: pictures with the item's `image_url`, `referrerpolicy="no-referrer"` and `loading="lazy"` are shown on type page cards, search options, the finish page, combo list rows (the other item), batch rows (the knife) and the edit page (both items).
 46. Tests: an `image_url` on another host, on `http`, or a relative one, renders no `img`; a picture that fails to load is removed.
+47. Tests: Home shows the By gloves card with the Sport Gloves Pandora's Box picture and the By knife card with Karambit's Vanilla, then Drafts, then a Knife order section after Drafts with a link to `/knife-order`; the knife order page links to Home.
 
 ## Test plan
 
@@ -326,7 +327,7 @@ Commands run in `admin/` unless stated. "The fake" is the test fake API with its
 | 37 | Vitest: shell tests in `src/App.test.tsx` |
 | 38 | The workflow run page for the branch's latest commit (checked after the owner pushes) |
 | 39 | Read `admin/README.md` |
-| 42 to 46 | Vitest: browse, type page and picture tests; `scripts/csp.test.ts`, `scripts/check-bundle.test.ts` |
+| 42 to 47 | Vitest: browse, type page, picture and Home tests; `scripts/csp.test.ts`, `scripts/check-bundle.test.ts` |
 | 40, 41 | The commands in the criteria; `git diff main...010-admin-combo-screens \| grep -oE 'https?://[^ )>"]+' \| sort -u` |
 
 Section commands, run in `admin/`:
