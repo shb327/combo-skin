@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 const ADMIN = join(import.meta.dirname, '..')
 const POLICY =
   "default-src &#39;none&#39;; script-src &#39;self&#39;; style-src &#39;self&#39;; font-src &#39;self&#39;; " +
-  "img-src &#39;self&#39;; connect-src &#39;self&#39; http://localhost:8000; base-uri &#39;none&#39;; " +
+  "img-src &#39;self&#39; https://community.akamai.steamstatic.com; connect-src &#39;self&#39; http://localhost:8000; base-uri &#39;none&#39;; " +
   "form-action &#39;none&#39;; object-src &#39;none&#39;"
 
 function sample({ policy = POLICY, robots = true, head = '', css = '', js = '', extraHtml = '' } = {}) {
@@ -44,6 +44,12 @@ describe('check:bundle', () => {
     expect(result.status).toBe(0)
   })
 
+  it('allows the game image host in scripts, where pictures are built at run time', () => {
+    const result = check(sample({ js: 'const host="https://community.akamai.steamstatic.com/economy/image/"' }))
+    expect(result.stderr).toBe('')
+    expect(result.status).toBe(0)
+  })
+
   it.each([
     ['an external font link', { head: '<link rel="stylesheet" href="https://fonts.example.com/m.css">' }, 'fonts.example.com'],
     ['a protocol-relative script', { head: '<script src="//cdn.example.com/x.js"></script>' }, 'cdn.example.com'],
@@ -58,6 +64,9 @@ describe('check:bundle', () => {
     ['another HTML file loading a script', { extraHtml: '<script src="https://cdn.example.com/x.js"></script>' }, 'cdn.example.com'],
     ['another localhost port', { js: 'x="http://localhost:9999/x"' }, 'localhost:9999'],
     ['a missing robots tag', { robots: false }, 'robots'],
+    ['a picture from the image host in the HTML', { head: '<img src="https://community.akamai.steamstatic.com/a.png">' }, 'community.akamai.steamstatic.com'],
+    ['a policy without the image host', { policy: POLICY.replace(' https://community.akamai.steamstatic.com', '') }, 'Content-Security-Policy'],
+    ['an image host look-alike', { js: 'x="https://community.akamai.steamstatic.com.example.com/a"' }, 'steamstatic.com.example.com'],
     ['a CSP with unsafe-inline', { policy: POLICY.replace("script-src &#39;self&#39;", "script-src &#39;self&#39; &#39;unsafe-inline&#39;") }, 'unsafe-inline'],
     ['a CSP with another connect-src', { policy: POLICY.replace('http://localhost:8000', 'https://api.example.com') }, 'Content-Security-Policy'],
   ])('fails for %s', (_, options, words) => {

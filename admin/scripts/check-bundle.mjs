@@ -11,6 +11,10 @@ import { loadEnv } from 'vite'
 
 const ADMIN = resolve(import.meta.dirname, '..')
 const DEFAULT_API_ORIGIN = 'http://localhost:8000'
+// The game's image host, the only other host images may load from: the same as
+// src/api/images.ts (spec 010, Finish images). Allowed in scripts, which build picture URLs at
+// run time, and in img-src; still refused in an <img> of the HTML.
+const IMAGE_ORIGIN = 'https://community.akamai.steamstatic.com'
 
 // Absolute URLs that libraries carry as plain strings and never fetch. An entry ending in / allows
 // everything under it; any other entry allows exactly that URL.
@@ -32,7 +36,7 @@ const policy = [
   "script-src 'self'",
   "style-src 'self'",
   "font-src 'self'",
-  "img-src 'self'",
+  `img-src 'self' ${IMAGE_ORIGIN}`,
   `connect-src 'self' ${origin}`,
   "base-uri 'none'",
   "form-action 'none'",
@@ -49,6 +53,8 @@ const isAllowed = (url) => {
   return (
     lower === origin ||
     lower.startsWith(`${origin}/`) ||
+    lower === IMAGE_ORIGIN ||
+    lower.startsWith(`${IMAGE_ORIGIN}/`) ||
     NEVER_FETCHED.some((known) => lower === known || (known.endsWith('/') && lower.startsWith(known)))
   )
 }

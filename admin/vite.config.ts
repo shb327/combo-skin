@@ -2,6 +2,7 @@
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { IMAGE_ORIGIN } from './src/api/images'
 import { apiOrigin } from './src/api/origin'
 
 const PORT = 5174
@@ -14,7 +15,8 @@ export function contentSecurityPolicy(origin: string): string {
     "script-src 'self'",
     "style-src 'self'",
     "font-src 'self'",
-    "img-src 'self'",
+    // Catalog pictures, from the game's image host only (spec 010, Finish images).
+    `img-src 'self' ${IMAGE_ORIGIN}`,
     `connect-src 'self' ${origin}`,
     "base-uri 'none'",
     "form-action 'none'",
