@@ -90,7 +90,7 @@ describe('entering combos', () => {
       for (const write of fake.writes()) {
         expect(write.url.startsWith(`${ORIGIN}/`)).toBe(true)
         expect(write.credentials).toBe('include')
-        if (!write.url.endsWith('/admin/login')) expect(write.headers['x-csrf-token']).toMatch(/^csrf-token-/)
+        if (!write.url.endsWith('/admin/login')) expect(fake.issued).toContain(write.headers['x-csrf-token'])
       }
     }
 
@@ -130,5 +130,9 @@ describe('entering combos', () => {
 
     expect(fake.writes().length).toBeGreaterThanOrEqual(5)
     writesAreSafe()
+    // Writes after the second login carry that session's token, not the first one's.
+    const lastWrite = fake.writes().at(-1)
+    expect(lastWrite?.headers['x-csrf-token']).toBe(fake.csrfToken)
+    expect(fake.issued).toHaveLength(2)
   })
 })

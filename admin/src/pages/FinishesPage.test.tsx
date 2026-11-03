@@ -1,6 +1,6 @@
 import { screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { FakeApi } from '../test/fakeApi'
+import { FakeApi, json } from '../test/fakeApi'
 import { renderApp, where } from '../test/render'
 
 describe('finding a finish', () => {
@@ -42,7 +42,27 @@ describe('finding a finish', () => {
     expect(search).toHaveAttribute('aria-expanded', 'false')
     await user.clear(search)
     await user.type(search, 'RUBY kar')
-    await user.keyboard('{Enter}')
+    await user.keyboard('{ArrowDown}{Enter}')
     await waitFor(() => expect(where()).toBe('/knives/karambit/doppler-ruby'))
+    await user.click(screen.getAllByRole('link', { name: 'By knife' })[0])
+    await user.type(await screen.findByRole('combobox', { name: 'Find a knife' }), 'blue')
+    expect(screen.getAllByRole('option')).toHaveLength(3)
+    expect(fake.to('GET /knives')).toHaveLength(1)
+    expect(fake.to('GET /knives/{type}')).toHaveLength(3)
+  })
+
+  it('shows at most 50 results, and asks for more words', async () => {
+    const fake = new FakeApi().withSession()
+    const many = Array.from({ length: 60 }, (_, i) => ({
+      slug: `finish-${i}`, name: `Finish ${i}`, phase: null, display_name: `Finish ${i}`, paint_index: i,
+      paint_codename: null, rarity: { code: 'c', name: 'Covert', color: '#eb4b4b' }, float_min: 0, float_max: 1,
+      image_url: 'https://example.com/x.png', active: true,
+    }))
+    fake.next('GET /knives', json(200, [{ slug: 'karambit', name: 'Karambit', def_index: 507, codename: 'k', finish_count: 60 }]))
+    fake.next('GET /knives/{type}', json(200, { slug: 'karambit', name: 'Karambit', def_index: 507, codename: 'k', finish_count: 60, finishes: many }))
+    const { user } = renderApp('/knives', fake)
+    await user.type(await screen.findByRole('combobox', { name: 'Find a knife' }), 'finish')
+    expect(screen.getAllByRole('option')).toHaveLength(50)
+    expect(screen.getByText('Type more to narrow the list.')).toBeInTheDocument()
   })
 })

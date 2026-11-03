@@ -154,8 +154,12 @@ export class FakeApi {
     return this.answer(route, request, body, params, url.searchParams)
   }
 
+  /** Every CSRF token the fake has issued, in order. */
+  issued: string[] = []
+
   private newToken() {
     this.tokens += 1
+    this.issued.push(`csrf-token-${this.tokens}`)
     return `csrf-token-${this.tokens}`
   }
 

@@ -81,13 +81,15 @@ describe('a glove finish page', () => {
 
   it('loads further pages while the total is larger', async () => {
     const fake = withCombos()
-    const [first] = (fake.store.list(new URLSearchParams()) as [number, { items: unknown[] }])[1].items
-    fake.next('GET /admin/combos', json(200, { total: 501, items: [first] }))
+    const [first] = (fake.store.list(new URLSearchParams()) as [number, { items: { id: string }[] }])[1].items
+    // A first page of 500 (copies under other ids), then a second page with the last one.
+    const page = Array.from({ length: 500 }, (_, i) => ({ ...first, id: `p${String(i).padStart(11, '0')}` }))
+    fake.next('GET /admin/combos', json(200, { total: 501, items: page }), json(200, { total: 501, items: [first] }))
     renderApp(GLOVES, fake)
-    await screen.findByRole('listitem', { name: 'Karambit | Doppler (Ruby)' })
     await waitFor(() => expect(fake.to('GET /admin/combos')).toHaveLength(2))
     const offsets = fake.to('GET /admin/combos').map((r) => new URL(r.url).searchParams.get('offset'))
-    expect(offsets).toEqual(['0', '1'])
+    expect(offsets).toEqual(['0', '500'])
+    await waitFor(() => expect(screen.getByRole('button', { name: 'All (501)' })).toBeInTheDocument())
   })
 
   it('renders names and descriptions as text', async () => {
@@ -183,7 +185,9 @@ describe('managing combos from the list', () => {
     await user.click(screen.getByRole('button', { name: 'Publish selected (3)' }))
     expect(await screen.findByRole('status')).toHaveTextContent('Published 3 combos.')
     expect(fake.to('POST /admin/combos/publish')).toHaveLength(1)
-    expect(JSON.parse(fake.to('POST /admin/combos/publish')[0].body).ids).toHaveLength(3)
+    expect(new Set(JSON.parse(fake.to('POST /admin/combos/publish')[0].body).ids)).toEqual(
+      new Set(fake.store.combos.slice(1, 4).map((c) => c.id)),
+    )
 
     await user.selectOptions(screen.getByLabelText('Knife finish'), 'Doppler (Ruby)')
     await user.click(screen.getByRole('checkbox', { name: 'Select all shown' }))
@@ -200,6 +204,10 @@ describe('managing combos from the list', () => {
     const { user } = renderApp(GLOVES, fake)
     const karambit = await screen.findByRole('listitem', { name: 'Karambit | Doppler (Ruby)' })
     expect(within(karambit).queryByRole('button', { name: 'Delete' })).toBeNull()
+    const m9 = screen.getByRole('listitem', { name: 'M9 Bayonet | Doppler (Ruby)' })
+    expect(within(m9).getByText('Unpublished')).toBeInTheDocument()
+    expect(within(m9).getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+    expect(within(m9).getByRole('button', { name: 'Publish' })).toBeInTheDocument()
 
     const butterfly = screen.getByRole('listitem', { name: 'Butterfly Knife | Doppler (Ruby)' })
     await user.click(within(butterfly).getByRole('button', { name: 'Delete' }))

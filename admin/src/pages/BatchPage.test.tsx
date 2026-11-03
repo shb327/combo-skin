@@ -179,11 +179,14 @@ describe('saving a batch', () => {
     fake.next('POST /admin/batches', refusal([['body', 'create', 1, 'knife', 'float_to'], 'float_outside_finish']))
     const { user } = renderApp(RUBY, fake)
     await user.type(await screen.findByLabelText('Top rating'), '9.5')
-    await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
-    await waitFor(() => expect(row('Butterfly Knife')).toHaveTextContent("Knife float to: Outside this finish's range."))
-    expect(screen.getByRole('alert')).toHaveTextContent('Butterfly Knife, knife float to')
+    // With Butterfly Knife unticked, the second row sent is M9 Bayonet.
+    await user.click(screen.getByRole('checkbox', { name: 'Include Butterfly Knife' }))
+    await user.click(screen.getByRole('button', { name: 'Save 2 as drafts' }))
+    await waitFor(() => expect(row('M9 Bayonet')).toHaveTextContent("Knife float to: Outside this finish's range."))
+    expect(row('Butterfly Knife')).not.toHaveTextContent('Outside')
+    expect(screen.getByRole('alert')).toHaveTextContent('M9 Bayonet, knife float to')
     expect(screen.getByLabelText('Top rating')).toHaveValue('9.50')
-    expect(rating('M9 Bayonet')).toHaveValue('9.40')
+    expect(rating('M9 Bayonet')).toHaveValue('9.45')
   })
 
   it('reloads the rows when combos changed, keeping the owner values', async () => {

@@ -30,7 +30,10 @@ describe('adding a knife to gloves', () => {
     await user.type(within(knife).getByLabelText('Float from'), '0')
     await user.type(within(knife).getByLabelText('Float to'), '0.01')
     const gloves = screen.getByRole('group', { name: 'Gloves' })
-    await user.type(within(gloves).getByLabelText('Pattern seeds'), '2 1')
+    await user.type(within(gloves).getByLabelText('Pattern seeds'), '2 1 2')
+    await user.tab()
+    expect(within(gloves).getByLabelText('Pattern seeds')).toHaveValue('1, 2')
+    expect(within(gloves).getByText('1 duplicate removed')).toBeInTheDocument()
     await user.type(screen.getByLabelText('Description'), 'Red on red')
     await user.click(screen.getByRole('button', { name: 'Save as draft' }))
 
