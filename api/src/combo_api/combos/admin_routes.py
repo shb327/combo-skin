@@ -18,15 +18,21 @@ from combo_api.admins.deps import (
 )
 from combo_api.catalog.models import Finish
 from combo_api.catalog.snapshot import Kind
-from combo_api.combos import queries, rules
-from combo_api.combos.ids import new_public_id
+from combo_api.combos import batches, queries, rules
 from combo_api.combos.models import Combo, Status
 from combo_api.combos.schemas import (
     AdminCombo,
+    BatchFinish,
+    BatchIn,
+    BatchSaved,
+    Candidate,
+    Candidates,
     Changed,
     ComboIn,
     ComboPage,
     ComboUpdate,
+    Existing,
+    KnifeFinishName,
     PublicId,
     PublishRequest,
     Slug,
@@ -94,23 +100,17 @@ async def create_combo(combo: ComboIn, current: AdminDep, db: Session) -> AdminC
         rules.check_conditions(knife[0], combo.knife, ("body", "knife"), problems)
     if glove is None or knife is None or problems.errors:
         raise problems.error()
-    if await pairing_exists(db, glove[0], knife[0]):
+    if await queries.pairing_exists(db, glove[0], knife[0]):
         raise refuse(status.HTTP_409_CONFLICT, "combo_exists")
-    now = clock.now()
-    row = Combo(
-        public_id=new_public_id(),
-        glove_finish_id=glove[0].id,
-        knife_finish_id=knife[0].id,
-        **queries.stored("glove", combo.glove),
-        **queries.stored("knife", combo.knife),
-        rating=decimal(combo.rating),
-        description=combo.description,
-        status="draft",
-        version=1,
-        created_at=now,
-        updated_at=now,
-        created_by=current.id,
-        updated_by=current.id,
+    row = queries.new_combo(
+        glove[0],
+        knife[0],
+        combo.glove,
+        combo.knife,
+        combo.rating,
+        combo.description,
+        current.id,
+        clock.now(),
     )
     db.add(row)
     await db.commit()
@@ -124,13 +124,6 @@ async def create_combo(combo: ComboIn, current: AdminDep, db: Session) -> AdminC
         combo.knife.finish_slug,
     )
     return await load(db, row.public_id)
-
-
-async def pairing_exists(db: AsyncSession, glove: Finish, knife: Finish) -> bool:
-    found = await db.scalar(
-        select(Combo.id).where(Combo.glove_finish_id == glove.id, Combo.knife_finish_id == knife.id)
-    )
-    return found is not None
 
 
 SlugQuery = Annotated[Slug | None, Query()]
@@ -321,3 +314,76 @@ async def unpublish_combos(request: UnpublishRequest, current: AdminDep, db: Ses
     changed = await set_status(db, rows, "unpublished", current)
     logger.info("combos unpublished admin=%s ids=%s", current.username, ",".join(changed))
     return Changed(changed=len(changed))
+
+
+@router.get("/batches/finishes")
+async def list_batch_finishes(current: AdminDep, db: Session) -> list[BatchFinish]:
+    """The knife finish names a batch can use, by display name."""
+    return await batches.finish_names(db)
+
+
+@router.get("/batches/candidates")
+async def get_batch_candidates(
+    current: AdminDep, db: Session, glove_type: Slug, glove_finish: Slug, knife_finish: Slug
+) -> Candidates:
+    """For a glove finish and a knife finish name: every active knife type with that finish,
+    in knife order, with the combo it already has with these gloves, if any."""
+    problems = rules.Problems()
+    item_type = await rules.find_type(db, "glove", glove_type)
+    if item_type is None:
+        problems.add(("query", "glove_type"), "finish_not_found", "No glove type has this slug")
+        raise problems.error()
+    finish = await rules.find_finish(db, item_type, glove_finish)
+    if finish is None:
+        problems.add(("query", "glove_finish"), "finish_not_found", "No finish of this type")
+        raise problems.error()
+    if not (finish.active and item_type.active):
+        problems.add(("query", "glove_finish"), "finish_retired", "No longer in the game")
+        raise problems.error()
+    knives = await batches.knife_finishes(db, knife_finish)
+    combos = await batches.existing(db, finish, [knife for knife, _ in knives])
+    return Candidates(
+        glove=queries.item(finish, item_type),
+        knife_finish=KnifeFinishName(
+            slug=knife_finish,
+            display_name=knives[0][0].display_name if knives else None,
+        ),
+        candidates=[
+            Candidate(
+                knife=queries.item(knife, knife_type),
+                existing=existing_out(combos.get(knife.id)),
+            )
+            for knife, knife_type in knives
+        ],
+    )
+
+
+def existing_out(row: Combo | None) -> Existing | None:
+    if row is None:
+        return None
+    return Existing(
+        id=row.public_id,
+        status=row.status,
+        version=row.version,
+        rating=float(row.rating),
+        description=row.description,
+    )
+
+
+@router.post("/batches", responses=conflict("`version_conflict` or `combo_exists`"))
+async def save_batch(batch: BatchIn, current: AdminDep, db: Session) -> BatchSaved:
+    """Save a batch in one request: all of it, or nothing."""
+    created, updated = await batches.save(db, batch, current)
+    logger.info(
+        "batch saved admin=%s glove=%s/%s knife_finish=%s created=%s updated=%s",
+        current.username,
+        batch.glove.type_slug,
+        batch.glove.finish_slug,
+        batch.knife_finish,
+        ",".join(created),
+        ",".join(updated),
+    )
+    return BatchSaved(
+        created=[await load(db, public_id) for public_id in created],
+        updated=[await load(db, public_id) for public_id in updated],
+    )

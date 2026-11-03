@@ -125,6 +125,220 @@
         "title": "AdminSession",
         "type": "object"
       },
+      "BatchCreate": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "glove": {
+            "$ref": "#/components/schemas/Conditions"
+          },
+          "knife": {
+            "$ref": "#/components/schemas/Conditions"
+          },
+          "knife_type": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Knife Type",
+            "type": "string"
+          },
+          "rating": {
+            "maximum": 10.0,
+            "minimum": 0.0,
+            "title": "Rating",
+            "type": "number"
+          }
+        },
+        "required": [
+          "knife_type",
+          "rating"
+        ],
+        "title": "BatchCreate",
+        "type": "object"
+      },
+      "BatchFinish": {
+        "description": "A knife finish name a batch can use, and how many active knife types have it.",
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "knife_types": {
+            "title": "Knife Types",
+            "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "display_name",
+          "knife_types"
+        ],
+        "title": "BatchFinish",
+        "type": "object"
+      },
+      "BatchIn": {
+        "description": "New combos of one glove finish with one knife finish name across knife types, and\nrating and description changes to existing combos of the same batch.",
+        "properties": {
+          "create": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/BatchCreate"
+            },
+            "maxItems": 50,
+            "title": "Create",
+            "type": "array"
+          },
+          "glove": {
+            "$ref": "#/components/schemas/FinishRef"
+          },
+          "knife_finish": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Knife Finish",
+            "type": "string"
+          },
+          "update": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/BatchUpdate"
+            },
+            "maxItems": 50,
+            "title": "Update",
+            "type": "array"
+          }
+        },
+        "required": [
+          "glove",
+          "knife_finish"
+        ],
+        "title": "BatchIn",
+        "type": "object"
+      },
+      "BatchSaved": {
+        "properties": {
+          "created": {
+            "items": {
+              "$ref": "#/components/schemas/AdminCombo"
+            },
+            "title": "Created",
+            "type": "array"
+          },
+          "updated": {
+            "items": {
+              "$ref": "#/components/schemas/AdminCombo"
+            },
+            "title": "Updated",
+            "type": "array"
+          }
+        },
+        "required": [
+          "created",
+          "updated"
+        ],
+        "title": "BatchSaved",
+        "type": "object"
+      },
+      "BatchUpdate": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "rating": {
+            "maximum": 10.0,
+            "minimum": 0.0,
+            "title": "Rating",
+            "type": "number"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "rating",
+          "description"
+        ],
+        "title": "BatchUpdate",
+        "type": "object"
+      },
+      "Candidate": {
+        "properties": {
+          "existing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Existing"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "knife": {
+            "$ref": "#/components/schemas/Item"
+          }
+        },
+        "required": [
+          "knife",
+          "existing"
+        ],
+        "title": "Candidate",
+        "type": "object"
+      },
+      "Candidates": {
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/Candidate"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "glove": {
+            "$ref": "#/components/schemas/Item"
+          },
+          "knife_finish": {
+            "$ref": "#/components/schemas/KnifeFinishName"
+          }
+        },
+        "required": [
+          "glove",
+          "knife_finish",
+          "candidates"
+        ],
+        "title": "Candidates",
+        "type": "object"
+      },
       "Changed": {
         "properties": {
           "changed": {
@@ -344,6 +558,51 @@
         "title": "Error",
         "type": "object"
       },
+      "Existing": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "rating": {
+            "title": "Rating",
+            "type": "number"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "published",
+              "unpublished"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "version",
+          "rating",
+          "description"
+        ],
+        "title": "Existing",
+        "type": "object"
+      },
       "Finish": {
         "properties": {
           "active": {
@@ -526,6 +785,28 @@
           "item_type"
         ],
         "title": "FinishDetail",
+        "type": "object"
+      },
+      "FinishRef": {
+        "properties": {
+          "finish_slug": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Finish Slug",
+            "type": "string"
+          },
+          "type_slug": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Type Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type_slug",
+          "finish_slug"
+        ],
+        "title": "FinishRef",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -713,6 +994,31 @@
           "glove"
         ],
         "type": "string"
+      },
+      "KnifeFinishName": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "display_name"
+        ],
+        "title": "KnifeFinishName",
+        "type": "object"
       },
       "Live": {
         "properties": {
@@ -951,6 +1257,211 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/admin/batches": {
+      "post": {
+        "description": "Save a batch in one request: all of it, or nothing.",
+        "operationId": "save_batch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchSaved"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`not_authenticated`"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`origin_not_allowed` or `csrf_failed`"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`version_conflict` or `combo_exists`"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Batch",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/batches/candidates": {
+      "get": {
+        "description": "For a glove finish and a knife finish name: every active knife type with that finish,\nin knife order, with the combo it already has with these gloves, if any.",
+        "operationId": "get_batch_candidates",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "glove_type",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Glove Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "glove_finish",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Glove Finish",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "knife_finish",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Knife Finish",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Candidates"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`not_authenticated`"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`origin_not_allowed` or `csrf_failed`"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Batch Candidates",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/batches/finishes": {
+      "get": {
+        "description": "The knife finish names a batch can use, by display name.",
+        "operationId": "list_batch_finishes",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BatchFinish"
+                  },
+                  "title": "Response List Batch Finishes",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`not_authenticated`"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`origin_not_allowed` or `csrf_failed`"
+          }
+        },
+        "summary": "List Batch Finishes",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/admin/combos": {
       "get": {
         "description": "Combos in any status, filtered by glove and knife type and finish (a finish needs its\ntype) and status. Sorted by rating, highest first, or by last change, newest first.",

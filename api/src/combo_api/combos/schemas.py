@@ -146,6 +146,79 @@ class ComboPage(BaseModel):
     items: list[AdminCombo]
 
 
+class BatchFinish(BaseModel):
+    """A knife finish name a batch can use, and how many active knife types have it."""
+
+    slug: str
+    display_name: str
+    knife_types: int
+
+
+class Existing(BaseModel):
+    id: str
+    status: Status
+    version: int
+    rating: float
+    description: str | None
+
+
+class Candidate(BaseModel):
+    knife: Item
+    existing: Existing | None
+
+
+class KnifeFinishName(BaseModel):
+    slug: str
+    display_name: str | None
+
+
+class Candidates(BaseModel):
+    glove: Item
+    knife_finish: KnifeFinishName
+    candidates: list[Candidate]
+
+
+BATCH_MAX = 50
+
+
+class BatchCreate(BaseModel):
+    knife_type: Slug
+    rating: Rating
+    description: Description = None
+    glove: Conditions = Field(default_factory=Conditions)
+    knife: Conditions = Field(default_factory=Conditions)
+
+
+class BatchUpdate(BaseModel):
+    id: PublicId
+    version: int = Field(ge=1)
+    rating: Rating
+    description: Description
+
+
+class BatchIn(BaseModel):
+    """New combos of one glove finish with one knife finish name across knife types, and
+    rating and description changes to existing combos of the same batch."""
+
+    glove: FinishRef
+    knife_finish: Slug
+    create: Annotated[list[BatchCreate], Field(max_length=BATCH_MAX)] = []
+    update: Annotated[list[BatchUpdate], Field(max_length=BATCH_MAX)] = []
+
+    @model_validator(mode="after")
+    def size(self) -> Self:
+        if not 1 <= len(self.create) + len(self.update) <= BATCH_MAX:
+            raise PydanticCustomError(
+                "value_error", f"Value error, a batch holds 1 to {BATCH_MAX} items"
+            )
+        return self
+
+
+class BatchSaved(BaseModel):
+    created: list[AdminCombo]
+    updated: list[AdminCombo]
+
+
 class Item(BaseModel):
     type_slug: str
     type_name: str
