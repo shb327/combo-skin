@@ -381,6 +381,10 @@ Recorded, unchanged:
 
 R13 said a combo updated in a batch takes the batch-wide description, so a blank one cleared an existing description. The owner chose to keep the existing description unless one is typed. R13, Design (Existing combos in a batch) and criterion 18 were updated to match. `rowDescription` in `src/combos/batch.ts` is the rule, used both for the request and for the "after saving" text on the row (`src/pages/BatchPage.test.tsx::saving a batch::creates the ticked rows…`, `::keeps an updated combo description unless one is typed`, `::clears an updated combo description with an empty own description`). Lint, type check, 243 tests, build and the bundle check pass after it.
 
+### Owner's change: browsing by type (2026-11-03)
+
+After the audit the owner asked for a browse like the website's, besides the search, text only. R35 to R37, a Design row (Browsing), the routes and requests tables and criteria 42 to 44 were added. `src/pages/TypePage.tsx` is the type page; `FinishesPage` shows the type grid under the search, from the catalog it already loads; `catalogTypes` in `src/combos/queries.ts` groups catalog entries by type; finish pages link to their type. The knife search now gives a knife example ("karambit ruby") instead of the gloves one. Checked in the browser against a throwaway Compose stack with a placeholder admin and sample combos, both deleted afterwards: the real catalog's 20 knife and 8 glove types, a type page with its counts, and no horizontal scroll at 375 px on the new pages.
+
 ### Follow-ups
 
 - The searches load the catalog with 9 requests for gloves and 21 for knives on each page load (Design, Follow-ups: one API request for every finish of a kind).
@@ -435,6 +439,9 @@ Test ids are relative to `admin/`.
 | 39 | `admin/README.md`: first paragraph, Screens (with unsaved changes), Tests, Project structure |
 | 40 | `git diff --stat origin/main...HEAD -- api website compose.yaml .github` prints nothing |
 | 41 | `gitleaks dir .` and `gitleaks git --log-opts="origin/main..HEAD"`: no leaks; added URLs as in Follow-ups |
+| 42 | `src/pages/TypePage.test.tsx::browsing types` |
+| 43 | `src/pages/TypePage.test.tsx::a type page`; `src/App.test.tsx::shell::titles %s` |
+| 44 | `src/pages/TypePage.test.tsx::finish pages` |
 
 ## Audit
 
