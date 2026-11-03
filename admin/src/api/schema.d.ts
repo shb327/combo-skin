@@ -733,6 +733,10 @@ export interface components {
             finish_slug: string;
             /** Float From */
             float_from: number | null;
+            /** Float Max */
+            float_max: number | null;
+            /** Float Min */
+            float_min: number | null;
             /** Float To */
             float_to: number | null;
             /** Image Url */

@@ -242,6 +242,10 @@ class Item(BaseModel):
     image_url: str
     rarity: Rarity
     active: bool
+    # The finish's own float range from the catalog; null for Vanilla.
+    float_min: float | None
+    float_max: float | None
+    # This combo's conditions.
     float_from: float | None
     float_to: float | None
     seeds: list[int]

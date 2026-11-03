@@ -110,6 +110,8 @@ def item(
         image_url=finish.image_url,
         rarity=Rarity(code=finish.rarity_code, name=finish.rarity_name, color=finish.rarity_color),
         active=finish.active and item_type.active,
+        float_min=finish.float_min,
+        float_max=finish.float_max,
         float_from=float_from,
         float_to=float_to,
         seeds=seeds or [],

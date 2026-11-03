@@ -847,6 +847,28 @@
             ],
             "title": "Float From"
           },
+          "float_max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Float Max"
+          },
+          "float_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Float Min"
+          },
           "float_to": {
             "anyOf": [
               {
@@ -889,6 +911,8 @@
           "image_url",
           "rarity",
           "active",
+          "float_min",
+          "float_max",
           "float_from",
           "float_to",
           "seeds"

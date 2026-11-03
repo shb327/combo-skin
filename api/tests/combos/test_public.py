@@ -20,6 +20,8 @@ ITEM_KEYS = {
     "image_url",
     "rarity",
     "active",
+    "float_min",
+    "float_max",
     "float_from",
     "float_to",
     "seeds",
