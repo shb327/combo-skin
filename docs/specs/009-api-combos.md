@@ -1,6 +1,6 @@
 # 009: Combos API
 
-**Status:** Approved
+**Status:** Implemented
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api, admin
@@ -383,7 +383,72 @@ None. On 2026-11-03 the owner chose every recommendation of the first draft, rec
 
 ## Implementation notes
 
-Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+Built on `009-api-combos`, from `main` at the merge of spec 008.
+
+### Deviations
+
+**2026-11-03, criterion 18 and API / data model, `Item` (needs the owner's agreement).** Criterion 18 asks for each batch candidate "with its image and float range", but the `Item` shape in API / data model has only the combo's own range (`float_from`, `float_to`), which is empty on a candidate, so the finish's range from the catalog was missing. `Item` now also has `float_min` and `float_max`, the finish's own range (null for Vanilla), everywhere it appears: admin combos, candidates and public combos. The dashboard needs it to check a range before sending it. Nothing else in the shape changed. If the owner prefers the range only on candidates, it is a small change.
+
+Smaller changes, none affecting a requirement:
+
+- **Layout.** Besides the files in Design: `combos/queries.py` (loading combos with their finishes, types and admins, and building responses), `combos/order.py` (the effective knife order and replacing it) and `combos/batches.py` (batch finish names, candidates and saving).
+- **Check constraints.** The float range constraints say `IS NOT NULL` for both bounds explicitly. Without it, a range with only one bound passes, because a comparison with null is unknown and a check constraint lets unknown through. A test found it.
+- **`knife_finish.display_name` in candidates** is null when no active knife type has the slug, since there is no finish to name it from.
+- **Batch list sizes.** `create` and `update` are each limited to 50 before the total is checked, so an oversized list is refused before it is read in full; 51 `create` items get 422 at `["body", "create"]`, and more than 50 items across both lists at `["body"]`.
+- **422 codes not listed in API / data model**: a range with one bound, `float_from >= float_to`, a description with a control character, and a request with both or neither of `ids` and `all_drafts` use `value_error`; too many seeds use pydantic's `too_long`; too many decimals use `decimal_max_places`, the code pydantic uses for decimals.
+- **Log lines.** `combos published` and `combos unpublished` list the ids whose status changed; `combo removed` writes the description with Python's `repr`, so line breaks in it cannot start a new log line.
+- **Tests** in `api/tests/combos/` reuse the admin test fixtures (app, clients, accounts, clock) by importing them into their `conftest.py`.
+
+### Follow-ups
+
+- Two requests creating the same pairing at the same moment both pass the existence check; the second then fails on the unique constraint with a 500 instead of 409 `combo_exists`. The same holds for batches. Rare with a few admins; catching the constraint error would close it.
+- The catalog's own float range check (`finishes`, spec 005) has the same gap as above: a row with only one bound would pass. The import never writes one.
+- A public id collision (about one in 10^18 per pair) would surface as a 500.
+- The workflow change was not checked with `actionlint` locally (not installed); it adds two `run` lines in the existing style.
+- Still open from spec 008: the API's error codes are not an enumeration in `api/openapi.json`.
+
+### Criterion coverage
+
+Test ids are relative to `api/`.
+
+| Criterion | Covered by |
+| --- | --- |
+| 1 | `tests/test_migrations.py::test_revision_history`, `::test_upgrade_downgrade_upgrade`, `::test_models_match_migrations`, `::test_head_has_only_known_tables`; `uv run alembic check`: "No new upgrade operations detected"; `alembic history` ends `0003 -> 0004 (head)` |
+| 2 | `tests/combos/test_models.py::test_knife_order_is_seeded` |
+| 3 | `tests/combos/test_models.py::test_constraints`, `::test_referenced_finishes_and_admins_cannot_be_deleted`, `::test_a_valid_combo_is_stored` |
+| 4 | `tests/combos/test_admin_combos.py::test_create_returns_a_draft` |
+| 5 | `tests/combos/test_admin_combos.py::test_same_pairing_is_refused` |
+| 6 | `tests/combos/test_admin_combos.py::test_create_refuses_invalid_input` (21 cases), `::test_finish_bounds_are_inclusive` |
+| 7 | `tests/combos/test_admin_combos.py::test_read_one` |
+| 8 | `tests/combos/test_admin_combos.py::test_update`, `::test_update_checks_conditions` |
+| 9 | `tests/combos/test_admin_combos.py::test_update_after_the_finish_retired` |
+| 10 | `tests/combos/test_admin_combos.py::test_remove`; `tests/combos/test_publish.py::test_published_combo_cannot_be_removed` |
+| 11 | `tests/combos/test_publish.py::test_publish_and_unpublish_by_id` |
+| 12 | `tests/combos/test_publish.py::test_publish_all_drafts` |
+| 13 | `tests/combos/test_publish.py::test_publish_refuses_bad_requests` |
+| 14 | `tests/combos/test_publish.py::test_publishing_does_not_break_an_open_edit` |
+| 15 | `tests/combos/test_list.py::test_filters`, `::test_bad_filters` |
+| 16 | `tests/combos/test_list.py::test_sorting_and_paging`, `::test_bad_filters` |
+| 17 | `tests/combos/test_batches.py::test_batch_finishes` |
+| 18 | `tests/combos/test_batches.py::test_candidates`, `::test_candidates_refusals`, `::test_no_knife_has_the_finish` |
+| 19 | `tests/combos/test_batches.py::test_save_a_batch` |
+| 20 | `tests/combos/test_batches.py::test_batch_refusals` (12 cases, each checking the combo count and every existing combo) |
+| 21 | `tests/combos/test_batches.py::test_ratings_step_exactly` |
+| 22 | `tests/combos/test_knife_order.py::test_read_the_seeded_order` |
+| 23 | `tests/combos/test_knife_order.py::test_replace_the_order`, `::test_refuse_a_wrong_order` |
+| 24 | `tests/combos/test_public.py::test_glove_finish_combos` |
+| 25 | `tests/combos/test_public.py::test_knife_finish_combos` |
+| 26 | `tests/combos/test_public.py::test_public_routes_need_no_session` |
+| 27 | `tests/admins/test_require_admin.py::test_every_write_route_requires_an_admin`, `::test_the_guard_finds_an_unprotected_write`; `tests/combos/test_guard.py::test_admin_routes_refuse_without_a_session`, `::test_admin_writes_need_the_csrf_token` |
+| 28 | `tests/combos/test_guard.py::test_admin_routes_refuse_without_a_session`, `::test_admin_writes_need_the_csrf_token`, `::test_admin_responses_are_not_cached` |
+| 29 | `tests/combos/test_guard.py::test_log_events`; `tests/combos/test_admin_combos.py::test_remove` (the removed content) |
+| 30 | `tests/combos/test_schema.py::test_combo_operations_in_schema`, `::test_numbers_are_numbers`; `tests/test_openapi.py::test_snapshot_is_up_to_date`; `uv run python -m combo_api.openapi --check`: exit 0 |
+| 31 | In `admin/`: `npm run api:types:check`, `npm run lint`, `npm run typecheck`, `npm test` (117 passed), `npm run build`, `npm run check:bundle` all exit 0; `git diff --stat main...009-api-combos -- admin website` lists only `admin/src/api/schema.d.ts` |
+| 32 | `api/README.md`: first paragraph, "Combos" section, the OpenAPI snapshot section (regenerate the admin types too), Endpoints and Layout tables |
+| 33 | In `api/`: format check, lint, mypy, pytest (280 passed, 0 skipped), the OpenAPI and export checks all exit 0; `docker build` exits 0, image 228,512,150 bytes |
+| 34 | A separate Compose project from `api/.env.example` (database name and host ports changed so as not to touch another running stack): `migrate` and `catalog` exited 0, `/health/ready` ok, `GET /gloves/specialist/mogul/combos` returned `[]`, `GET /admin/combos` 401; removed with `down -v`. `.github/workflows/api.yml` checks both |
+| 35 | Pending: the `api` and `admin` workflow runs, after the owner pushes the branch |
+| 36 | `gitleaks dir . --no-banner --redact` and `gitleaks git --log-opts="origin/main..HEAD"`: no leaks. URLs in the branch diff: `localhost` in the workflow and the repository's own badge links |
 
 ## Audit
 
