@@ -84,7 +84,7 @@ npm test
 
 Tests use Vitest with jsdom and Testing Library, next to the code as `*.test.ts(x)`. They run against a fake API (`src/test/fakeApi.ts`): a `fetch` function that answers the admin routes with bodies typed from the schema and records every request. Login against the real API is checked by hand (see Getting started), because an admin can only be created at an interactive terminal.
 
-Lint guard rails, tested in `src/lint.test.ts`: only `src/api/client.ts` may make network requests; nothing may use `localStorage`, `sessionStorage`, IndexedDB or `document.cookie`, render HTML from strings, or call `console.log`.
+Lint guard rails, tested in `src/lint.test.ts`: only `src/api/client.ts` may make network requests; nothing may use `localStorage`, `sessionStorage`, IndexedDB or `document.cookie`, render HTML from strings, or call `console.log`. The rules also catch these through other objects (`window.document.cookie`) and refuse aliases of browser globals (`const d = document`), so they cannot be sidestepped by accident.
 
 ## Project structure
 

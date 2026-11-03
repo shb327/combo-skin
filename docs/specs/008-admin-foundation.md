@@ -307,6 +307,26 @@ None that change a requirement. Smaller additions and choices:
 
 - **Branding (2026-11-03, owner's change).** After implementation the owner asked for the logo and "ADMIN" in capitals, without the text "Combo Skin admin", in the header and on the login page. R16, criterion 21 and a Design row (Branding) were updated to match. The logo, now the only brand mark, also shows below 640 px.
 
+### Changes after a review before the audit (2026-11-03)
+
+An independent read of the tests and code against this spec, before the audit, found these. All are fixed with tests or recorded here; none changes a requirement.
+
+Fixed in code:
+
+- **Logout accepted any 2xx.** R14 and Design say only 204 ends the session. The client now treats any other status as a failure (`src/api/client.test.ts::logout`).
+- **Per-request options could send a call elsewhere.** `request` passed its options to `openapi-fetch` unchanged, so a caller could give another `fetch`, base URL or middleware. Only `params`, `body`, `headers`, `signal` and `parseAs` are kept now, and the origin check moved into the client's `fetch`, after every middleware. A request outside the origin raises its own error, not "cannot reach the API" (`::per-request options`).
+- **Redirects were followed.** Requests now use `redirect: 'error'`, so a redirect cannot carry the CSRF header to another host (`::requests`).
+- **Return path.** `safeNext` returns the parsed path and query, and refuses one that parses to `//host` (for example `/.//example.com`) (`src/App.test.tsx::login::ignores the return path %s`).
+- **Lint guard rails.** They now also catch the same names through any object (`window.navigator.sendBeacon`, `window.document.cookie`, `top.fetch`), aliases of `window`, `document`, `console` and the like, a spread `dangerouslySetInnerHTML`, and `.js` files under `src/` (`src/lint.test.ts`). The fake API's method is named `respond`, so the rule needs no exception for it.
+- **Bundle check.** It now reads every HTML file with single or double quotes, unescapes `\/` in JavaScript, matches absolute URLs in any letter case, and reports protocol-relative URLs in strings and CSS imports (`scripts/check-bundle.test.ts`).
+- `package.json` requires npm 11, and `admin/.gitignore` ignores every `.env*` file except `.env.example`.
+
+Tests made stricter (criteria 12, 13, 14, 15, 21, 25): loading goes straight to the shell or to login, never showing the other in between (watched with a mutation observer); the username is found inside the header; the 500 message is exactly the generic text and the server's markup appears nowhere, even as text; submit stays disabled at 89 seconds of a 90-second `Retry-After`; an empty username, an empty password and a submit that skips the browser's `required` check send nothing; the placeholders' "comes in a later version" text is checked; the full-flow test records every address the app moves to and spies on every console method. Tests now render the app in `StrictMode`, as `main.tsx` does, and still see one `/admin/me`.
+
+Recorded, unchanged:
+
+- Design's Files lists header and navigation components; both are in `src/components/Layout.tsx`.
+
 ### Follow-ups
 
 - The Content Security Policy is a `<meta>` tag; `frame-ancestors` needs the `deploy/` spec's response header (already in Design's follow-ups).
@@ -329,7 +349,7 @@ Test ids are relative to `admin/`.
 | 9 | `src/api/client.test.ts::requests::refuse %s without sending anything` |
 | 10 | `src/api/client.test.ts::csrf_failed` (three tests); `src/App.test.tsx::csrf_failed twice`, `::session end::goes to login when the CSRF refresh finds the session ended` |
 | 11 | `src/lint.test.ts` |
-| 12 | `src/App.test.tsx::loading` |
+| 12 | `src/App.test.tsx::loading` (four tests, under `StrictMode`) |
 | 13 | `src/App.test.tsx::login::returns to the requested path and query`, `::goes home without a return path` |
 | 14 | `src/App.test.tsx::login::keeps the username and clears the password after wrong credentials`, `::counts down Retry-After and keeps submit disabled until it ends`, `::enables submit without a usable Retry-After`, `::shows a fixed message for %s` |
 | 15 | `src/App.test.tsx::login::has labelled fields with the right attributes, in a post form`, `::sends nothing with an empty field, or while a login is in flight` |
@@ -341,7 +361,7 @@ Test ids are relative to `admin/`.
 | 21 | `src/App.test.tsx::shell::has the header, the navigation and the placeholders`, `::shows not found inside the shell`, `::asks for login before not found` |
 | 22 | `src/App.test.tsx::shell::titles %s`, `::titles the login page` |
 | 23 | In the browser at 375 and 1440 px: the login page, Home, By gloves and By knife have `scrollWidth` equal to the window width; below 768 px the Menu button opens the navigation (`aria-expanded="true"`), above it the sidebar shows. The header fix under Deviations came from this check |
-| 24 | `scripts/check-bundle.test.ts`; `npm run build && npm run check:bundle` exits 0 |
+| 24 | `scripts/check-bundle.test.ts` (the three samples of the criterion and eleven more); `npm run build && npm run check:bundle` exits 0 |
 | 25 | `src/flow.test.tsx` |
 | 26 | The grep prints only `import.meta.env.VITE_API_BASE_URL`; `gitleaks dir admin --no-banner --redact` after a build: no leaks |
 | 27 | Local stack from `api/.env.example`, `npm run build && npm run preview`: login, reload, logout, login, reload and logout show no CSP message in the console; the network list shows requests only to `localhost:5174` and `localhost:8000`; session storage and IndexedDB are empty, and the app added nothing to local storage or cookies. The browser used for the check already held another local app's entries for `localhost`, left untouched. A logout `POST` shows as aborted in the network list after its 204, because the client does not read the empty body; the app handles it as a success |
