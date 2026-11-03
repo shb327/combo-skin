@@ -6,6 +6,7 @@ import type { components } from '../api/schema'
 import { useTitle } from '../components/useTitle'
 import { EMPTY_BATCH, batchRows, checkBatch, knifeBatchRange, rowDescription, type BatchText, type Row, type RowText } from '../combos/batch'
 import { ConditionsFields, DescriptionField, RatingField } from '../combos/fields'
+import { Picture } from '../combos/Picture'
 import { FIELD_LABELS, fieldKey, itemErrors, type FieldErrors } from '../combos/form'
 import { COMBO_MESSAGES, comboErrorMessage, isCode } from '../combos/messages'
 import { finishPath } from '../combos/paths'
@@ -387,6 +388,7 @@ function BatchRow({
   return (
     <li className="rounded-lg border border-white/10 p-3" aria-label={name}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <Picture url={row.candidate.knife.image_url} size="sm" />
         <input
           id={id}
           type="checkbox"

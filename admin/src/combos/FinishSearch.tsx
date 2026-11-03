@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import { Picture } from './Picture'
 import { search } from './search'
 import { INPUT } from './styles'
 
@@ -6,6 +7,7 @@ export interface SearchEntry {
   id: string
   label: string
   color?: string
+  imageUrl?: string
 }
 
 /** A combobox over finishes: type words, move with Up and Down, choose with Enter. */
@@ -99,6 +101,7 @@ export function FinishSearch<T extends SearchEntry>({
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => choose(entry)}
           >
+            {entry.imageUrl && <Picture url={entry.imageUrl} size="sm" />}
             {entry.color && (
               <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: entry.color }} />
             )}

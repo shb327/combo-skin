@@ -25,6 +25,7 @@ export interface CatalogEntry {
   color: string
   floatMin: number | null
   floatMax: number | null
+  imageUrl: string
 }
 
 export interface ComboFilters {
@@ -94,6 +95,7 @@ async function loadCatalog(api: Api, kind: Kind): Promise<Catalog> {
       color: finish.rarity.color,
       floatMin: finish.float_min,
       floatMax: finish.float_max,
+      imageUrl: finish.image_url,
     })),
   )
   return { types: (types ?? []).map(({ slug, name }) => ({ slug, name })), entries }

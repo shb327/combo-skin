@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router'
 import { useTitle } from '../components/useTitle'
 import { ComboList } from '../combos/ComboList'
+import { Picture } from '../combos/Picture'
 import { COMBO_MESSAGES } from '../combos/messages'
 import { BASE, DIRECTION, finishPath, typePath } from '../combos/paths'
 import type { Kind } from '../combos/queries'
@@ -35,8 +36,13 @@ export function FinishPage({ kind }: { kind: Kind }) {
           <span>{data.item_type.name}</span>
         )}
       </p>
-      <h1 className="mt-1 text-2xl font-semibold">{detailLabel(data)}</h1>
-      <p className="mt-1 text-sm text-white/70">{range ? `Float ${range}` : 'No float range'}</p>
+      <div className="mt-2 flex items-center gap-4">
+        <Picture url={data.image_url} size="lg" />
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold">{detailLabel(data)}</h1>
+          <p className="mt-1 text-sm text-white/70">{range ? `Float ${range}` : 'No float range'}</p>
+        </div>
+      </div>
       {retired ? (
         <p className="mt-3 rounded-md bg-white/5 px-3 py-2 text-sm">{COMBO_MESSAGES.retired}</p>
       ) : (

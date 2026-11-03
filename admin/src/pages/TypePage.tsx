@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router'
 import { useTitle } from '../components/useTitle'
+import { Picture } from '../combos/Picture'
 import { BASE, DIRECTION, finishPath } from '../combos/paths'
 import { useCatalogTypes, useCombos, type AdminCombo, type Kind } from '../combos/queries'
 import { LINK } from '../combos/styles'
@@ -58,14 +59,17 @@ export function TypePage({ kind }: { kind: Kind }) {
             <li key={finish.finishSlug}>
               <Link
                 to={finishPath(kind, slug, finish.finishSlug)}
-                className="block h-full rounded-lg border border-white/10 bg-white/5 p-4 hover:border-accent"
+                className="flex h-full gap-3 rounded-lg border border-white/10 bg-white/5 p-4 hover:border-accent"
               >
+                <Picture url={finish.imageUrl} size="md" />
+                <span className="min-w-0">
                 <span className="flex items-center gap-2 font-semibold">
                   <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: finish.color }} />
                   {finish.displayName}
                 </span>
                 <span className="mt-1 block text-sm text-white/60">{range ? `Float ${range}` : 'No float range'}</span>
                 <span className="mt-1 block text-sm text-white/80">{counts(combos.data, combos.isError, finish.finishSlug, kind)}</span>
+                </span>
               </Link>
             </li>
           )

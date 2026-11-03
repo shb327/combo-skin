@@ -23,7 +23,6 @@ describe('browsing types', () => {
     expect(types.map((t) => t.getAttribute('href'))).toEqual(['/gloves/specialist', '/gloves/sport'])
     expect(fake.to('GET /gloves')).toHaveLength(1)
     expect(fake.to('GET /gloves/{type}')).toHaveLength(2)
-    expect(document.querySelector('main img')).toBeNull()
   })
 
   it('lists the knife types', async () => {
@@ -38,7 +37,6 @@ describe('browsing types', () => {
     expect(types.map((t) => t.getAttribute('href'))).toEqual(['/knives/butterfly', '/knives/karambit', '/knives/m9-bayonet'])
     expect(fake.to('GET /knives')).toHaveLength(1)
     expect(fake.to('GET /knives/{type}')).toHaveLength(3)
-    expect(document.querySelector('main img')).toBeNull()
   })
 
   it('lists a type with no active finishes, whose page says so', async () => {
@@ -76,7 +74,6 @@ describe('a type page', () => {
     expect(Object.fromEntries(new URL(request.url).searchParams)).toEqual({ glove_type: 'specialist', limit: '500', offset: '0' })
     expect(fake.to('GET /admin/combos')).toHaveLength(1)
     await waitFor(() => expect(document.title).toBe('Specialist Gloves · Combo Skin admin'))
-    expect(document.querySelector('main img')).toBeNull()
   })
 
   it('lists the knife finishes, Vanilla without a range', async () => {

@@ -5,6 +5,7 @@ import { ApiError } from '../api/errors'
 import { useApi } from '../api/useApi'
 import { useTitle } from '../components/useTitle'
 import { ComboFields } from '../combos/ComboFields'
+import { Picture } from '../combos/Picture'
 import { EMPTY_COMBO, checkCombo, comboText, problemErrors, summaryEntries, type ComboText, type FieldErrors } from '../combos/form'
 import { COMBO_MESSAGES, comboErrorMessage, isCode } from '../combos/messages'
 import { finishPath } from '../combos/paths'
@@ -187,15 +188,17 @@ export function EditComboPage() {
         </Link>
       </p>
       <h1 className="mt-1 text-2xl font-semibold">Edit combo</h1>
-      <p className="mt-2 text-lg">
+      <div className="mt-2 flex flex-wrap items-center gap-3 text-lg">
+        <Picture url={stored.glove.image_url} size="md" />
         <Link to={finishPath('glove', stored.glove.type_slug, stored.glove.finish_slug)} className={LINK}>
           {finishLabel(stored.glove)}
         </Link>{' '}
-        with{' '}
+        <span>with</span>{' '}
+        <Picture url={stored.knife.image_url} size="md" />
         <Link to={finishPath('knife', stored.knife.type_slug, stored.knife.finish_slug)} className={LINK}>
           {finishLabel(stored.knife)}
         </Link>
-      </p>
+      </div>
       <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-white/70">
         <StatusBadge status={stored.status} />
         <span>Version {stored.version}</span>

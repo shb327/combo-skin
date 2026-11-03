@@ -1,6 +1,8 @@
 import { Link, useNavigate } from 'react-router'
 import { useTitle } from '../components/useTitle'
 import { FinishSearch } from '../combos/FinishSearch'
+import { Picture } from '../combos/Picture'
+import { typePicture } from '../combos/pictures'
 import { DIRECTION, SEARCH_EXAMPLE, finishPath, typePath } from '../combos/paths'
 import { useCatalog, useCatalogTypes, type Kind } from '../combos/queries'
 import { QueryState } from '../combos/ui'
@@ -40,7 +42,10 @@ export function FinishesPage({ kind }: { kind: Kind }) {
                     to={typePath(kind, type.slug)}
                     className="block h-full rounded-lg border border-white/10 bg-white/5 p-4 hover:border-accent"
                   >
-                    <span className="block font-semibold">{type.name}</span>
+                    <span className="flex justify-center">
+                      <Picture url={typePicture(kind, type)} size="lg" />
+                    </span>
+                    <span className="mt-2 block font-semibold">{type.name}</span>
                     <span className="mt-1 block text-sm text-white/60">
                       {type.finishes.length} {type.finishes.length === 1 ? 'finish' : 'finishes'}
                     </span>

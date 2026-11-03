@@ -1,5 +1,6 @@
 /** A small catalog and combo store for the fake API: enough of spec 009's rules (pairings,
  * versions, statuses, all or nothing) for the combo screens. Names and images are placeholders. */
+import { IMAGE_ORIGIN } from '../api/images'
 import type { components } from '../api/schema'
 
 type Schemas = components['schemas']
@@ -90,7 +91,10 @@ function find(kind: Kind, typeSlug: string, finishSlug: string) {
   return type && found ? { type, finish: found } : null
 }
 
-function catalogFinish(kind: Kind, f: FakeFinish, paintIndex: number): Schemas['Finish'] {
+/** A picture URL on the game's image host; never fetched in tests. */
+export const picture = (type: string, finish: string) => `${IMAGE_ORIGIN}/economy/image/fake/${type}/${finish}`
+
+function catalogFinish(kind: Kind, type: string, f: FakeFinish, paintIndex: number): Schemas['Finish'] {
   return {
     slug: f.slug,
     name: f.name,
@@ -101,7 +105,7 @@ function catalogFinish(kind: Kind, f: FakeFinish, paintIndex: number): Schemas['
     rarity: RARITY[kind],
     float_min: f.float_min,
     float_max: f.float_max,
-    image_url: `https://example.com/images/${f.slug}.png`,
+    image_url: picture(type, f.slug),
     active: f.active,
   }
 }
@@ -123,14 +127,14 @@ export function catalogAnswer(kind: Kind, typeSlug?: string, finishSlug?: string
   if (!finishSlug) {
     const detail: Schemas['TypeDetail'] = {
       ...summary(type, index),
-      finishes: type.finishes.filter((f) => f.active).map((f, i) => catalogFinish(kind, f, i)),
+      finishes: type.finishes.filter((f) => f.active).map((f, i) => catalogFinish(kind, type.slug, f, i)),
     }
     return [200, detail]
   }
   const found = type.finishes.findIndex((f) => f.slug === finishSlug)
   if (found < 0) return [404, { detail: 'Not Found' }]
   const one: Schemas['FinishDetail'] = {
-    ...catalogFinish(kind, type.finishes[found], found),
+    ...catalogFinish(kind, type.slug, type.finishes[found], found),
     item_type: { slug: type.slug, name: type.name, def_index: 500 + index, kind, active: true },
   }
   return [200, one]
@@ -145,7 +149,7 @@ function item(kind: Kind, typeSlug: string, finishSlug: string, conditions: Part
     type_name: found.type.name,
     finish_slug: finishSlug,
     display_name: displayName(found.finish),
-    image_url: `https://example.com/images/${finishSlug}.png`,
+    image_url: picture(typeSlug, finishSlug),
     rarity: RARITY[kind],
     active: found.finish.active,
     float_min: found.finish.float_min,

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router'
 import { useApi } from '../api/useApi'
+import { Picture } from './Picture'
 import { COMBO_MESSAGES, comboErrorMessage, isCode } from './messages'
 import { finishLabel, useComboWrites, useCombos, type AdminCombo, type ComboFilters, type ComboStatus, type Kind } from './queries'
 import { INPUT, LINK, SECONDARY } from './styles'
@@ -208,6 +209,7 @@ export function ComboList({ side, filters }: { side: Kind; filters: ComboFilters
             return (
               <li key={combo.id} className="rounded-lg border border-white/10 p-3" aria-label={label}>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <Picture url={other(combo).image_url} size="sm" />
                   <input
                     type="checkbox"
                     aria-label={`Select ${label}`}

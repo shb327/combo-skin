@@ -5,6 +5,7 @@ import { useApi } from '../api/useApi'
 import { useTitle } from '../components/useTitle'
 import { ComboFields } from '../combos/ComboFields'
 import { FinishSearch } from '../combos/FinishSearch'
+import { Picture } from '../combos/Picture'
 import { EMPTY_COMBO, checkCombo, problemErrors, summaryEntries, type ComboText, type FieldErrors } from '../combos/form'
 import { COMBO_MESSAGES, comboErrorMessage, isCode } from '../combos/messages'
 import { SEARCH_EXAMPLE, finishPath } from '../combos/paths'
@@ -146,6 +147,7 @@ export function AddComboPage({ kind }: { kind: Kind }) {
           <div>
             <p className="text-sm">{otherKind === 'knife' ? 'Knife' : 'Gloves'}</p>
             <p className="mt-1 flex flex-wrap items-center gap-3">
+              <Picture url={values.other.imageUrl} size="md" />
               <span className="font-semibold">{values.other.label}</span>
               <button type="button" className={SECONDARY} onClick={() => change({ ...values, other: null })}>
                 Change
