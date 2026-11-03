@@ -27,6 +27,7 @@ describe('editing a combo', () => {
     expect(main).toHaveTextContent('Draft')
     expect(main).toHaveTextContent('Version 1')
     expect(main).toHaveTextContent(/Created .* by placeholder-admin/)
+    expect(main).toHaveTextContent(/Last changed .* by placeholder-admin/)
     expect(screen.queryByRole('combobox')).toBeNull()
     expect(screen.getByLabelText('Rating')).toHaveValue('9.10')
     expect(within(screen.getByRole('group', { name: 'Knife' })).getByLabelText('Float to')).toHaveValue('0.01')

@@ -15,7 +15,7 @@ interface Form {
   path: (fake: FakeApi) => string
   fill(user: User): Promise<void>
   /** Checks the filled values are shown. */
-  filled(): void
+  filled(user: User): void | Promise<void>
   /** Checks the stored or empty values are shown. */
   stored(): void
   save: string
@@ -57,13 +57,15 @@ const FORMS: Form[] = [
       await user.click(screen.getByRole('button', { name: 'Set own description for Karambit' }))
       await user.type(screen.getByLabelText('Description, Karambit only'), 'Own')
     },
-    filled() {
+    async filled(user) {
       expect(screen.getByLabelText('Top rating')).toHaveValue('9.50')
       expect(screen.getByRole('checkbox', { name: 'Include Butterfly Knife' })).not.toBeChecked()
       expect(screen.getByLabelText('Rating for Karambit')).toHaveValue('9.50')
       expect(screen.getByLabelText('Rating for M9 Bayonet')).toHaveValue('9.90')
       expect(within(knifeGroup()).getByLabelText('Float to')).toHaveValue('0.02')
-      expect(screen.getByRole('button', { name: 'Own values for Karambit (description)' })).toBeInTheDocument()
+      expect(within(knifeGroup()).getByLabelText('Float from')).toHaveValue('0')
+      await user.click(screen.getByRole('button', { name: 'Own values for Karambit (description)' }))
+      expect(screen.getByLabelText('Description, Karambit only')).toHaveValue('Own')
     },
     stored() {
       expect(screen.getByLabelText('Top rating')).toHaveValue('')
@@ -120,7 +122,7 @@ describe.each(FORMS)('the $name form', (form) => {
     await logIn(user)
     await waitFor(() => expect(where()).toBe(path))
     expect(await screen.findByText('Restored unsaved changes.')).toBeInTheDocument()
-    form.filled()
+    await form.filled(user)
 
     await user.click(screen.getByRole('button', { name: 'Discard' }))
     expect(screen.queryByText('Restored unsaved changes.')).toBeNull()
@@ -142,7 +144,7 @@ describe('unsaved changes', () => {
     fake.expiresAt = new Date(Date.now() + 60 * 60_000).toISOString()
     await logIn(user)
     expect(await screen.findByText('Restored unsaved changes.')).toBeInTheDocument()
-    FORMS[0].filled()
+    await FORMS[0].filled(user)
   })
 
   it('stay when leaving the form and coming back, and go after a save', async () => {
@@ -153,7 +155,7 @@ describe('unsaved changes', () => {
     window.history.back()
     await waitFor(() => expect(where()).toBe('/gloves/specialist/crimson-kimono/add'))
     expect(await screen.findByText('Restored unsaved changes.')).toBeInTheDocument()
-    FORMS[0].filled()
+    await FORMS[0].filled(user)
 
     await user.click(screen.getByRole('button', { name: 'Save as draft' }))
     await waitFor(() => expect(where()).toBe('/gloves/specialist/crimson-kimono'))

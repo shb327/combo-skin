@@ -79,6 +79,7 @@ describe('the batch rows', () => {
 
     await user.click(screen.getByRole('button', { name: 'Refill from top' }))
     expect(rating('Butterfly Knife')).toHaveValue('7.95')
+    expect(rating('M9 Bayonet')).toHaveValue('7.90')
     const rows = within(screen.getByRole('list', { name: 'Knives' })).getAllByRole('listitem')
     expect(rows.map((r) => r.getAttribute('aria-label'))).toEqual(['Karambit', 'Butterfly Knife', 'M9 Bayonet'])
   })
@@ -104,6 +105,13 @@ describe('the batch rows', () => {
     await user.clear(within(own).getByLabelText('Float from'))
     await user.type(within(own).getByLabelText('Float from'), '0.06')
     expect(row('M9 Bayonet')).not.toHaveTextContent('Outside')
+    // Clear returns a row to the batch-wide range, and its error with it.
+    await user.click(screen.getByRole('button', { name: 'Clear own knife values for M9 Bayonet' }))
+    expect(row('M9 Bayonet')).toHaveTextContent('Outside')
+    await user.click(screen.getByRole('button', { name: 'Set own knife values for M9 Bayonet' }))
+    const again = screen.getByRole('group', { name: 'Knife, M9 Bayonet only' })
+    await user.clear(within(again).getByLabelText('Float from'))
+    await user.type(within(again).getByLabelText('Float from'), '0.06')
 
     await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
     await waitFor(() => expect(fake.to('POST /admin/batches')).toHaveLength(1))

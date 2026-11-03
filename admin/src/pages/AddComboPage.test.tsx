@@ -23,7 +23,8 @@ describe('adding a knife to gloves', () => {
 
   it('creates one draft and lists it on the finish page', async () => {
     const fake = new FakeApi().withSession()
-    const { user } = renderApp(ADD, fake)
+    const { user } = renderApp('/gloves/specialist/crimson-kimono', fake)
+    await user.click(await screen.findByRole('link', { name: 'Add knife' }))
     await pickKnife(user, 'karambit ruby')
     await user.type(screen.getByLabelText('Rating'), '8,88')
     const knife = screen.getByRole('group', { name: 'Knife' })
@@ -38,6 +39,7 @@ describe('adding a knife to gloves', () => {
     await user.click(screen.getByRole('button', { name: 'Save as draft' }))
 
     await waitFor(() => expect(where()).toBe('/gloves/specialist/crimson-kimono'))
+    expect(fake.to('POST /admin/combos')).toHaveLength(1)
     const [request] = fake.to('POST /admin/combos')
     expect(request.body).toContain('"rating":8.88')
     expect(JSON.parse(request.body)).toEqual({

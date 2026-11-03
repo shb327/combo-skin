@@ -11,7 +11,8 @@ describe('finding a finish', () => {
     expect(fake.to('GET /gloves')).toHaveLength(1)
     expect(fake.to('GET /gloves/{type}')).toHaveLength(2)
 
-    await user.type(search, 'kimono')
+    search.focus()
+    await user.keyboard('kimono')
     expect(search).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['Specialist Gloves | Crimson Kimono'])
     await user.keyboard('{ArrowDown}{Enter}')
