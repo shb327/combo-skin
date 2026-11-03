@@ -394,6 +394,12 @@ After the audit the owner asked for a browse like the website's, besides the sea
 
 An independent audit of both owner's changes found, and these were fixed with tests: a type page kept saying "Counting combos…" when its combos could not be loaded (now "Combo count unavailable", with the error and Try again); a finish of a retired type linked to a type page that does not exist (the type is now named without a link); an active type without active finishes was left out of the grid, though R35 says every type (the catalog's type list is now kept with its finishes; such a type's page says it has no finishes); an unknown type still asked for its combos (now only a known type does); and "Set own description" on an existing combo started from the batch-wide description, clearing the current one at once (it now starts from the current description) (`src/pages/TypePage.test.tsx`, `src/pages/BatchPage.test.tsx::saving a batch`). Tests were added for the knife type links and request, the rarity colour, an unknown knife type, an existing description that is null, and a batch description of spaces. `admin/README.md` describes the type grid and type pages.
 
+### Owner's change: pictures (2026-11-03)
+
+The owner found the screens hard to scan without pictures and asked for the game's own, as the website uses, until the screenshot storage spec. R35 and R38, the Finish images and Browsing rows of Design, Security S5 and S9, and criteria 3, 32, 35, 42, 45 and 46 were updated; this replaces the first choice of no images and, for images only, spec 008 S4. `src/api/images.ts` holds the host (`IMAGE_ORIGIN`) and `pictureUrl`, which keeps only `https` URLs on it; `vite.config.ts` adds the host to `img-src`, and `scripts/check-bundle.mjs` names the same host (`scripts/csp.test.ts` checks both agree) and still refuses an `<img>` to any host in the built HTML. `src/combos/Picture.tsx` renders a picture lazily, without a referrer, with an empty `alt` beside its visible name, and leaves an empty box when there is none or it fails; `src/combos/pictures.ts` picks each type's picture. The fake catalog's pictures are on the image host (never fetched in tests).
+
+Checked in the browser with a production build under its CSP, against a throwaway Compose stack with a placeholder admin and sample combos, both deleted afterwards: the 8 glove types and 20 knife types show their pictures, a type page shows all 35 of its finishes', and the finish page, combo rows and batch rows show theirs; no CSP violation; resources only from the app, the API and the image host; no horizontal scroll at 375 px.
+
 ### Follow-ups
 
 - The searches load the catalog with 9 requests for gloves and 21 for knives on each page load (Design, Follow-ups: one API request for every finish of a kind).
@@ -438,7 +444,7 @@ Test ids are relative to `admin/`.
 | 29 | `src/combos/drafts.test.tsx::unsaved changes::make the browser warn before a reload` |
 | 30 | `src/flow.test.tsx::entering combos` |
 | 31 | `src/pages/FinishPage.test.tsx::renders names and descriptions as text`; `src/pages/EditComboPage.test.tsx::renders the description as text` |
-| 32 | `scripts/csp.test.ts`; `npm run build && npm run check:bundle` exits 0 |
+| 32 | `scripts/csp.test.ts`, `scripts/check-bundle.test.ts` (a policy without the image host fails); `npm run build && npm run check:bundle` exits 0 |
 | 33 | A throwaway Compose project from the worktree with `api/.env.example` (host ports moved so as not to touch the running stack) and a placeholder admin made with spec 007's tool, both deleted afterwards; the dev server pointed at it. "crimson kimono" found Specialist Gloves \| Crimson Kimono; the Doppler (Ruby) batch listed 18 knife types in the seeded order, Butterfly first; with Ursus, Paracord and Survival unticked, the top rating 9.50 and Karambit's own knife range 0 to 0.01, Save created 15 drafts; "Publish these 15 new combos" published them, and `GET /gloves/specialist/crimson-kimono/combos` returned 15 combos rated 9.50 down to 8.80 by 0.05, Karambit with its range. Ursus Doppler (Ruby) added from By gloves (rating typed `8,7`) and Sport Gloves \| Vice added from By knife. The same combo saved in two tabs: the second showed the conflict with 9.60 theirs and 9.30 yours. Karambit moved to position 1 with the keyboard, focus kept on its Move down button; a new batch listed it first |
 | 34 | Same stack with `SESSION_IDLE_MINUTES=5`: half a batch filled (top rating 8.80, Talon unticked), more than five minutes without a request, then login showed with the session-ended notice and `next` set to the batch; logging in returned to it with "Restored unsaved changes.", the top rating and Talon unticked. A `beforeunload` event on the page with unsaved changes is cancelled |
 | 35 | `vite build` against the check API and `vite preview` on port 5174: every page of the routes table visited, a search typed; no Content Security Policy violation reported or logged; resources only from `localhost:5174` and the API origin; session storage and IndexedDB empty, and the app added nothing to local storage or cookies (the browser already held another local app's entries for `localhost`, left untouched) |
@@ -451,6 +457,8 @@ Test ids are relative to `admin/`.
 | 42 | `src/pages/TypePage.test.tsx::browsing types` |
 | 43 | `src/pages/TypePage.test.tsx::a type page`; `src/App.test.tsx::shell::titles %s` |
 | 44 | `src/pages/TypePage.test.tsx::finish pages` |
+| 45 | `src/combos/pictures.test.tsx` (type grids, type page, search options, finish page and combo rows, batch rows and edit page) |
+| 46 | `src/api/images.test.ts`; `src/combos/pictures.test.tsx::never come from another host, and a failed one is removed` |
 
 ## Audit
 
