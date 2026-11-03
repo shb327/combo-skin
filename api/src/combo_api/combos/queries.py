@@ -22,10 +22,11 @@ KnifeType = aliased(ItemType, name="knife_type")
 Creator = aliased(Admin, name="creator")
 Updater = aliased(Admin, name="updater")
 
-ComboRow = Row[Combo, Finish, ItemType, Finish, ItemType, str, str]
+ComboColumns = tuple[Combo, Finish, ItemType, Finish, ItemType, str, str]
+ComboRow = Row[*ComboColumns]
 
 
-def combos() -> Select[Combo, Finish, ItemType, Finish, ItemType, str, str]:
+def combos() -> Select[*ComboColumns]:
     return (
         select(
             Combo,

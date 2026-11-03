@@ -3,6 +3,7 @@ from typing import Any
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from tests.admins.support import Clock
 from tests.combos.support import create, logged_in
@@ -30,7 +31,9 @@ PLAN = [
 
 
 @pytest.fixture
-async def made(admin_client: AsyncClient, fake_clock: Clock) -> list[Made]:
+async def made(
+    admin_client: AsyncClient, catalog: AsyncSession, admin: int, fake_clock: Clock
+) -> list[Made]:
     headers = await logged_in(admin_client)
     result = []
     for glove, knife, rating, status in PLAN:

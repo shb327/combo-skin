@@ -23,6 +23,7 @@ from combo_api.admins import routes as admins
 from combo_api.admins.deps import CSRF_HEADER, NO_STORE
 from combo_api.catalog import routes as catalog
 from combo_api.combos import admin_routes as combos_admin
+from combo_api.combos import public_routes as combos_public
 from combo_api.db import create_engine, head_revision
 from combo_api.settings import Settings, load_settings
 
@@ -135,6 +136,7 @@ def create_app(settings: Settings | None = None, env_file: str | None = ".env") 
     app.include_router(catalog.router)
     app.include_router(admins.router)
     app.include_router(combos_admin.router)
+    app.include_router(combos_public.router)
     app.add_middleware(AdminCors)
     app.add_exception_handler(RequestValidationError, validation_error)
 

@@ -1088,6 +1088,44 @@
         "title": "Live",
         "type": "object"
       },
+      "PublicCombo": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "glove": {
+            "$ref": "#/components/schemas/Item"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "knife": {
+            "$ref": "#/components/schemas/Item"
+          },
+          "rating": {
+            "title": "Rating",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "rating",
+          "description",
+          "glove",
+          "knife"
+        ],
+        "title": "PublicCombo",
+        "type": "object"
+      },
       "PublishRequest": {
         "description": "Combos to publish: `ids`, or every draft with `all_drafts`. Exactly one of them.",
         "properties": {
@@ -2516,6 +2554,65 @@
         ]
       }
     },
+    "/gloves/{type_slug}/{finish_slug}/combos": {
+      "get": {
+        "description": "The published combos of one glove finish, highest rating first; ties in knife order.",
+        "operationId": "list_glove_finish_combos",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "type_slug",
+            "required": true,
+            "schema": {
+              "title": "Type Slug",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "finish_slug",
+            "required": true,
+            "schema": {
+              "title": "Finish Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PublicCombo"
+                  },
+                  "title": "Response List Glove Finish Combos",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Glove Finish Combos",
+        "tags": [
+          "combos"
+        ]
+      }
+    },
     "/health/live": {
       "get": {
         "description": "The process is up and serving requests.",
@@ -2694,6 +2791,65 @@
         "summary": "Get Knife Finish",
         "tags": [
           "catalog"
+        ]
+      }
+    },
+    "/knives/{type_slug}/{finish_slug}/combos": {
+      "get": {
+        "description": "The published combos of one knife finish, highest rating first; ties in glove order.",
+        "operationId": "list_knife_finish_combos",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "type_slug",
+            "required": true,
+            "schema": {
+              "title": "Type Slug",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "finish_slug",
+            "required": true,
+            "schema": {
+              "title": "Finish Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PublicCombo"
+                  },
+                  "title": "Response List Knife Finish Combos",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Knife Finish Combos",
+        "tags": [
+          "combos"
         ]
       }
     }
