@@ -194,10 +194,36 @@ describe('saving a batch', () => {
     await user.type(screen.getByLabelText('Top rating'), '9.5')
     await user.click(screen.getByRole('button', { name: 'Own values for Karambit' }))
     await user.click(screen.getByRole('button', { name: 'Set own description for Karambit' }))
+    await user.clear(screen.getByLabelText('Description, Karambit only'))
     expect(row('Karambit')).toHaveTextContent('after saving: none')
     await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
     await waitFor(() => expect(fake.to('POST /admin/batches')).toHaveLength(1))
     expect(JSON.parse(fake.to('POST /admin/batches')[0].body).update[0]).toMatchObject({ id: existing.id, description: null })
+  })
+
+  it.each([
+    ['null', null, '', null],
+    ['blank batch text', 'old', '   ', 'old'],
+  ])('handles an existing description: %s', async (_, current, batchText, sent) => {
+    const { fake, existing } = withKarambit()
+    existing.description = current
+    const { user } = renderApp(RUBY, fake)
+    await user.click(await screen.findByRole('checkbox', { name: 'Update Karambit' }))
+    await user.type(screen.getByLabelText('Top rating'), '9.5')
+    if (batchText) await user.type(screen.getByLabelText('Description'), batchText)
+    await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
+    await waitFor(() => expect(fake.to('POST /admin/batches')).toHaveLength(1))
+    expect(JSON.parse(fake.to('POST /admin/batches')[0].body).update[0].description).toBe(sent)
+  })
+
+  it('starts an existing combo own description from its current one', async () => {
+    const { fake } = withKarambit()
+    const { user } = renderApp(RUBY, fake)
+    await user.click(await screen.findByRole('checkbox', { name: 'Update Karambit' }))
+    await user.click(screen.getByRole('button', { name: 'Own values for Karambit' }))
+    await user.click(screen.getByRole('button', { name: 'Set own description for Karambit' }))
+    expect(screen.getByLabelText('Description, Karambit only')).toHaveValue('old')
+    expect(row('Karambit')).toHaveTextContent('after saving: old')
   })
 
   it('sends nothing with no row ticked', async () => {

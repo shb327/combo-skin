@@ -469,7 +469,7 @@ function BatchRow({
           <Override
             label={`own description for ${name}`}
             active={row.text.description !== undefined}
-            onSet={() => onChange({ description: batch.description })}
+            onSet={() => onChange({ description: row.existing ? (row.existing.description ?? '') : batch.description })}
             onClear={() => onChange({ description: undefined })}
           >
             <DescriptionField

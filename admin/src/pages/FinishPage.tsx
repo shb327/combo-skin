@@ -26,9 +26,14 @@ export function FinishPage({ kind }: { kind: Kind }) {
           {DIRECTION[kind]}
         </Link>
         <span className="text-white/40"> / </span>
-        <Link to={typePath(kind, type)} className={LINK}>
-          {data.item_type.name}
-        </Link>
+        {data.item_type.active ? (
+          <Link to={typePath(kind, type)} className={LINK}>
+            {data.item_type.name}
+          </Link>
+        ) : (
+          // A retired type has no page of its own.
+          <span>{data.item_type.name}</span>
+        )}
       </p>
       <h1 className="mt-1 text-2xl font-semibold">{detailLabel(data)}</h1>
       <p className="mt-1 text-sm text-white/70">{range ? `Float ${range}` : 'No float range'}</p>

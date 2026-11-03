@@ -2,7 +2,7 @@ import { Link, useNavigate } from 'react-router'
 import { useTitle } from '../components/useTitle'
 import { FinishSearch } from '../combos/FinishSearch'
 import { DIRECTION, SEARCH_EXAMPLE, finishPath, typePath } from '../combos/paths'
-import { catalogTypes, useCatalog, type Kind } from '../combos/queries'
+import { useCatalog, useCatalogTypes, type Kind } from '../combos/queries'
 import { QueryState } from '../combos/ui'
 
 /** By gloves and By knife: find a finish to open. */
@@ -10,6 +10,7 @@ export function FinishesPage({ kind }: { kind: Kind }) {
   useTitle(DIRECTION[kind])
   const navigate = useNavigate()
   const catalog = useCatalog(kind)
+  const types = useCatalogTypes(kind)
   return (
     <section>
       <h1 className="text-2xl font-semibold">{DIRECTION[kind]}</h1>
@@ -33,7 +34,7 @@ export function FinishesPage({ kind }: { kind: Kind }) {
               aria-label={kind === 'glove' ? 'Glove types' : 'Knife types'}
               className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
             >
-              {catalogTypes(catalog.data).map((type) => (
+              {(types.data ?? []).map((type) => (
                 <li key={type.slug}>
                   <Link
                     to={typePath(kind, type.slug)}

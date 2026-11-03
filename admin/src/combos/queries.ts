@@ -63,7 +63,13 @@ export const keys = {
 export const finishLabel = (item: { type_name: string; display_name: string }) =>
   `${item.type_name} | ${item.display_name}`
 
-async function loadCatalog(api: Api, kind: Kind): Promise<CatalogEntry[]> {
+interface Catalog {
+  /** Every active type, in display order, also one without active finishes. */
+  types: { slug: string; name: string }[]
+  entries: CatalogEntry[]
+}
+
+async function loadCatalog(api: Api, kind: Kind): Promise<Catalog> {
   const types =
     kind === 'glove' ? (await api.request('get', '/gloves')).data : (await api.request('get', '/knives')).data
   const details = await Promise.all(
@@ -76,7 +82,7 @@ async function loadCatalog(api: Api, kind: Kind): Promise<CatalogEntry[]> {
       return data
     }),
   )
-  return details.flatMap((type) =>
+  const entries = details.flatMap((type) =>
     (type?.finishes ?? []).map((finish) => ({
       id: `${type?.slug}/${finish.slug}`,
       kind,
@@ -90,12 +96,24 @@ async function loadCatalog(api: Api, kind: Kind): Promise<CatalogEntry[]> {
       floatMax: finish.float_max,
     })),
   )
+  return { types: (types ?? []).map(({ slug, name }) => ({ slug, name })), entries }
 }
+
+function useCatalogQuery<T>(kind: Kind, select: (catalog: Catalog) => T) {
+  const api = useApi()
+  return useQuery({ queryKey: keys.catalog(kind), queryFn: () => loadCatalog(api, kind), staleTime: Infinity, select })
+}
+
+const entriesOf = (catalog: Catalog) => catalog.entries
 
 /** Every active finish of a kind, loaded once per page load. */
 export function useCatalog(kind: Kind) {
-  const api = useApi()
-  return useQuery({ queryKey: keys.catalog(kind), queryFn: () => loadCatalog(api, kind), staleTime: Infinity })
+  return useCatalogQuery(kind, entriesOf)
+}
+
+/** Every active type of a kind with its active finishes, from the same request as the search. */
+export function useCatalogTypes(kind: Kind) {
+  return useCatalogQuery(kind, catalogTypes)
 }
 
 /** One finish, also a retired one. */
@@ -128,9 +146,9 @@ export async function loadCombos(api: Api, filters: ComboFilters): Promise<Admin
 }
 
 /** Every combo of a finish, in as many pages as it takes. */
-export function useCombos(filters: ComboFilters) {
+export function useCombos(filters: ComboFilters, enabled = true) {
   const api = useApi()
-  return useQuery({ queryKey: keys.comboList(filters), queryFn: () => loadCombos(api, filters) })
+  return useQuery({ queryKey: keys.comboList(filters), queryFn: () => loadCombos(api, filters), enabled })
 }
 
 export function useCombo(id: string) {
@@ -201,12 +219,9 @@ export interface CatalogType {
 }
 
 /** The types of a loaded catalog, in its order, each with its finishes. */
-export function catalogTypes(entries: CatalogEntry[]): CatalogType[] {
-  const types = new Map<string, CatalogType>()
-  for (const entry of entries) {
-    const type = types.get(entry.typeSlug) ?? { slug: entry.typeSlug, name: entry.typeName, finishes: [] }
-    type.finishes.push(entry)
-    types.set(entry.typeSlug, type)
-  }
-  return [...types.values()]
+export function catalogTypes(catalog: Catalog): CatalogType[] {
+  return catalog.types.map((type) => ({
+    ...type,
+    finishes: catalog.entries.filter((entry) => entry.typeSlug === type.slug),
+  }))
 }
