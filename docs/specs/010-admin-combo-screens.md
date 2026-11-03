@@ -55,7 +55,7 @@ Specs 001 to 009 are Audited and merged into `main`.
 
 **Finding a finish**
 
-- R1. By gloves (`/gloves`) and By knife (`/knives`) open with a search field that finds a finish by any words of its type name and finish name, in any order and any letter case ("kimono spec" finds Specialist Gloves | Crimson Kimono). Results show `<type name> | <finish display name>` with the finish's rarity colour, in catalog display order, and can be chosen with the keyboard alone.
+- R1. By gloves (`/gloves`) and By knife (`/knives`) open with a search field that finds a finish by any words of its type name and finish name, in any order and any letter case ("kimono spec" finds Specialist Gloves | Crimson Kimono). Results show `<type name> | <finish display name>` with the finish's picture (R38), in catalog display order, and can be chosen with the keyboard alone.
 - R2. Choosing a finish opens its page at `/gloves/<type>/<finish>` or `/knives/<type>/<finish>`, so a reload, the browser's back button and a copied link return to it.
 
 **A finish's combos**
@@ -120,7 +120,7 @@ Specs 001 to 009 are Audited and merged into `main`.
 **Browsing** (owner's change after the audit, 2026-11-03)
 
 - R35. By gloves and By knife also show, below the search, every type of that kind (Specialist Gloves, Karambit, ...) in catalog display order, each with its number of finishes, a picture, and a link to the type's page, as the website does.
-- R36. A type's page (`/gloves/<type>`, `/knives/<type>`) lists that type's finishes in catalog display order, each with its rarity colour, its float range, and how many combos and drafts it has, and links to the finish's page.
+- R36. A type's page (`/gloves/<type>`, `/knives/<type>`) lists that type's finishes in catalog display order, each with its picture, its float range, and how many combos and drafts it has, and links to the finish's page.
 - R37. A finish page links back to its type's page.
 
 **Pictures** (owner's change, 2026-11-03)
@@ -154,7 +154,7 @@ Specs 001 to 009 are Audited and merged into `main`.
 | Publish all drafts | On Home: the draft count from `GET /admin/combos?status=draft&limit=1` (`total`), and a button that opens a confirmation dialog with that number. Confirm sends `{"all_drafts": true}` and shows `changed` | On each finish page: the action is global, so it belongs on a global page. Without confirmation: one click publishes every draft on the website |
 | Dialogs | A native `<dialog>` opened with `showModal()`, focus on Cancel, Escape cancels | A dialog library: a dependency for two confirmations |
 | Routes | `/gloves`, `/gloves/:type/:finish`, `/gloves/:type/:finish/add`, `/gloves/:type/:finish/batch`, `/gloves/:type/:finish/batch/:knifeFinish`, `/knives`, `/knives/:type/:finish`, `/knives/:type/:finish/add`, `/combos/:id`, `/knife-order` | Dialogs over the finish page for add and batch: no address to return to after a session ends, and lost on reload |
-| Browsing (owner's choice after the audit) | Like the website's type and finish grids: cards with a picture (Finish images), the name, the rarity colour of each finish, the float range, and counts. The type grid comes from the catalog already loaded for the search; a type page asks for its combos once (`GET /admin/combos` with `glove_type` or `knife_type`, paged as the finish page) and counts them per finish in the browser. Types in catalog display order, as the website shows them, not the knife order of batches | Text only (the first choice): see Finish images. A list without counts: the owner could not see which finishes still have no combos. A request per finish for counts: up to 30 requests per type page |
+| Browsing (owner's choice after the audit) | Like the website's type and finish grids: cards with a picture (Finish images), the name, the float range, and counts; no rarity colour, since every glove shares one rarity and every knife another, both shown in the same red (owner's change, 2026-11-03). The type grid comes from the catalog already loaded for the search; a type page asks for its combos once (`GET /admin/combos` with `glove_type` or `knife_type`, paged as the finish page) and counts them per finish in the browser. Types in catalog display order, as the website shows them, not the knife order of batches | Text only (the first choice): see Finish images. A list without counts: the owner could not see which finishes still have no combos. A request per finish for counts: up to 30 requests per type page |
 | Page titles | `By gloves`, `<type>` on a type page, `<type> \| <finish>` on a finish page, `Add knife`, `Add gloves`, `Batch`, `Edit combo`, `Knife order`, each followed by ` · Combo Skin admin` | The finish name alone: the add and list pages of one finish would look the same in two tabs |
 | Navigation (owner's change, 2026-11-03) | Home, By gloves, By knife. Knife order is a section of Home below Drafts, shown the same way (a heading, one line, a plain link), because it is rarely used; its page links back to Home. Spec 008 criterion 21 and its test change to these links | A fourth navigation link (the first version): gave a rarely used page as much weight as the two directions. Under By gloves only: it is shared by every admin and both directions |
 | Number formats | Ratings with two decimals (`9.50`); float values as stored with trailing zeros removed (`0.06`, `0.8`); dates as the browser's locale date and time | Ratings as typed (`9.5`): a column of ratings would not line up |
@@ -404,6 +404,10 @@ Checked in the browser with a production build under its CSP, against a throwawa
 ### Owner's change: Home and the navigation (2026-11-03)
 
 The owner asked for pictures beside By gloves and By knife on Home, and for the knife order to have less weight: out of the navigation, and a section of Home below Drafts that looks like Drafts. R21, R33, R38, the Navigation row of Design, the routes and requests tables, criterion 37 and a new criterion 47 were updated. Home asks for the two pictures' finishes (`GET /gloves/sport/pandoras-box`, `GET /knives/karambit/vanilla`); the knife order page links back to Home. Covered by `src/pages/HomePage.test.tsx::home`, `src/pages/KnifeOrderPage.test.tsx::links back to Home` and `src/App.test.tsx::shell`; checked in the browser on a throwaway stack with a placeholder admin, deleted afterwards, at desktop width and at 375 px.
+
+### Owner's change: no rarity dots (2026-11-03)
+
+The rarity colour dot beside each finish, on type pages and in search results, was removed at the owner's request: every glove finish is Extraordinary and every knife finish Covert, both the same red, so the dots told nothing apart once pictures were shown. R1, R36 and the Browsing row were updated; `src/pages/TypePage.test.tsx::a type page::lists the knife finishes…` and `src/combos/pictures.test.tsx::show in search options` check that no dot is drawn.
 
 ### Follow-ups
 

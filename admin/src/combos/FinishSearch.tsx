@@ -6,7 +6,6 @@ import { INPUT } from './styles'
 export interface SearchEntry {
   id: string
   label: string
-  color?: string
   imageUrl?: string
 }
 
@@ -102,9 +101,6 @@ export function FinishSearch<T extends SearchEntry>({
             onClick={() => choose(entry)}
           >
             {entry.imageUrl && <Picture url={entry.imageUrl} size="sm" />}
-            {entry.color && (
-              <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: entry.color }} />
-            )}
             {entry.label}
           </li>
         ))}

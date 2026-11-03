@@ -22,7 +22,6 @@ export interface CatalogEntry {
   finishSlug: string
   displayName: string
   label: string
-  color: string
   floatMin: number | null
   floatMax: number | null
   imageUrl: string
@@ -92,7 +91,6 @@ async function loadCatalog(api: Api, kind: Kind): Promise<Catalog> {
       finishSlug: finish.slug,
       displayName: finish.display_name,
       label: `${type?.name} | ${finish.display_name}`,
-      color: finish.rarity.color,
       floatMin: finish.float_min,
       floatMax: finish.float_max,
       imageUrl: finish.image_url,

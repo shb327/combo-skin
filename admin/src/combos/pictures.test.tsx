@@ -99,6 +99,7 @@ describe('pictures', () => {
     const { user } = renderApp('/gloves', new FakeApi().withSession())
     await user.type(await screen.findByRole('combobox', { name: 'Find gloves' }), 'kimono')
     expectPicture(imagesIn(screen.getAllByRole('option')[0])[0], picture('specialist', 'crimson-kimono'))
+    expect(screen.getAllByRole('option')[0].querySelector('.rounded-full')).toBeNull()
   })
 
   it('show on the finish page and beside each combo of its list', async () => {

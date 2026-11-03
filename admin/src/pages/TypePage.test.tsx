@@ -91,7 +91,8 @@ describe('a type page', () => {
     expect(finishes[1]).toHaveTextContent('Doppler (Ruby)')
     expect(finishes[1]).toHaveTextContent('1 combo')
     expect(finishes[1]).not.toHaveTextContent('draft')
-    expect((finishes[1].querySelector('[aria-hidden="true"]') as HTMLElement).style.backgroundColor).toBe('rgb(235, 75, 75)')
+    // No rarity dot: every glove and knife shares one rarity colour, so it tells nothing apart.
+    expect(finishes[1].querySelector('.rounded-full')).toBeNull()
     const query = new URL(fake.to('GET /admin/combos')[0].url).searchParams
     expect(Object.fromEntries(query)).toEqual({ knife_type: 'karambit', limit: '500', offset: '0' })
   })
