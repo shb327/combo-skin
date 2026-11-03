@@ -49,7 +49,8 @@ describe('login', () => {
     const { fake, user } = renderApp('/login?next=%2Fgloves%3Fa%3D1')
     await logIn(user)
     await waitFor(() => expect(where()).toBe('/gloves?a=1'))
-    expect(screen.getByText(USERNAME)).toBeInTheDocument()
+    // The address changes a moment before the shell renders.
+    expect(await screen.findByText(USERNAME)).toBeInTheDocument()
     expect(fake.to('POST /admin/login')).toHaveLength(1)
     expect(JSON.parse(fake.to('POST /admin/login')[0].body)).toEqual({ username: USERNAME, password: PASSWORD })
   })
