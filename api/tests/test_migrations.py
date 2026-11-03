@@ -12,7 +12,7 @@ from tests.support import API_DIR, rolled_back_session
 def test_revision_history() -> None:
     script = ScriptDirectory.from_config(Config(API_DIR / "alembic.ini"))
     revisions = {r.revision: r.down_revision for r in script.walk_revisions()}
-    assert revisions == {"0001": None, "0002": "0001", "0003": "0002"}
+    assert revisions == {"0001": None, "0002": "0001", "0003": "0002", "0004": "0003"}
 
 
 def test_upgrade_downgrade_upgrade(migrations: Config) -> None:
@@ -52,4 +52,6 @@ async def test_head_has_only_known_tables(engine: AsyncEngine) -> None:
             "admins",
             "admin_sessions",
             "login_failures",
+            "combos",
+            "knife_order",
         }
