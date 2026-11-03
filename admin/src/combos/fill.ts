@@ -11,14 +11,14 @@ export interface FillRow {
 const STEP = 5
 
 /** The rating of each row; null for rows not included or with no rating to show. */
-export function fillRatings(rows: FillRow[], top: number | null): (number | null)[] {
+export function fillRatings(rows: FillRow[], topRating: number | null): (number | null)[] {
   let first = true
   let previous: number | null = null
   return rows.map((row) => {
     if (!row.included) return null
     let rating: number | null
     if (row.byHand) rating = row.value
-    else if (first) rating = top
+    else if (first) rating = topRating
     else rating = previous === null ? null : Math.max(0, previous - STEP)
     first = false
     // An invalid hand value is passed over: the rows below follow the last valid rating.
