@@ -1,14 +1,18 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { errorMessage } from '../api/errors'
 import { LOGIN_PATH } from '../auth/returnPath'
 import { useSession } from '../auth/useSession'
+import { ConfirmDialog } from '../combos/ui'
+import { useDrafts } from '../combos/useDrafts'
 import logo from '../logo.svg'
 
 const SECTIONS = [
   { to: '/', label: 'Home', end: true },
   { to: '/gloves', label: 'By gloves', end: false },
   { to: '/knives', label: 'By knife', end: false },
+  { to: '/knife-order', label: 'Knife order', end: false },
 ]
 
 export function Layout() {
@@ -18,6 +22,10 @@ export function Layout() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const drafts = useDrafts()
+  const queryClient = useQueryClient()
+  const unsaved = Object.keys(drafts.entries).length
   const [menuPath, setMenuPath] = useState(location.pathname)
   if (menuPath !== location.pathname) {
     // Close the small-screen menu after navigating.
@@ -27,10 +35,14 @@ export function Layout() {
   const username = state.status === 'active' ? state.session.admin.username : ''
 
   async function onLogout() {
+    setConfirming(false)
     setBusy(true)
     setError(null)
     try {
       await logout()
+      // Logging out on purpose: unsaved changes and cached data go with the session.
+      drafts.clearAll()
+      queryClient.clear()
       navigate(LOGIN_PATH, { replace: true })
     } catch (failure) {
       setError(errorMessage(failure))
@@ -59,7 +71,7 @@ export function Layout() {
         <button
           type="button"
           className="ml-auto rounded-md border border-white/15 px-3 py-1 text-sm whitespace-nowrap hover:border-accent disabled:opacity-50 sm:ml-0"
-          onClick={onLogout}
+          onClick={() => (unsaved ? setConfirming(true) : onLogout())}
           disabled={busy}
         >
           Log out
@@ -96,6 +108,16 @@ export function Layout() {
           <Outlet />
         </main>
       </div>
+      {confirming && (
+        <ConfirmDialog
+          title="Log out and discard unsaved changes?"
+          confirmLabel="Log out"
+          onCancel={() => setConfirming(false)}
+          onConfirm={onLogout}
+        >
+          {unsaved === 1 ? 'One form has' : `${unsaved} forms have`} unsaved changes.
+        </ConfirmDialog>
+      )}
     </div>
   )
 }
