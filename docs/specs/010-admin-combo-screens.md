@@ -412,6 +412,10 @@ The owner asked for pictures beside By gloves and By knife on Home, and for the 
 
 The rarity colour dot beside each finish, on type pages and in search results, was removed at the owner's request: every glove finish is Extraordinary and every knife finish Covert, both the same red, so the dots told nothing apart once pictures were shown. R1, R36 and the Browsing row were updated; `src/pages/TypePage.test.tsx::a type page::lists the knife finishes…` and `src/combos/pictures.test.tsx::show in search options` check that no dot is drawn.
 
+### Owner's change: Home statistics (2026-11-03)
+
+Home shows the total number of combos and how many active glove and knife finishes have no combo yet (R20a, a Design row, the requests table, criterion 48). `Statistics` in `src/pages/HomePage.tsx` counts them from the catalog and every combo, which TanStack Query refetches when Home is shown again after a write. Covered by `src/pages/HomePage.test.tsx::statistics`. Checked in the browser on a throwaway stack with a placeholder admin and a three-combo batch, deleted afterwards: Home showed 3 combos, 93 of 94 glove finishes and 573 of 576 knife finishes without a combo, with no horizontal scroll at 375 px.
+
 ### Follow-ups
 
 - A statistics endpoint in the API would let Home count without loading the catalog and every combo (Design, Home statistics).
@@ -473,6 +477,7 @@ Test ids are relative to `admin/`.
 | 45 | `src/combos/pictures.test.tsx` (type grids, type page, search options, finish page and combo rows, batch rows and edit page) |
 | 46 | `src/api/images.test.ts`; `src/combos/pictures.test.tsx::never come from another host, and a failed one is removed` |
 | 47 | `src/pages/HomePage.test.tsx::home`; `src/pages/KnifeOrderPage.test.tsx::links back to Home` |
+| 48 | `src/pages/HomePage.test.tsx::statistics` |
 
 ## Audit
 
@@ -591,4 +596,10 @@ The owner's pictures change (`git diff ec86a9b..HEAD`) was read by an independen
 **Date:** 2026-11-03 · **Verdict:** Pass
 
 A small change to Home and the navigation (Implementation notes, "Owner's change: Home and the navigation"), checked against R21, R33, R38 and criteria 37 and 47 without a separate reviewer: `npm run lint`, `typecheck`, `test` (286 passed), `build` and `check:bundle` exit 0 on a fresh clone; the browser check is in Implementation notes.
+
+### Check of the Home statistics
+
+**Date:** 2026-11-03 · **Verdict:** Pass
+
+A small addition to Home (Implementation notes, "Owner's change: Home statistics"), checked against R20a and criterion 48 without a separate reviewer: `npm run lint`, `typecheck`, `test` (288 passed), `build` and `check:bundle` exit 0 on a fresh clone; the browser check is in Implementation notes.
 
