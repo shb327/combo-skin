@@ -2,7 +2,7 @@
 
 [![admin](https://github.com/shb327/combo-skin/actions/workflows/admin.yml/badge.svg)](https://github.com/shb327/combo-skin/actions/workflows/admin.yml)
 
-The admin dashboard for Combo Skin: a Vite, React and TypeScript app where the owner and the admins they create manage the site. It logs in against the API in [`api/`](../api) and talks to it only through a client typed from the API's OpenAPI snapshot. So far it has login, the session and the shell: Home offers two directions, By gloves and By knife, whose combo screens come in later specs (see [`docs/specs/`](../docs/specs)).
+The admin dashboard for Combo Skin: a Vite, React and TypeScript app where the owner and the admins they create manage the site. It logs in against the API in [`api/`](../api) and talks to it only through a client typed from the API's OpenAPI snapshot. It has login, the session, and the screens that enter and manage combos (see [Screens](#screens) and [`docs/specs/`](../docs/specs)).
 
 ## Prerequisites
 
@@ -35,6 +35,19 @@ npm run dev
 Open http://localhost:5174 and log in. Use `localhost`, not `127.0.0.1`: the session cookie belongs to the API at `localhost:8000`, and the browser sends it only to the same site.
 
 If login says it cannot reach the API, check that the API is running, and that `ADMIN_ORIGINS` in `api/.env` lists `http://localhost:5174`. An `api/.env` copied before admin login existed lacks that line; copy the admin lines from `api/.env.example` and restart the API.
+
+## Screens
+
+- **Home**: the two directions, the knife order, and how many drafts exist across all finishes, with **Publish all drafts** (asks first; unpublished combos stay unpublished).
+- **By gloves** (`/gloves`): search for a glove finish by any words of its type and name ("kimono spec"), then see its combos: knife, rating, conditions and status, with filters by status and knife finish and sorting by rating or last change. From there, **Add knife** creates one combo, and **Start a batch** enters many.
+- **Batch**: pick a knife finish name (Ruby, Blue Steel, ...). Every knife type that has it is listed in the knife order, ticked; a knife type already paired with these gloves shows as "already exists", unticked, and can be ticked to update its rating and description. The top rating fills the next knives 0.05 lower each, never below 0; any rating can be typed by hand, and the knives below follow it. Float ranges, pattern seeds and the description apply to every knife, and each knife can have its own. Save creates everything as drafts, all or nothing, then offers to publish the new combos.
+- **By knife** (`/knives`): the same for a knife finish, adding gloves one at a time.
+- **Edit** (`/combos/<id>`): rating, float ranges, pattern seeds and description, saved with the version that was read. If someone else saved first, the page shows their values and yours, and you keep yours or take theirs. Publish, unpublish, and delete a draft or unpublished combo.
+- **Knife order** (`/knife-order`): move knife types up, down or to a position, then save. Shared by every admin.
+
+Ratings are typed with a dot or a comma and shown with two decimals; the Up and Down arrow keys step by 0.05. Float values take up to 4 decimals and must lie inside the finish's own range.
+
+**Unsaved changes** are kept in memory, never in browser storage. When the session ends (60 minutes idle, or its 12-hour limit) with a form or batch unsaved, logging in again as the same admin in the same tab brings back every value, with a notice and a way to discard them. Leaving a form for another page keeps its values too. They are lost on a reload or a closed tab, which the browser warns about first; logging out asks before discarding them, and logging in as another admin discards them.
 
 ## Scripts
 
@@ -82,7 +95,7 @@ The `admin` workflow runs `npm run api:types:check` and fails if they are out of
 npm test
 ```
 
-Tests use Vitest with jsdom and Testing Library, next to the code as `*.test.ts(x)`. They run against a fake API (`src/test/fakeApi.ts`): a `fetch` function that answers the admin routes with bodies typed from the schema and records every request. Login against the real API is checked by hand (see Getting started), because an admin can only be created at an interactive terminal.
+Tests use Vitest with jsdom and Testing Library, next to the code as `*.test.ts(x)`. They run against a fake API (`src/test/fakeApi.ts`, with a small catalog and combo store in `src/test/fakeCatalog.ts`): a `fetch` function that answers the login, catalog and combo routes with bodies typed from the schema and records every request. Login against the real API is checked by hand (see Getting started), because an admin can only be created at an interactive terminal.
 
 Lint guard rails, tested in `src/lint.test.ts`: only `src/api/client.ts` may make network requests; nothing may use `localStorage`, `sessionStorage`, IndexedDB or `document.cookie`, render HTML from strings, or call `console.log`. The rules also catch these through other objects (`window.document.cookie`) and refuse aliases of browser globals (`const d = document`), so they cannot be sidestepped by accident.
 
@@ -94,10 +107,11 @@ Lint guard rails, tested in `src/lint.test.ts`: only `src/api/client.ts` may mak
 | `vite.config.ts` | Vite and Vitest configuration, the API origin check, the Content Security Policy |
 | `eslint.config.js` | ESLint, with the guard rails |
 | `scripts/api-types.mjs`, `scripts/check-bundle.mjs` | API types generation and check; the build check |
+| `src/combos/` | Shared pieces of the combo screens: value parsing and checks, the batch rating fill and rows, finish search, mapping API refusals to fields, server state with TanStack Query, the unsaved changes store, and the form components |
 | `src/main.tsx`, `src/App.tsx` | Entry point; routes |
 | `src/index.css` | Tailwind, the website's colour tokens, Montserrat |
 | `src/api/` | `schema.d.ts` (generated), `client.ts` (the only network code), `errors.ts` (messages), `origin.ts` (origin check) |
 | `src/auth/` | Session provider and hook, the route guard, the return path after login |
 | `src/components/` | Layout with header and navigation; page titles |
-| `src/pages/` | Login, Home, By gloves, By knife, Not found |
+| `src/pages/` | Login, Home, finish search and finish pages for both directions, add, batch, edit, knife order, Not found |
 | `src/test/` | Fake API, render helper, test setup |
