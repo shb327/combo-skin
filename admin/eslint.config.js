@@ -68,11 +68,6 @@ export default defineConfig([
     },
   },
   {
-    // Tests check that storage and cookies stay empty, and run Node scripts.
-    files: ['src/**/*.test.{ts,tsx}', 'src/test/**', 'scripts/**'],
-    rules: { 'no-restricted-globals': ['error', ...network], 'no-restricted-properties': 'off' },
-  },
-  {
     files: ['scripts/**', 'vite.config.ts', 'eslint.config.js'],
     languageOptions: { globals: globals.node },
     rules: { 'no-console': 'off' },

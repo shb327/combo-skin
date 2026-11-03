@@ -19,8 +19,12 @@ describe('a full session', () => {
     const secrets = () => [PASSWORD, WRONG_PASSWORD, ...tokens()]
 
     function nothingLeaked() {
+      // The guard rails forbid these everywhere; this test only reads them to prove they stay empty.
+      // eslint-disable-next-line no-restricted-globals
       expect(localStorage.length).toBe(0)
+      // eslint-disable-next-line no-restricted-globals
       expect(sessionStorage.length).toBe(0)
+      // eslint-disable-next-line no-restricted-properties
       expect(document.cookie).toBe('')
       const page = document.body.cloneNode(true) as HTMLElement
       page.querySelector('input[type="password"]')?.remove()
