@@ -405,8 +405,13 @@ function BatchRow({
           </span>
         )}
       </div>
-      {row.existing && !row.text.ticked && (
-        <p className="mt-1 text-xs text-white/50">Tick to update its rating and description.</p>
+      {row.existing && (
+        <p className="mt-1 text-xs text-white/60">
+          Description now: {row.existing.description ?? 'none'}
+          {row.text.ticked
+            ? ` · after saving: ${resolvedDescription(row, batch) || 'none'}`
+            : ' · tick to update its rating and description.'}
+        </p>
       )}
       {row.text.ticked && (
         <div className="mt-2 flex flex-wrap items-end gap-3">
@@ -495,6 +500,11 @@ function BatchRow({
       )}
     </li>
   )
+}
+
+/** The description an updated row will be saved with. */
+function resolvedDescription(row: Row, batch: BatchText) {
+  return (row.text.description ?? batch.description).trim()
 }
 
 function overrides(row: Row) {
