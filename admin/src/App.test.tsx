@@ -254,6 +254,19 @@ describe('logout', () => {
   })
 })
 
+describe('csrf_failed twice', () => {
+  it('shows an error and sends nothing more', async () => {
+    const fake = new FakeApi().withSession()
+    fake.next('POST /admin/logout', error(403, 'csrf_failed'), error(403, 'csrf_failed'))
+    const { user } = renderApp('/', fake)
+    await user.click(await screen.findByRole('button', { name: 'Log out' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(MESSAGES.generic)
+    expect(screen.getByText(USERNAME)).toBeInTheDocument()
+    const routes = fake.requests.map((r) => `${r.method} ${new URL(r.url).pathname}`)
+    expect(routes).toEqual(['GET /admin/me', 'POST /admin/logout', 'GET /admin/me', 'POST /admin/logout'])
+  })
+})
+
 describe('shell', () => {
   it('has the header, the navigation and the placeholders', async () => {
     const { user } = renderApp('/', new FakeApi().withSession())
