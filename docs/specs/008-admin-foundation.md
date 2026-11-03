@@ -1,6 +1,6 @@
 # 008: Admin dashboard foundation
 
-**Status:** Implemented
+**Status:** Audited
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** admin
