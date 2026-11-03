@@ -1,6 +1,94 @@
 {
   "components": {
     "schemas": {
+      "AdminCombo": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "glove": {
+            "$ref": "#/components/schemas/Item"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "knife": {
+            "$ref": "#/components/schemas/Item"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "rating": {
+            "title": "Rating",
+            "type": "number"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "published",
+              "unpublished"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "updated_by": {
+            "title": "Updated By",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "version",
+          "rating",
+          "description",
+          "glove",
+          "knife",
+          "created_at",
+          "created_by",
+          "updated_at",
+          "updated_by",
+          "published_at"
+        ],
+        "title": "AdminCombo",
+        "type": "object"
+      },
       "AdminOut": {
         "properties": {
           "username": {
@@ -62,6 +150,127 @@
           "migrations"
         ],
         "title": "Checks",
+        "type": "object"
+      },
+      "ComboIn": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "glove": {
+            "$ref": "#/components/schemas/ItemIn"
+          },
+          "knife": {
+            "$ref": "#/components/schemas/ItemIn"
+          },
+          "rating": {
+            "maximum": 10.0,
+            "minimum": 0.0,
+            "title": "Rating",
+            "type": "number"
+          }
+        },
+        "required": [
+          "glove",
+          "knife",
+          "rating"
+        ],
+        "title": "ComboIn",
+        "type": "object"
+      },
+      "ComboUpdate": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "glove": {
+            "$ref": "#/components/schemas/Conditions"
+          },
+          "knife": {
+            "$ref": "#/components/schemas/Conditions"
+          },
+          "rating": {
+            "maximum": 10.0,
+            "minimum": 0.0,
+            "title": "Rating",
+            "type": "number"
+          },
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "rating",
+          "description",
+          "glove",
+          "knife"
+        ],
+        "title": "ComboUpdate",
+        "type": "object"
+      },
+      "Conditions": {
+        "description": "What one item of a combo needs: a float range, when wear matters, and pattern seeds,\nwhen the combo needs specific patterns (empty means any).",
+        "properties": {
+          "float_from": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Float From"
+          },
+          "float_to": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Float To"
+          },
+          "seeds": {
+            "default": [],
+            "items": {
+              "maximum": 1000.0,
+              "minimum": 0.0,
+              "type": "integer"
+            },
+            "maxItems": 100,
+            "title": "Seeds",
+            "type": "array"
+          }
+        },
+        "title": "Conditions",
         "type": "object"
       },
       "Credentials": {
@@ -298,6 +507,140 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "Item": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "finish_slug": {
+            "title": "Finish Slug",
+            "type": "string"
+          },
+          "float_from": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Float From"
+          },
+          "float_to": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Float To"
+          },
+          "image_url": {
+            "title": "Image Url",
+            "type": "string"
+          },
+          "rarity": {
+            "$ref": "#/components/schemas/Rarity"
+          },
+          "seeds": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Seeds",
+            "type": "array"
+          },
+          "type_name": {
+            "title": "Type Name",
+            "type": "string"
+          },
+          "type_slug": {
+            "title": "Type Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type_slug",
+          "type_name",
+          "finish_slug",
+          "display_name",
+          "image_url",
+          "rarity",
+          "active",
+          "float_from",
+          "float_to",
+          "seeds"
+        ],
+        "title": "Item",
+        "type": "object"
+      },
+      "ItemIn": {
+        "description": "A finish and its conditions.",
+        "properties": {
+          "finish_slug": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Finish Slug",
+            "type": "string"
+          },
+          "float_from": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Float From"
+          },
+          "float_to": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Float To"
+          },
+          "seeds": {
+            "default": [],
+            "items": {
+              "maximum": 1000.0,
+              "minimum": 0.0,
+              "type": "integer"
+            },
+            "maxItems": 100,
+            "title": "Seeds",
+            "type": "array"
+          },
+          "type_slug": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Type Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type_slug",
+          "finish_slug"
+        ],
+        "title": "ItemIn",
+        "type": "object"
+      },
       "ItemTypeRef": {
         "properties": {
           "active": {
@@ -517,6 +860,332 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/admin/combos": {
+      "post": {
+        "description": "Create a draft combo of one glove finish and one knife finish.",
+        "operationId": "create_combo",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComboIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCombo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`not_authenticated`"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`origin_not_allowed` or `csrf_failed`"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`combo_exists`"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Combo",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/combos/{combo_id}": {
+      "delete": {
+        "description": "Delete a draft or unpublished combo, at the version it was read at. A published combo\nmust be unpublished first.",
+        "operationId": "remove_combo",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "combo_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Combo Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`not_authenticated`"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`origin_not_allowed` or `csrf_failed`"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`combo_not_found`"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`version_conflict` or `combo_published`"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Combo",
+        "tags": [
+          "admin"
+        ]
+      },
+      "get": {
+        "description": "One combo, in any status.",
+        "operationId": "get_combo",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "combo_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Combo Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCombo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`not_authenticated`"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`origin_not_allowed` or `csrf_failed`"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`combo_not_found`"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Combo",
+        "tags": [
+          "admin"
+        ]
+      },
+      "put": {
+        "description": "Change a combo's rating, description and conditions. `version` is the version the\nchange was made from; another version refuses it. The pairing and status do not change.",
+        "operationId": "update_combo",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "combo_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Combo Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComboUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCombo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`not_authenticated`"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`origin_not_allowed` or `csrf_failed`"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`combo_not_found`"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`version_conflict`"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Combo",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/admin/login": {
       "post": {
         "description": "Log in with a username and password. Sets the session cookie.",

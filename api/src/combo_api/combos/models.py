@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 
 from sqlalchemy import (
     BigInteger,
@@ -21,6 +22,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from combo_api.db import Base
 
 PUBLIC_ID_PATTERN = "^[0-9a-z]{12}$"
+Status = Literal["draft", "published", "unpublished"]
 STATUSES = ("draft", "published", "unpublished")
 SEED_MAX = 1000
 SEEDS_MAX = 100
@@ -77,7 +79,7 @@ class Combo(Base):
     )
     rating: Mapped[Decimal] = mapped_column(Numeric(4, 2))
     description: Mapped[str | None] = mapped_column(Text)
-    status: Mapped[str] = mapped_column(Text)
+    status: Mapped[Status] = mapped_column(Text)
     version: Mapped[int]
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
