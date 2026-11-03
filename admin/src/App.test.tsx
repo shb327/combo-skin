@@ -1,8 +1,8 @@
-import { act, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MESSAGES } from './api/errors'
 import { FakeApi, PASSWORD, USERNAME, error, json } from './test/fakeApi'
-import { logIn, renderApp, where } from './test/render'
+import { everShown, logIn, renderApp, where } from './test/render'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -18,6 +18,7 @@ describe('loading', () => {
     let answer: (response: Response) => void = () => {}
     const fake = new FakeApi().withSession()
     fake.next('GET /admin/me', new Promise<Response>((resolve) => (answer = resolve)))
+    const loginShown = everShown('#username')
     renderApp('/', fake)
 
     expect(screen.getByRole('status')).toHaveTextContent('Loading')
@@ -26,7 +27,20 @@ describe('loading', () => {
 
     await act(async () => answer(json(200, fake.session())))
     expect(await screen.findByText(USERNAME)).toBeInTheDocument()
-    expect(screen.queryByLabelText('Username')).toBeNull()
+    expect(loginShown()).toBe(false)
+    expect(fake.to('GET /admin/me')).toHaveLength(1)
+  })
+
+  it('goes from loading straight to login when there is no session', async () => {
+    let answer: (response: Response) => void = () => {}
+    const fake = new FakeApi().next('GET /admin/me', new Promise<Response>((resolve) => (answer = resolve)))
+    const shellShown = everShown('nav, header')
+    renderApp('/', fake)
+    expect(screen.getByRole('status')).toHaveTextContent('Loading')
+    await act(async () => answer(error(401, 'not_authenticated')))
+    expect(await screen.findByLabelText('Username')).toBeInTheDocument()
+    expect(shellShown()).toBe(false)
+    expect(fake.to('GET /admin/me')).toHaveLength(1)
   })
 
   it('shows the shell for a live session', async () => {
@@ -50,7 +64,7 @@ describe('login', () => {
     await logIn(user)
     await waitFor(() => expect(where()).toBe('/gloves?a=1'))
     // The address changes a moment before the shell renders.
-    expect(await screen.findByText(USERNAME)).toBeInTheDocument()
+    expect(within(await screen.findByRole('banner')).getByText(USERNAME)).toBeInTheDocument()
     expect(fake.to('POST /admin/login')).toHaveLength(1)
     expect(JSON.parse(fake.to('POST /admin/login')[0].body)).toEqual({ username: USERNAME, password: PASSWORD })
   })
@@ -83,7 +97,10 @@ describe('login', () => {
     await act(async () => vi.advanceTimersByTime(30_000))
     expect(alert).toHaveTextContent('1:00')
     expect(submit).toBeDisabled()
-    await act(async () => vi.advanceTimersByTime(60_000))
+    await act(async () => vi.advanceTimersByTime(59_000))
+    expect(alert).toHaveTextContent('0:01')
+    expect(submit).toBeDisabled()
+    await act(async () => vi.advanceTimersByTime(1_000))
     expect(submit).toBeEnabled()
   })
 
@@ -104,8 +121,9 @@ describe('login', () => {
     const { user } = renderApp('/login', new FakeApi().next('POST /admin/login', reply))
     await logIn(user)
     const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent(message)
+    expect(alert.textContent).toBe(message)
     expect(document.body.innerHTML).not.toContain('<b>x</b>')
+    expect(document.body.textContent).not.toContain('<b>x</b>')
   })
 
   it('shows the logo and ADMIN, not the product name in text', async () => {
@@ -133,14 +151,20 @@ describe('login', () => {
 
   it('sends nothing with an empty field, or while a login is in flight', async () => {
     const { fake, user } = renderApp('/login')
-    await user.type(await screen.findByLabelText('Username'), USERNAME)
+    const form = (await screen.findByLabelText('Username')).closest('form') as HTMLFormElement
+    // A submit event skips the browser's own `required` check, so the app's check is what stops it.
+    await act(async () => fireEvent.submit(form))
+    await user.type(screen.getByLabelText('Password'), PASSWORD)
+    await act(async () => fireEvent.submit(form))
+    await user.clear(screen.getByLabelText('Password'))
+    await user.type(screen.getByLabelText('Username'), USERNAME)
+    await act(async () => fireEvent.submit(form))
     await user.click(screen.getByRole('button', { name: 'Log in' }))
     expect(fake.to('POST /admin/login')).toHaveLength(0)
 
     let answer: (response: Response) => void = () => {}
     fake.next('POST /admin/login', new Promise<Response>((resolve) => (answer = resolve)))
     await user.type(screen.getByLabelText('Password'), PASSWORD)
-    const form = screen.getByLabelText('Username').closest('form') as HTMLFormElement
     await act(async () => {
       form.requestSubmit()
       form.requestSubmit()
@@ -306,11 +330,13 @@ describe('shell', () => {
 
     await user.click(within(nav).getByRole('link', { name: 'By gloves' }))
     expect(await screen.findByRole('heading', { name: 'By gloves' })).toBeInTheDocument()
+    expect(screen.getByRole('main')).toHaveTextContent('This screen comes in a later version')
     expect(within(nav).getByRole('link', { name: 'By gloves' })).toHaveAttribute('aria-current', 'page')
     expect(within(nav).getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current')
 
     await user.click(within(nav).getByRole('link', { name: 'By knife' }))
     expect(await screen.findByRole('heading', { name: 'By knife' })).toBeInTheDocument()
+    expect(screen.getByRole('main')).toHaveTextContent('This screen comes in a later version')
     expect(within(nav).getByRole('link', { name: 'By knife' })).toHaveAttribute('aria-current', 'page')
   })
 

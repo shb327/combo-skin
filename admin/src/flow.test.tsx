@@ -5,11 +5,20 @@ import { FakeApi, PASSWORD, USERNAME } from './test/fakeApi'
 import { logIn, renderApp, where } from './test/render'
 
 const WRONG_PASSWORD = 'a wrong placeholder password'
-const CONSOLE = ['log', 'info', 'warn', 'error', 'debug'] as const
+const CONSOLE = ['log', 'info', 'warn', 'error', 'debug', 'trace', 'dir', 'table', 'group', 'groupCollapsed'] as const
 
 describe('a full session', () => {
   it('never puts a password or CSRF token anywhere but the request and the password field', async () => {
     const spies = CONSOLE.map((method) => vi.spyOn(console, method))
+    // Every address the app ever moves to, not only those at the checkpoints below.
+    const addresses: string[] = []
+    for (const method of ['pushState', 'replaceState'] as const) {
+      const original = window.history[method].bind(window.history)
+      vi.spyOn(window.history, method).mockImplementation((state, unused, url) => {
+        if (url !== undefined && url !== null) addresses.push(String(url))
+        original(state, unused, url)
+      })
+    }
     const fake = new FakeApi()
     const { user } = renderApp('/', fake)
     const tokens = () => [
@@ -29,6 +38,10 @@ describe('a full session', () => {
       const page = document.body.cloneNode(true) as HTMLElement
       page.querySelector('input[type="password"]')?.remove()
       for (const secret of secrets()) {
+        for (const address of addresses) {
+          expect(address).not.toContain(secret)
+          expect(decodeURIComponent(address)).not.toContain(secret)
+        }
         expect(window.location.href).not.toContain(secret)
         expect(decodeURIComponent(window.location.href)).not.toContain(secret)
         expect(page.innerHTML).not.toContain(secret)
@@ -41,6 +54,7 @@ describe('a full session', () => {
 
     await waitFor(() => expect(where()).toBe('/login?next=%2F'))
     nothingLeaked()
+    expect(addresses.length).toBeGreaterThan(0)
 
     await logIn(user, USERNAME, WRONG_PASSWORD)
     expect(await screen.findByRole('alert')).toHaveTextContent(MESSAGES.invalidCredentials)
