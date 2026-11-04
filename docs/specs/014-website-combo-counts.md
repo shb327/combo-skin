@@ -17,12 +17,12 @@ A visitor sees which glove and knife finishes have combos before clicking into t
 - `GET /combo-counts`: the published combo count of every glove finish and every knife finish that has at least one, in one response, with the public CORS of spec 011.
 - Finish cards on the glove and knife type pages show "18 combos" or "1 combo"; finishes without combos show no count.
 - A "Has combos" filter on those pages, kept in the URL.
-- The glove and knife type cards on `/gloves` and `/knives` show the type's total (Open question 4).
+- The glove and knife type cards on `/gloves` and `/knives` show the type's total.
 - The counts never block browsing: while they load or when they fail, the type pages work as today.
 
 **Non-goals**
 
-- Counts in the header search dropdown, and a "Has combos" filter on `/gloves`, `/knives` or search (Follow-ups).
+- Counts in the header search dropdown, and a "Has combos" filter on `/gloves`, `/knives` or search: follow-ups for a later spec.
 - Sorting finishes by count, or putting finishes with combos first.
 - Changes to the combos page, including its header count (spec 011, R6).
 - A redesign: cards keep their picture, name, hover effect and grid.
@@ -62,7 +62,7 @@ Specs 001 to 011 and 013 are Audited and merged. Spec 011 lists this work as its
 
 - R1. `GET /combo-counts` returns, for every glove finish and every knife finish with at least one published combo, its number of published combos, keyed by type slug and finish slug. Finishes without published combos are left out. Drafts and unpublished combos are never counted.
 - R2. A finish's count equals the length of the list its own public combos route returns at the same moment, for every finish, including retired finishes and combos whose other item is retired.
-- R3. The route is tagged `combos`, so it gets the public CORS headers of spec 011; it sends no `Cache-Control` header (Open question 1).
+- R3. The route is tagged `combos`, so it gets the public CORS headers of spec 011; it sends no `Cache-Control` header.
 - R4. `api/openapi.json` includes the route and its schema; `website/src/api/schema.d.ts` and `admin/src/api/schema.d.ts` are regenerated from it; `api/README.md` lists the route.
 
 **Finish cards**
@@ -74,13 +74,13 @@ Specs 001 to 011 and 013 are Audited and merged. Spec 011 lists this work as its
 **Filter**
 
 - R8. Once the counts load, the type page shows a "Has combos" control. Turned on, it hides the finishes without combos; the others keep the catalog's order.
-- R9. The filter is off by default. Turning it on adds `?has=combos` to the URL, turning it off removes it, without adding a history entry. Opening a URL with `?has=combos` starts with the filter on. Any other value of `has` is ignored (Open question 2).
+- R9. The filter is off by default. Turning it on adds `?has=combos` to the URL, turning it off removes it, without adding a history entry. Opening a URL with `?has=combos` starts with the filter on. Any other value of `has` is ignored.
 - R10. While the counts load, and when they fail, the control is not shown and every finish shows, whatever the URL says.
 - R11. With the filter on and no finish of the type having combos, the page says "No {type name} finishes have combos yet." with a "Show all finishes" button that turns the filter off.
 
 **Type cards**
 
-- R12. Once the counts load, each type card on `/gloves` and `/knives` whose finishes have combos adds the total to its strip: "94 available · 34 combos". The total is the sum of the counts of the finishes in the bundled catalog. A type without combos, and every type while loading or after a failure, shows "{n} available" as today (Open question 4).
+- R12. Once the counts load, each type card on `/gloves` and `/knives` whose finishes have combos adds the total to its strip: "94 available · 34 combos". The total is the sum of the counts of the finishes in the bundled catalog. A type without combos, and every type while loading or after a failure, shows "{n} available" as today.
 
 **Unchanged**
 
@@ -88,25 +88,23 @@ Specs 001 to 011 and 013 are Audited and merged. Spec 011 lists this work as its
 
 ## Design
 
-Rows marked *proposed* are open questions below, written as recommended.
-
 | Decision | Chosen | Alternatives rejected, and why |
 | --- | --- | --- |
-| Path (*proposed*) | `GET /combo-counts`, a top-level path next to `/gloves` and `/knives`, tag `combos`, operation ID `get_combo_counts`, in `public_routes.py` | `/gloves/combo-counts` and `/knives/combo-counts`: two requests for one page that wants both later (search), and `/gloves/<word>` is already the glove type route, so `combo-counts` would read as a type slug. `/combos/counts`: suggests a public `/combos` collection that does not exist. A `combo_count` on the catalog routes: the website does not call them (spec 011). Spec 011's follow-up already named `/combo-counts` |
-| Shape (*proposed*) | `{"gloves": {"specialist": {"crimson-kimono": 18}}, "knives": {"karambit": {"doppler-ruby": 1}}}`: by kind, then type slug, then finish slug, non-zero counts only. Both kinds always present, `{}` when empty | Flat keys such as `"specialist/crimson-kimono"`: a string format the client must split and the schema cannot describe; a type's total needs a prefix scan. Every finish with zeros: up to 670 entries, most of them 0, for nothing the website cannot infer. A list of `{kind, type, finish, count}` rows: the website would build the same map on every load |
+| Path (owner's choice) | `GET /combo-counts`, a top-level path next to `/gloves` and `/knives`, tag `combos`, operation ID `get_combo_counts`, in `public_routes.py` | `/gloves/combo-counts` and `/knives/combo-counts`: two requests for one page that wants both later (search), and `/gloves/<word>` is already the glove type route, so `combo-counts` would read as a type slug. `/combos/counts`: suggests a public `/combos` collection that does not exist. A `combo_count` on the catalog routes: the website does not call them (spec 011). Spec 011's follow-up already named `/combo-counts` |
+| Shape (owner's choice) | `{"gloves": {"specialist": {"crimson-kimono": 18}}, "knives": {"karambit": {"doppler-ruby": 1}}}`: by kind, then type slug, then finish slug, non-zero counts only. Both kinds always present, `{}` when empty | Flat keys such as `"specialist/crimson-kimono"`: a string format the client must split and the schema cannot describe; a type's total needs a prefix scan. Every finish with zeros: up to 670 entries, most of them 0, for nothing the website cannot infer. A list of `{kind, type, finish, count}` rows: the website would build the same map on every load |
 | Retired finishes | Counted like the others, as the list routes return their combos (R2). The website looks up only the finishes in its bundled catalog, so it never shows them | Leaving them out: a count that differs from the API's own list for that finish |
-| Cache-Control (*proposed*) | None, as on the other public routes. The website's in-memory cache already avoids repeat requests within a visit (5 minutes). The `deploy/` spec decides caching for all public routes at once, including Cloudflare and `Vary: Origin` (spec 011 follow-up) | `public, max-age=60`: on a reload the browser could keep counts older than the finish's freshly fetched list, which is the mismatch R7 avoids; and one route caching differently from the lists invites edge caching rules per route |
+| Cache-Control (owner's choice) | None, as on the other public routes. The website's in-memory cache already avoids repeat requests within a visit (5 minutes). The `deploy/` spec decides caching for all public routes at once, including Cloudflare and `Vary: Origin` (spec 011 follow-up) | `public, max-age=60`: on a reload the browser could keep counts older than the finish's freshly fetched list, which is the mismatch R7 avoids; and one route caching differently from the lists invites edge caching rules per route |
 | One count rule | The counts query and the two list routes use one shared "published" condition in `combos/queries.py`, so they cannot drift. A test compares every count with its list (R2) | Two hand-written `WHERE` clauses: the drift R2 is about |
 | Query cost | Two grouped queries, one per kind: `combos` joined to `finishes` and `item_types` for slugs, `WHERE status = 'published'`, `GROUP BY` the finish. At 2,000 rows Postgres reads the whole table either way, well under a millisecond; the response is at most a few hundred entries. No index and no migration | An index on `status`: most rows will be published, so the planner would not use it. A counts table or materialised view kept in step on every publish: write-path code and a staleness risk for a read that is already cheap. Revisit past about 100,000 combos |
 | Website request | `Api.comboCounts(signal)` in `client.ts`, a `GET` to `/combo-counts` like `finishCombos`. A body that is not two objects of objects of positive integers is `ApiError('http')`; unknown keys are kept and ignored | A second client module: `client.ts` stays the only one that talks to the network (spec 011) |
-| Query and freshness (*proposed*) | `useComboCounts()` in `queries.ts`, key `["combo-counts"]`, in the same `QueryClient`, with the same 5-minute stale time and one retry. When a finish's combos load (`useFinishCombos` succeeds), the counts entry for that finish is set to the list's length, or removed at 0, if counts are cached; nothing is written when they are not. So a card never disagrees with the page the visitor just saw (R7). The count on the card is otherwise the value of the counts request | Invalidating counts after every combos page: one more request per finish visited. A shorter stale time for counts: more requests, and the two can still disagree between requests. No sync: a combo published while the visitor browses shows "18" on the card after the page listed 19 |
-| Zero count | No strip and no text on a finish without combos. With most finishes empty, 30 "No combos yet" lines on one page would be noise; the filter covers hiding them | "No combos yet" on each card: repetitive. A greyed card: a redesign |
+| Query and freshness (owner's choice) | `useComboCounts()` in `queries.ts`, key `["combo-counts"]`, in the same `QueryClient`, with the same 5-minute stale time and one retry. When a finish's combos load (`useFinishCombos` succeeds), the counts entry for that finish is set to the list's length, or removed at 0, if counts are cached; nothing is written when they are not. So a card never disagrees with the page the visitor just saw (R7). The count on the card is otherwise the value of the counts request | Invalidating counts after every combos page: one more request per finish visited. A shorter stale time for counts: more requests, and the two can still disagree between requests. No sync: a combo published while the visitor browses shows "18" on the card after the page listed 19 |
+| Zero count (owner's choice) | No strip and no text on a finish without combos. With most finishes empty, 30 "No combos yet" lines on one page would be noise; the filter covers hiding them | "No combos yet" on each card: repetitive. A greyed card: a redesign |
 | Count text and strip | The removed strip, restored only on cards with combos: `bg-white/5 py-2 px-4`, the number in white semibold, then "combos" or "combo". `comboCount` moves from `Combos.tsx` to `comboText.ts` so both pages use one wording | A badge on the picture: a new look. The strip on every card with "0 combos": the noise above |
-| Filter default and URL (*proposed*) | Off by default; `?has=combos` when on, set with `replace` so the back button does not step through toggles. Back from a combos page keeps it, since the URL holds it, and a shared link keeps it | On by default: the grid would show every finish while counts load, then collapse to a few (R10 forbids hiding before the counts are known), and a type with no combos would open on an empty page. Per visit (component state): lost on back from a combos page, which remounts the type page |
+| Filter default and URL (owner's choice) | Off by default; `?has=combos` when on, set with `replace` so the back button does not step through toggles. Back from a combos page keeps it, since the URL holds it, and a shared link keeps it | On by default: the grid would show every finish while counts load, then collapse to a few (R10 forbids hiding before the counts are known), and a type with no combos would open on an empty page. Per visit (component state): lost on back from a combos page, which remounts the type page |
 | Filter control | A checkbox labelled "Has combos" at the right of the subtitle line, in the site's text colours; it renders only once counts load, in a row whose height does not change, so the grid does not move | Disabled while loading: on failure it would stay disabled with no reason. A select or tabs: more than one choice to show |
-| Order (*proposed*) | Catalog order; the filter only hides | Finishes with combos first: the grid reorders when counts arrive, and the catalog's order, also used by search and the combos API's ties, stops being the page's order |
+| Order (owner's choice) | Catalog order; the filter only hides | Finishes with combos first: the grid reorders when counts arrive, and the catalog's order, also used by search and the combos API's ties, stops being the page's order |
 | Empty filtered page | "No {type name} finishes have combos yet." and "Show all finishes" in the page's existing centred-message style | An empty grid: looks broken |
-| Type card totals (*proposed*) | In scope: the `/gloves` and `/knives` pages read the same counts query, and `ItemCard` gets an optional `comboCount` that adds " · 34 combos" to its strip. Visiting a type page afterwards needs no second request | A follow-up: with about 4 finishes of 670 having combos, a visitor still opens types blind, and the data is already loaded. A filter on the type pages too: not asked for; a follow-up |
+| Type card totals (owner's choice) | In scope: the `/gloves` and `/knives` pages read the same counts query, and `ItemCard` gets an optional `comboCount` that adds " · 34 combos" to its strip. Visiting a type page afterwards needs no second request | A follow-up: with about 4 finishes of 670 having combos, a visitor still opens types blind, and the data is already loaded. A filter on the type pages too: not asked for; a follow-up |
 | Search dropdown | Unchanged; a follow-up. Its rows are finish names in a small dropdown, and the header search on every page would need the counts request on every page | Counts in the dropdown now: a request on the home page and every combos page for six rows |
 | Tests | Vitest and Testing Library with the fake API, which gains `counts(body)` for `/combo-counts`. API tests in `api/tests/combos/test_counts.py` against the real test database | |
 | CI | No new workflow or step except one more check in the `api` workflow's Compose smoke test: `GET /combo-counts` returns `{"gloves":{},"knives":{}}` with the public CORS header | |
@@ -224,14 +222,7 @@ In `admin/`: `npm ci && npm run api:types:check`.
 
 ## Open questions
 
-Each is written into the spec as recommended; the owner confirms or changes it before approval.
-
-1. **Endpoint path, shape and caching.** Recommended: `GET /combo-counts`, nested `{"gloves": {type: {finish: n}}, "knives": {...}}` with non-zero counts only, no `Cache-Control`. Alternatives: flat `"type/finish"` keys (as spec 011's follow-up sketched); two routes per kind; `Cache-Control: public, max-age=60`.
-2. **Filter default and URL.** Recommended: off by default, kept in the URL as `?has=combos`. Alternatives: on by default; per visit only.
-3. **Order.** Recommended: catalog order, the filter only hides. Alternative: finishes with combos first.
-4. **Counts elsewhere.** Recommended: type card totals on `/gloves` and `/knives` now (same request, one clause in the existing strip); search dropdown counts and a filter on the type pages as follow-ups. Alternative: type totals as a follow-up too, making this spec finish pages only.
-5. **Keeping the card and the page in step.** Recommended: one query cache with a 5-minute stale time, and the card's count updated from the finish's list when the visitor opens it. Alternative: refetch counts after each combos page (one more request each time).
-6. **Zero count.** Chosen on the owner's behalf: no text on a finish without combos, rather than "No combos yet". Change it here if the quiet line is preferred.
+None. On 2026-11-04 the owner chose every recommendation: `GET /combo-counts` with nested non-zero counts and no `Cache-Control`; the filter off by default and kept in the URL as `?has=combos`; catalog order, the filter only hiding; type card totals now, with search dropdown counts and a filter on the type pages as follow-ups; one query cache with the card updated from the finish's list; and no text on a finish without combos. All are recorded in Design.
 
 ## Implementation notes
 
