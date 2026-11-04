@@ -21,7 +21,7 @@ Combos come from the Combo Skin API ([`api/`](../api/README.md)): they are enter
 
 ![Search by gloves: a grid of the eight glove types with the number of finishes for each](docs/screenshots/search-gloves.png)
 
-![Combos for Specialist Gloves | Crimson Kimono: "18 combos" under the finish name, then cards for Karambit and M9 Bayonet | Doppler (Ruby), each with the glove and knife pictures side by side and a score](docs/screenshots/combos.png)
+![Combos for Specialist Gloves | Crimson Kimono: "18 combos" under the finish name, then cards for Karambit and M9 Bayonet | Doppler (Ruby), each with the glove and knife pictures side by side, a score, a "See all ... combos" link to the knife's page, and glove and knife pattern and float rows reading "Any"](docs/screenshots/combos.png)
 
 ## Getting started
 
