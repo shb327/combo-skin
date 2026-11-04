@@ -190,3 +190,22 @@ describe('type card counts', () => {
     expect(countRequests(api)).toHaveLength(1)
   })
 })
+
+describe('pages without counts', () => {
+  it('the home page, with the header search, sends no request', async () => {
+    const { api } = renderSite('/')
+    await settle()
+    expect(api.requests).toHaveLength(0)
+  })
+
+  it('a combos page opened directly sends only its own request', async () => {
+    const api = fakeApi()
+    api.combos('/gloves/specialist/crimson-kimono/combos', combosOf(KIMONO, 1))
+    renderSite('/gloves/specialist/crimson-kimono/combos', { api })
+    expect(await screen.findByText('1 combo')).toBeInTheDocument()
+    await settle()
+    expect(api.requests.map((r) => new URL(r.url).pathname)).toEqual([
+      '/gloves/specialist/crimson-kimono/combos',
+    ])
+  })
+})
