@@ -259,7 +259,7 @@ None. On 2026-11-04 the owner chose every recommendation: `GET /combo-counts` wi
 | 20 | Fresh clone, no `website/.env`: `npm ci`, `api:types:check`, `lint`, `npm test` (72 passed), `build` (no warning) and the `/src/` check pass; in `admin/`, `api:types:check` passes and the branch changes only `admin/src/api/schema.d.ts` there |
 | 21 | `api/README.md` routes table; `website/README.md` feature list, local run note, Data section and `src/api/` row |
 | 22 | Manual, below |
-| 23 | Checked after the branch is pushed; `gitleaks dir . --no-banner --redact` on a fresh clone: no leaks |
+| 23 | Workflow runs for f34310a: `website` 41928151668, `api` 41928151633, `admin` 41928151685, all succeeded; `gitleaks dir . --no-banner --redact` on a fresh clone: no leaks |
 
 **Criterion 22, manual check** (2026-11-04, this branch's API run with `uvicorn` against the local database with the owner's 72 published combos, `npm run dev` with `VITE_API_BASE_URL` pointing at it): `/gloves/specialist` shows "18 combos" on Crimson Kimono, and its combos page says "18 combos". "Has combos" leaves only Crimson Kimono and sets `?has=combos`, which is kept after opening its combos page and going back, and after a reload. `/gloves` reads "20 available · 20 combos" (Driver), "12 available · 34 combos" (Hand Wraps), "19 available · 18 combos" (Specialist) and "{n} available" for the other five. `/knives/karambit` shows "1 combo" on Vanilla. Checked at 1440 px and 375 px wide, with no horizontal scroll. With the API stopped, `/gloves/specialist?has=combos` shows all 19 finishes, no counts and no control, and Crimson Kimono opens its combos page ("Combos could not be loaded."); the console shows only the refused connections.
 
@@ -314,7 +314,7 @@ Website and admin checks ran on a fresh clone of the branch with no `website/.en
 | 20 | Fresh clone: website checks; admin types; admin diff | Pass | Checks below; in `admin/`, `npm ci` and `npm run api:types:check` exit 0; `git diff --stat origin/main...HEAD -- admin/` lists only `admin/src/api/schema.d.ts` |
 | 21 | READMEs | Pass | `api/README.md` routes table; `website/README.md` feature list, local run note, Data section and `src/api/` row |
 | 22 | Manual check with the owner's data | Pass | Recorded in Implementation notes (from implementation, with the owner's 72 combos); the smoke commands of criterion 7 were re-run in the audit |
-| 23 | CI on GitHub; gitleaks on a clean clone | Pending | `gitleaks dir . --no-banner --redact` on a fresh clone: no leaks. The branch is not pushed, so the `website`, `api` and `admin` runs are still to be checked |
+| 23 | CI on GitHub; gitleaks on a clean clone | Pass | `gitleaks dir . --no-banner --redact` on a fresh clone: no leaks. After the follow-up fixes, commit f34310a: `website` run 41928151668, `api` run 41928151633 (`check` and `docker`, which runs the Compose smoke test of criterion 7) and `admin` run 41928151685 succeeded |
 
 | Check | Command | Result |
 | --- | --- | --- |
@@ -335,5 +335,5 @@ Website and admin checks ran on a fresh clone of the branch with no `website/.en
 - (follow-up) Not recorded in Implementation notes: `comboCounts` in `src/api/client.ts` returns only `gloves` and `knives`, so unknown top-level keys are dropped rather than "kept and ignored" (Design, Website request); no visible effect. And if a combos page loads while the counts request is still in flight, the counts answer arrives later and replaces that finish's synced number, so R7 can miss by one in that window.
 - (follow-up) `api/tests/combos/test_counts.py:127` looks for words such as `"id"` anywhere in the body; it passes today but would break on a slug containing them.
 - (follow-up) From Implementation notes: search dropdown counts, a filter on the type pages, and a refreshed `search-gloves.png`.
-- Every follow-up above except the last and the next was fixed after the audit; see Implementation notes, After the audit.
-- (pending) Criterion 23: confirm the three workflow runs once the branch is pushed.
+- Every follow-up above except the last was fixed after the audit; see Implementation notes, After the audit.
+- Criterion 23 was pending at the audit, as the branch was not pushed; the runs for f34310a succeeded (table above).
