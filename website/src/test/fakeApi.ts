@@ -42,6 +42,8 @@ export function deferred(): { reply: Promise<Response>; resolve: (response: Resp
 export interface FakeApi {
   fetch: (request: Request) => Promise<Response>
   requests: Recorded[]
+  /** Each request's abort signal, in the order of `requests`. */
+  signals: AbortSignal[]
   /** Answers for the next requests, in order, before any `combos` set for their path. */
   reply(...replies: Reply[]): void
   /** The combos every later request for this path gets, e.g. `/gloves/specialist/mogul/combos`. */
@@ -52,12 +54,14 @@ export interface FakeApi {
 
 export function fakeApi(): FakeApi {
   const requests: Recorded[] = []
+  const signals: AbortSignal[] = []
   const queue: Reply[] = []
   const byPath = new Map<string, PublicCombo[]>()
   let countsBody: ComboCounts | undefined
 
   return {
     requests,
+    signals,
     reply: (...replies) => queue.push(...replies),
     combos: (path, combos) => byPath.set(path, combos),
     counts: (counts) => {
@@ -66,6 +70,7 @@ export function fakeApi(): FakeApi {
     async fetch(request) {
       const { url, method, credentials, redirect } = request
       requests.push({ url, method, credentials, redirect })
+      signals.push(request.signal)
       const next = queue.shift()
       if (next === 'network-error') throw new TypeError('Failed to fetch')
       if (next) return next

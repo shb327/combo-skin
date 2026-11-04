@@ -1,5 +1,5 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { gloveTypes } from '@/data/gloves'
 import { knifeTypes } from '@/data/knives'
 import {
@@ -12,15 +12,13 @@ import {
   json,
   type FakeApi,
 } from '@/test/fakeApi'
+import { expectNoControl, expectNoCount, finishCards } from '@/test/finishPage'
 import { renderSite } from '@/test/render'
 
 const SPECIALIST = gloveTypes.find((t) => t.id === 'specialist')!
 const KARAMBIT = knifeTypes.find((t) => t.id === 'karambit')!
 const KIMONO = item({ type_slug: 'specialist', finish_slug: 'crimson-kimono' })
-const COUNT = /\d+\s*combos?\b/
 
-const finishCards = () =>
-  screen.getAllByRole('link').filter((link) => link.getAttribute('href')?.endsWith('/combos'))
 const card = (name: string) =>
   finishCards().find((link) => within(link).getByRole('heading').textContent === name)!
 const countRequests = (api: FakeApi) =>
@@ -56,29 +54,41 @@ describe('finish card counts', () => {
     expect(card(one)).toHaveTextContent(/1 combo$/)
     expect(finishCards()).toHaveLength(type.finishes.length)
     for (const link of finishCards()) {
-      if (link !== card(many) && link !== card(one)) expect(link).not.toHaveTextContent(COUNT)
+      if (link !== card(many) && link !== card(one)) expectNoCount(link)
     }
     expect(api.requests).toEqual([
       { url: `${ORIGIN}${COUNTS_PATH}`, method: 'GET', credentials: 'omit', redirect: 'error' },
     ])
   })
 
-  it('shows every finish, without counts or the filter, while the counts load', () => {
+  /** Every finish of the type, each a link to its combos page, with no count. */
+  function expectEveryFinishWithoutCounts(kind: string, type: typeof SPECIALIST) {
+    expect(finishCards().map((link) => link.getAttribute('href'))).toEqual(
+      type.finishes.map((finish) => `/${kind}/${type.id}/${finish.id}/combos`),
+    )
+    finishCards().forEach(expectNoCount)
+  }
+
+  it.each([
+    ['/gloves/specialist', 'gloves', SPECIALIST],
+    ['/knives/karambit', 'knives', KARAMBIT],
+  ])('%s shows every finish, without counts or the filter, while the counts load', (path, kind, type) => {
     const api = fakeApi()
     api.reply(deferred().reply)
-    renderSite('/gloves/specialist', { api })
-    expect(finishCards()).toHaveLength(SPECIALIST.finishes.length)
-    for (const link of finishCards()) {
-      expect(link).not.toHaveTextContent(COUNT)
-      expect(link.getAttribute('href')).toMatch(/^\/gloves\/specialist\/[a-z0-9-]+\/combos$/)
-    }
-    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    renderSite(path, { api })
+    expectEveryFinishWithoutCounts(kind, type)
+    expectNoControl()
   })
 
   it.each([
     ['no response', (): 'network-error' => 'network-error'],
     ['a 500', () => json({ detail: 'oops' }, 500)],
-    ['a body that is not counts', () => json({ gloves: { specialist: { mogul: 'many' } } })],
+    ['a count that is not a number', () => json({ gloves: { specialist: { mogul: '2' } }, knives: {} })],
+    ['a count of 0', () => json({ gloves: { specialist: { mogul: 0 } }, knives: {} })],
+    ['a negative count', () => json({ gloves: { specialist: { mogul: -1 } }, knives: {} })],
+    ['a fractional count', () => json({ gloves: { specialist: { mogul: 1.5 } }, knives: {} })],
+    ['no knives', () => json({ gloves: { specialist: { mogul: 2 } } })],
+    ['a type that is not an object', () => json({ gloves: { specialist: 2 }, knives: {} })],
     ['a list', () => json([])],
   ])('shows every finish quietly after %s', async (_, reply) => {
     const api = fakeApi()
@@ -86,9 +96,8 @@ describe('finish card counts', () => {
     renderSite('/gloves/specialist', { api })
     await waitFor(() => expect(countRequests(api)).toHaveLength(2))
     await settle()
-    expect(finishCards()).toHaveLength(SPECIALIST.finishes.length)
-    for (const link of finishCards()) expect(link).not.toHaveTextContent(COUNT)
-    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    expectEveryFinishWithoutCounts('gloves', SPECIALIST)
+    expectNoControl()
     expect(screen.queryByText(/could not|error|try again/i)).not.toBeInTheDocument()
   })
 
@@ -109,19 +118,67 @@ describe('finish card counts', () => {
     act(() => void navigate('/gloves/specialist'))
 
     expect(card('Crimson Kimono')).toHaveTextContent(/19 combos$/)
-    expect(card('Mogul')).not.toHaveTextContent(COUNT)
+    expectNoCount(card('Mogul'))
     expect(countRequests(api)).toHaveLength(1)
   })
 
+  it('keeps the counts\' own age when a combos page updates them', async () => {
+    // Only the clock is faked: timers stay real for Testing Library's waits.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      const start = new Date('2026-11-04T12:00:00Z').getTime()
+      vi.setSystemTime(start)
+      const api = withCounts({ gloves: { specialist: { 'crimson-kimono': 18 } }, knives: {} })
+      api.combos('/gloves/specialist/crimson-kimono/combos', combosOf(KIMONO, 19))
+      const { navigate } = renderSite('/gloves/specialist', { api })
+      expect(await within(card('Crimson Kimono')).findByText('18')).toBeInTheDocument()
+
+      vi.setSystemTime(start + 4 * 60 * 1000)
+      act(() => void navigate('/gloves/specialist/crimson-kimono/combos'))
+      expect(await screen.findByText('19 combos')).toBeInTheDocument()
+
+      // 5 minutes after the counts loaded, not after the combos page updated them.
+      vi.setSystemTime(start + 5 * 60 * 1000 + 1000)
+      api.counts({ gloves: { specialist: { 'crimson-kimono': 20 } }, knives: {} })
+      act(() => void navigate('/gloves/specialist'))
+      await waitFor(() => expect(countRequests(api)).toHaveLength(2))
+      expect(await within(card('Crimson Kimono')).findByText('20')).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('drops a counts answer that comes after the visitor left the page', async () => {
+    const late = deferred()
+    const api = fakeApi()
+    api.reply(late.reply)
+    api.combos('/gloves/specialist/crimson-kimono/combos', combosOf(KIMONO, 19))
+    const { navigate, queryClient } = renderSite('/gloves/specialist', { api })
+    await waitFor(() => expect(countRequests(api)).toHaveLength(1))
+
+    act(() => void navigate('/gloves/specialist/crimson-kimono/combos'))
+    expect(await screen.findByText('19 combos')).toBeInTheDocument()
+    expect(api.signals[0].aborted).toBe(true)
+    late.resolve(json({ gloves: { specialist: { 'crimson-kimono': 18 } }, knives: {} }))
+    await settle()
+    expect(queryClient.getQueryData(['combo-counts'])).toBeUndefined()
+
+    api.counts({ gloves: { specialist: { 'crimson-kimono': 19 } }, knives: {} })
+    act(() => void navigate('/gloves/specialist'))
+    expect(await within(card('Crimson Kimono')).findByText('19')).toBeInTheDocument()
+    expect(countRequests(api)).toHaveLength(2)
+  })
+
   it('loads the counts once when the visitor starts on a combos page', async () => {
-    const api = withCounts({ gloves: { specialist: { 'crimson-kimono': 2 } }, knives: {} })
+    // Different numbers, to show the card takes the counts' value.
+    const api = withCounts({ gloves: { specialist: { 'crimson-kimono': 7 } }, knives: {} })
     api.combos('/gloves/specialist/crimson-kimono/combos', combosOf(KIMONO, 2))
     const { navigate } = renderSite('/gloves/specialist/crimson-kimono/combos', { api })
     expect(await screen.findByText('2 combos')).toBeInTheDocument()
     expect(countRequests(api)).toHaveLength(0)
 
     act(() => void navigate('/gloves/specialist'))
-    expect(await within(card('Crimson Kimono')).findByText('2')).toBeInTheDocument()
+    expect(await within(card('Crimson Kimono')).findByText('7')).toBeInTheDocument()
     await settle()
     expect(countRequests(api)).toHaveLength(1)
   })
@@ -165,15 +222,17 @@ describe('type card counts', () => {
   })
 
   it.each([
-    ['while the counts load', () => deferred().reply],
-    ['after they fail', (): 'network-error' => 'network-error'],
-  ])('shows only "{n} available" %s', async (_, reply) => {
+    ['/gloves', 'while the counts load', () => deferred().reply],
+    ['/gloves', 'after they fail', (): 'network-error' => 'network-error'],
+    ['/knives', 'while the counts load', () => deferred().reply],
+    ['/knives', 'after they fail', (): 'network-error' => 'network-error'],
+  ])('%s shows only "{n} available" %s', async (path, _, reply) => {
     const api = fakeApi()
     api.reply(reply(), reply())
-    renderSite('/gloves', { api })
+    renderSite(path, { api })
     await waitFor(() => expect(countRequests(api).length).toBeGreaterThan(0))
     await settle()
-    for (const type of gloveTypes) {
+    for (const type of path === '/gloves' ? gloveTypes : knifeTypes) {
       expect(typeCard(type.name)).toHaveTextContent(
         new RegExp(`(^|\\D)${type.finishes.length} available$`),
       )

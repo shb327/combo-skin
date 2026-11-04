@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { gloveTypes } from '@/data/gloves'
 import { knifeTypes } from '@/data/knives'
 import { COUNTS_PATH, deferred, fakeApi, type FakeApi } from '@/test/fakeApi'
+import { expectNoControl, finishCards } from '@/test/finishPage'
 import { renderSite } from '@/test/render'
 
 const SPECIALIST = gloveTypes.find((t) => t.id === 'specialist')!
@@ -15,11 +16,7 @@ const SPECIALIST_COUNTS = {
   knives: {},
 }
 
-const finishNames = () =>
-  screen
-    .getAllByRole('link')
-    .filter((link) => link.getAttribute('href')?.endsWith('/combos'))
-    .map((link) => within(link).getByRole('heading').textContent)
+const finishNames = () => finishCards().map((link) => within(link).getByRole('heading').textContent)
 const filter = () => screen.findByRole('checkbox', { name: 'Has combos' })
 
 function withCounts(counts: Parameters<FakeApi['counts']>[0]): FakeApi {
@@ -57,7 +54,7 @@ describe('"Has combos" filter', () => {
     api.reply(reply)
     renderSite('/knives/karambit?has=combos', { api })
     expect(finishNames()).toHaveLength(KARAMBIT.finishes.length)
-    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    expectNoControl()
 
     resolve(
       new Response(JSON.stringify({ gloves: {}, knives: { karambit: { fade: 1 } } }), {
@@ -77,7 +74,7 @@ describe('"Has combos" filter', () => {
     )
     await act(() => new Promise((done) => setTimeout(done, 0)))
     expect(finishNames()).toHaveLength(KARAMBIT.finishes.length)
-    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    expectNoControl()
   })
 
   it('ignores any other value of "has"', async () => {
