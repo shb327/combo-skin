@@ -41,11 +41,16 @@ export function ItemCard({ name, images, count, comboCount, onSwiperInit }: Item
       </div>
       <div className="bg-white/5 py-2 px-4">
         <p className="text-center text-sm text-white/60">
-          <span className="text-white font-semibold">{count}</span> available
+          {/* Each half stays on one line; a narrow card breaks the line at the dot. */}
+          <span className="whitespace-nowrap">
+            <span className="text-white font-semibold">{count}</span> available
+          </span>
           {comboCount !== undefined && comboCount > 0 && (
             <>
               {' · '}
-              <span className="text-white font-semibold">{comboCount}</span> {comboWord(comboCount)}
+              <span className="whitespace-nowrap">
+                <span className="text-white font-semibold">{comboCount}</span> {comboWord(comboCount)}
+              </span>
             </>
           )}
         </p>
