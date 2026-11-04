@@ -1,9 +1,9 @@
-import type { ReactNode } from 'react'
 import { useParams, useLocation } from 'react-router-dom'
 import { ApiError, type Kind, type PublicCombo } from '@/api/client'
 import { useFinishCombos } from '@/api/queries'
 import { ComboPictures } from '@/components/ComboPictures'
-import { floatRange, itemName, patternSeeds } from '@/components/comboText'
+import { comboCount, floatRange, itemName, patternSeeds } from '@/components/comboText'
+import { Message } from '@/components/Message'
 import { getAllGloves } from '@/data/gloves'
 import { getAllKnives } from '@/data/knives'
 
@@ -77,21 +77,6 @@ function FinishCombos({ kind, item }: { kind: Kind; item: CatalogItem }) {
           </div>
         )
       )}
-    </div>
-  )
-}
-
-/** "15 combos", "1 combo", or "No combos yet". */
-function comboCount(count: number): string {
-  if (count === 0) return 'No combos yet'
-  return count === 1 ? '1 combo' : `${count} combos`
-}
-
-function Message({ text, children }: { text: string; children?: ReactNode }) {
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[200px] md:min-h-[400px]">
-      <p className="text-white/40 text-base md:text-lg">{text}</p>
-      {children}
     </div>
   )
 }

@@ -1,15 +1,18 @@
 import { Swiper, SwiperSlide } from 'swiper/react'
 import type { Swiper as SwiperType } from 'swiper'
 import 'swiper/css'
+import { comboWord } from '@/components/comboText'
 
 interface ItemCardProps {
   name: string
   images: string[]
   count: number
+  /** The type's combos once the counts load; none shown when 0 or unknown. */
+  comboCount?: number
   onSwiperInit?: (swiper: SwiperType) => void
 }
 
-export function ItemCard({ name, images, count, onSwiperInit }: ItemCardProps) {
+export function ItemCard({ name, images, count, comboCount, onSwiperInit }: ItemCardProps) {
   return (
     <div className="group relative bg-white/5 rounded-lg overflow-hidden cursor-pointer w-full">
       <div className="absolute inset-0 bg-radial-[circle_at_center] from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
@@ -39,6 +42,12 @@ export function ItemCard({ name, images, count, onSwiperInit }: ItemCardProps) {
       <div className="bg-white/5 py-2 px-4">
         <p className="text-center text-sm text-white/60">
           <span className="text-white font-semibold">{count}</span> available
+          {comboCount !== undefined && comboCount > 0 && (
+            <>
+              {' · '}
+              <span className="text-white font-semibold">{comboCount}</span> {comboWord(comboCount)}
+            </>
+          )}
         </p>
       </div>
     </div>

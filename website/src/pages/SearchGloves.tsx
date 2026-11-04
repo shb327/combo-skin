@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
 import type { Swiper as SwiperType } from 'swiper'
 import { Link } from 'react-router-dom'
+import { typeCount } from '@/api/counts'
+import { useComboCounts } from '@/api/queries'
 import { ItemCard } from '@/components/ItemCard'
 import { gloveTypes as gloveData } from '@/data/gloves'
 
@@ -41,6 +43,7 @@ const gloveImages: Record<string, string[]> = {
 }
 
 export function SearchGloves() {
+  const counts = useComboCounts()
   const swipersRef = useRef<(SwiperType | null)[]>([])
 
   useEffect(() => {
@@ -72,6 +75,7 @@ export function SearchGloves() {
               name={glove.name}
               images={gloveImages[glove.id] || []}
               count={glove.finishes.length}
+              comboCount={counts && typeCount(counts, 'gloves', glove.id, glove.finishes)}
               onSwiperInit={(swiper) => {
                 swipersRef.current[index] = swiper
               }}
