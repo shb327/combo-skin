@@ -3,7 +3,7 @@
 import json
 
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from combo_api.catalog.importer import import_snapshot
@@ -35,6 +35,13 @@ def public_paths() -> list[str]:
 PUBLIC_PATHS = public_paths()
 
 
+def vary_values(response: Response) -> list[str]:
+    """The `Vary` header's values, lower-cased, across all `Vary` lines."""
+    return [
+        v.strip().lower() for line in response.headers.get_list("vary") for v in line.split(",")
+    ]
+
+
 def cors(headers: dict[str, str]) -> dict[str, str]:
     return {k: v for k, v in headers.items() if k.startswith("access-control-")}
 
@@ -63,7 +70,7 @@ async def test_public_routes_allow_any_origin(
     response = await client.get(path, headers=headers)
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "*"
-    assert "origin" in response.headers["vary"].lower()
+    assert vary_values(response) == ["origin"]
     assert "access-control-allow-credentials" not in response.headers
 
 
@@ -114,7 +121,7 @@ async def test_admin_origin_keeps_credentialed_cors(client: AsyncClient, path: s
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == ADMIN_ORIGIN
     assert response.headers["access-control-allow-credentials"] == "true"
-    assert "origin" in response.headers["vary"].lower()
+    assert vary_values(response) == ["origin"]
 
 
 async def test_admin_origin_on_admin_route_unchanged(client: AsyncClient) -> None:

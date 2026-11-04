@@ -105,7 +105,12 @@ class PublicCors:
                 headers = MutableHeaders(scope=message)
                 if public:
                     headers["Access-Control-Allow-Origin"] = "*"
-                headers.add_vary_header("Origin")
+                # AdminCors has already added it for admin origins; add_vary_header would repeat it.
+                varies = {
+                    v.strip().lower() for line in headers.getlist("vary") for v in line.split(",")
+                }
+                if "origin" not in varies:
+                    headers.add_vary_header("Origin")
             await send(message)
 
         await self.app(scope, receive, send_with_cors)
