@@ -1,6 +1,6 @@
 # 011: The website shows real combos from the API
 
-**Status:** Approved
+**Status:** Implemented
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** website, api
@@ -223,7 +223,47 @@ None. On 2026-11-04 the owner chose the recommendations for how the website reac
 
 ## Implementation notes
 
-Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+No deviations from Requirements, Design or Acceptance criteria. Details the spec left open:
+
+- **Public CORS.** `PublicCors` in `api/src/combo_api/main.py` wraps `AdminCors` and rewrites the start of a `GET` response once the router has matched it: when the matched route has a tag in `PUBLIC_TAGS` (`catalog`, `combos`), it adds `Vary: Origin`, and, unless the `Origin` is an admin origin, `Access-Control-Allow-Origin: *`. A 404 from those routes is covered, as the route has matched; a path no route matches gets nothing.
+- **Smoke test.** The two new steps in `.github/workflows/api.yml` keep the headers in a variable before `grep -q`, so a closed pipe cannot fail the step under `pipefail`.
+- **Website files.** `src/api/client.ts` (the only module that makes requests), `src/api/useApi.ts` (context), `src/api/queries.ts` (`createQueryClient`, `useFinishCombos`), `src/Providers.tsx` (used by `main.tsx` and tests), `src/components/ComboPictures.tsx` and `src/components/comboText.ts` (names, float ranges and seeds as text). Cards are `<article>` elements. `src/test/fakeApi.ts`, `src/test/render.tsx` (renders the whole site in a `MemoryRouter`) and `src/test/NavigateHandle.tsx` are the test helpers; criterion 14's grep counts them as test files.
+- **The client's origin guard.** `openapi-fetch` encodes path parameters, so no slug can move a request off the origin (`src/api/client.test.ts`); the guard before the network stays, as in the admin.
+- **Versions.** `@tanstack/react-query` 5.105.3, `openapi-fetch` 0.17.0, `openapi-typescript` 7.13.0, Vitest 5.1.0 with jsdom 29.1.1, Testing Library as the admin. Installing Vitest moved the locked Vite from 7.2 to 7.3.7, inside the existing range.
+- **Bundle.** Main chunk 397.5 kB (125.1 kB gzipped), up 11.7 kB gzipped from `main`; the catalog chunk is unchanged; no chunk-size warning.
+- **Home page artwork.** The 18 files moved unchanged (`git diff -M` shows 18 renames at 100%). The build emits 11 of them under their own names because Vite stores identical files once: 7 are byte-identical to type images under `src/assets/gloves/` and `src/assets/knives/`, as on `main`.
+
+### Criterion coverage
+
+| Criterion | Covered by |
+| --- | --- |
+| 1 | `website/src/pages/Combos.test.tsx:53` (order kept, one `GET` with `credentials: "omit"`) |
+| 2 | `website/src/pages/Combos.test.tsx:178` |
+| 3 | `website/src/pages/Combos.test.tsx:74` |
+| 4 | `website/src/pages/Combos.test.tsx:108` |
+| 5 | `website/src/pages/Combos.test.tsx:119` |
+| 6 | `website/src/pages/Combos.test.tsx:145`, `:160`, `:167` |
+| 7 | `website/src/pages/Combos.test.tsx:198`, `:209` (no response, a 500, a body that is not a list) |
+| 8 | `website/src/pages/Combos.test.tsx:232` |
+| 9 | `website/src/pages/Combos.test.tsx:245`, `:260` |
+| 10 | `website/src/pages/FinishCards.test.tsx:8`, `:24`; `grep -rnE "total(Knives\|Gloves)" src` prints nothing |
+| 11 | `website/src/api/origin.test.ts`; `VITE_API_BASE_URL=https://api.example.com/x npm run build` exits 1 with the variable named |
+| 12 | `npm run api:types:check` exits 1 with no `src/api/schema.d.ts`, 0 after `npm run api:types`, and 1 naming the file with a property added to `PublicCombo` in `api/openapi.json` (change discarded) |
+| 13 | The test and grep in criterion 13 pass; 18 renames at 100%; the home page artwork loads on `npm run dev` (every image `naturalWidth > 0`) |
+| 14 | `grep -rn dangerouslySetInnerHTML src` prints nothing; `grep -rlwE "fetch\|XMLHttpRequest\|axios" src` lists `src/api/client.ts`, `src/api/client.test.ts`, `src/test/fakeApi.ts`, `src/test/render.tsx` |
+| 15 | Fresh clone, no `website/.env`: `npm ci`, `api:types:check`, `lint`, `npm test` (47 passed), `build` (no chunk-size warning) and the `/src/` check pass |
+| 16 | `.github/workflows/website.yml` diff adds only the two steps; `actionlint` 1.7.12 exits 0 |
+| 17 | `api/tests/test_cors.py:59` (8 routes from `api/openapi.json`, with and without `Origin`), `:74` (404s), `:48` |
+| 18 | `api/tests/test_cors.py:96` (admin, health, docs, OpenAPI and a `POST`), `:103` (preflight) |
+| 19 | `api/tests/test_cors.py:112`, `:120`; `api/tests/admins/test_http.py` unchanged and passing |
+| 20 | In `api/`: format, lint, mypy (77 files), `pytest` (315 passed, none skipped), `combo_api.openapi --check` and `export-website --check` exit 0; `api/openapi.json` unchanged |
+| 21 | The new steps in `.github/workflows/api.yml`; run by hand against the API of `main` (the first fails, as it should) and of this branch (both pass); `actionlint` exits 0 |
+| 22 | `website/README.md` and `api/README.md` (Public CORS); `grep -c "combos.ts" website/README.md` prints 0 |
+| 23 | `website/docs/screenshots/combos.png`: 1440 by 623, 139 KB, captured with headless Chrome from `npm run dev` against the Compose API, cropped to the header and the first row of cards |
+| 24 | Manual, below |
+| 25 | Checked after the branch is pushed |
+
+**Criterion 24, manual check** (2026-11-04, Compose API built from this branch with the owner's 72 published combos on four glove finishes, `ADMIN_ORIGINS` unchanged, `npm run dev`): Specialist Gloves \| Crimson Kimono shows "18 combos", ratings 9.98 down to 9.21 in order, each card with both pictures; Karambit \| Doppler (Ruby) shows "1 combo", Specialist Gloves \| Crimson Kimono; Specialist Gloves \| Mogul shows "No combos yet" once; with the API stopped, Driver Gloves \| King Snake shows "Combos could not be loaded." after one retry, and after starting the API "Try again" shows "19 combos". The browser console shows only the two refused connections of that check, and no CORS error. `npm run build` and `npm run preview` show the Karambit \| Doppler (Ruby) page the same way.
 
 ### Follow-ups
 
