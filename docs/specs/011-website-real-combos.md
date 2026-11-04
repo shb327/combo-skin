@@ -303,7 +303,7 @@ Website checks ran on a fresh clone of the branch with no `website/.env`; API ch
 | 21 | Smoke test checks the header on combos, none on admin | Pass | `.github/workflows/api.yml` steps; `docker` job of run 41835066471 passed both |
 | 22 | READMEs | Pass | `website/README.md` sections read; `grep -c "combos.ts"` prints 0; `api/README.md` Public CORS paragraph |
 | 23 | Real combos screenshot | Pass | `website/docs/screenshots/combos.png` 1440 by 623, 138,726 bytes, page content only, real combos |
-| 24 | Manual check with the owner's data | Pass | Recorded in Implementation notes; repeated in this audit for the Crimson Kimono, Karambit Doppler (Ruby), Mogul and King Snake pages and the stopped API |
+| 24 | Manual check with the owner's data | Pass | Recorded in Implementation notes. Re-checked in the audit on `npm run dev` against the branch's Compose API: Specialist Gloves Crimson Kimono "18 combos" (Karambit Doppler (Ruby) first), Hand Wraps Cobalt Skulls "34 combos", Driver Gloves Hand Sweaters "1 combo", with King Snake's 19 all 72 published combos; Karambit Doppler (Ruby) "1 combo" (Crimson Kimono); Specialist Gloves Mogul "No combos yet" once. The stopped-API and preview checks are from implementation |
 | 25 | CI on GitHub; gitleaks on a clean clone | Pass | Commit 34992d6: `api` run 41835066471 (`check` and `docker`), `website` 41835066605, `admin` 41835066488 succeeded; `gitleaks dir .` on a clean clone: no leaks |
 
 | Check | Command | Result |
