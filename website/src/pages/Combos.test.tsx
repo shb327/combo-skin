@@ -43,7 +43,20 @@ const PANDORA = item({
   display_name: "Pandora's Box",
 })
 
+// The catalog's Vanilla knives have no float range, so no float or pattern to choose.
+const BAYONET_VANILLA = item({
+  type_slug: 'bayonet',
+  type_name: 'Bayonet',
+  finish_slug: 'vanilla',
+  display_name: 'Vanilla',
+  float_min: null,
+  float_max: null,
+})
+
 const cards = () => screen.queryAllByRole('article')
+/** A card's condition rows, as "Glove Pattern: 2, 179". */
+const conditions = (card: HTMLElement) =>
+  Array.from(card.querySelectorAll('.border-t > div'), (row) => row.textContent)
 /** The line under the finish name: the number of combos, or null when there is none. */
 const countLine = () =>
   screen.getByRole('heading', { level: 1 }).nextElementSibling?.textContent ?? null
@@ -97,17 +110,55 @@ describe('a glove finish page', () => {
     expect(within(second).getByText('9.5')).toHaveStyle({ color: '#00DE12' })
     expect(within(third).getByText('7.6')).toHaveStyle({ color: '#84cc16' })
 
-    expect(first).toHaveTextContent('Knife Float: 0 - 0.01')
-    expect(first).toHaveTextContent('Glove Pattern: 2, 179')
-    expect(first).not.toHaveTextContent('Glove Float')
-    expect(first).not.toHaveTextContent('Knife Pattern')
     const description = within(first).getByText(/Any ruby works/)
     expect(description.textContent).toBe('Any ruby works.\nThe darker the better.')
 
-    expect(second).not.toHaveTextContent(/Float|Pattern/)
     expect(second).not.toHaveTextContent('No description available.')
-    expect(second.querySelector('.border-t')).toBeNull()
     expect(second.querySelectorAll('p')).toHaveLength(0)
+  })
+
+  it('shows the four conditions in order, with the values a combo sets', async () => {
+    const api = fakeApi()
+    api.combos(MOGUL_PATH, [
+      combo('a', 8, { ...MOGUL, seeds: [2, 179] }, { ...KARAMBIT_RUBY, float_from: 0, float_to: 0.01 }),
+    ])
+    renderSite(MOGUL_PATH, { api })
+    await loaded()
+
+    expect(conditions(cards()[0])).toEqual([
+      'Glove Pattern: 2, 179',
+      'Knife Pattern: Any',
+      'Glove Float: Any',
+      'Knife Float: 0 - 0.01',
+    ])
+  })
+
+  it('says "Any" for every condition a combo leaves open', async () => {
+    const api = fakeApi()
+    api.combos(MOGUL_PATH, [combo('a', 8, MOGUL, M9)])
+    renderSite(MOGUL_PATH, { api })
+    await loaded()
+
+    expect(conditions(cards()[0])).toEqual([
+      'Glove Pattern: Any',
+      'Knife Pattern: Any',
+      'Glove Float: Any',
+      'Knife Float: Any',
+    ])
+  })
+
+  it('says "None" for the pattern and float of a Vanilla knife', async () => {
+    const api = fakeApi()
+    api.combos(MOGUL_PATH, [combo('a', 8, MOGUL, BAYONET_VANILLA)])
+    renderSite(MOGUL_PATH, { api })
+    await loaded()
+
+    expect(conditions(cards()[0])).toEqual([
+      'Glove Pattern: Any',
+      'Knife Pattern: None',
+      'Glove Float: Any',
+      'Knife Float: None',
+    ])
   })
 
   it('shows a description as text, never as HTML', async () => {

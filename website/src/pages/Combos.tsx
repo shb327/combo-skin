@@ -151,7 +151,7 @@ function ComboCard({ combo, isGlove }: { combo: PublicCombo; isGlove: boolean })
     ['Knife Pattern', patternSeeds(combo.knife)],
     ['Glove Float', floatRange(combo.glove)],
     ['Knife Float', floatRange(combo.knife)],
-  ].filter((condition): condition is [string, string] => condition[1] !== null)
+  ]
 
   return (
     <article className="bg-white/5 rounded-lg overflow-hidden">
@@ -169,16 +169,14 @@ function ComboCard({ combo, isGlove }: { combo: PublicCombo; isGlove: boolean })
           <ScoreCircle score={combo.rating} />
         </div>
 
-        {conditions.length > 0 && (
-          <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-white/10 grid grid-cols-2 gap-1 md:gap-2 text-xs md:text-sm">
-            {conditions.map(([label, value]) => (
-              <div key={label}>
-                <span className="text-white/40">{label}:</span>{' '}
-                <span className="text-white/80">{value}</span>
-              </div>
-            ))}
-          </div>
-        )}
+        <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-white/10 grid grid-cols-2 gap-1 md:gap-2 text-xs md:text-sm">
+          {conditions.map(([label, value]) => (
+            <div key={label}>
+              <span className="text-white/40">{label}:</span>{' '}
+              <span className="text-white/80">{value}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </article>
   )

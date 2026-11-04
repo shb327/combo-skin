@@ -5,13 +5,20 @@ export function itemName(item: ComboItem): string {
   return `${item.type_name} | ${item.display_name}`
 }
 
-/** "0 - 0.01", or null without a range. */
-export function floatRange(item: ComboItem): string | null {
-  if (item.float_from === null || item.float_to === null) return null
+/** A finish without a float range (Vanilla) has no float or pattern to choose. */
+function hasNoFloat(item: ComboItem): boolean {
+  return item.float_min === null
+}
+
+/** "0 - 0.01"; "Any" without a range; "None" for a finish that has no float. */
+export function floatRange(item: ComboItem): string {
+  if (hasNoFloat(item)) return 'None'
+  if (item.float_from === null || item.float_to === null) return 'Any'
   return `${item.float_from} - ${item.float_to}`
 }
 
-/** "2, 179", or null when any pattern goes. */
-export function patternSeeds(item: ComboItem): string | null {
-  return item.seeds.length > 0 ? item.seeds.join(', ') : null
+/** "2, 179"; "Any" when any pattern goes; "None" for a finish that has no float. */
+export function patternSeeds(item: ComboItem): string {
+  if (hasNoFloat(item)) return 'None'
+  return item.seeds.length > 0 ? item.seeds.join(', ') : 'Any'
 }
