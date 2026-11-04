@@ -250,6 +250,60 @@ describe('a knife finish page', () => {
   })
 })
 
+describe("links to the other item's combos", () => {
+  it('takes a glove page card to its knife finish page, inside the site', async () => {
+    const api = fakeApi()
+    api.combos(MOGUL_PATH, [combo('a', 8, MOGUL, KARAMBIT_RUBY)])
+    api.combos(RUBY_PATH, [combo('b', 9, KIMONO, KARAMBIT_RUBY)])
+    renderSite(MOGUL_PATH, { api })
+    await loaded()
+
+    // The arrow is decoration: the exact name leaves it out.
+    const link = within(cards()[0]).getByRole('link', { name: 'See all Karambit | Doppler (Ruby) combos' })
+    expect(link).toHaveAttribute('href', RUBY_PATH)
+    expect(link).toHaveTextContent('See all Karambit | Doppler (Ruby) combos →')
+
+    // A MemoryRouter page changes only through the router: a plain link would leave it here.
+    await userEvent.click(link)
+    expect(await screen.findByText('Specialist Gloves | Crimson Kimono')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Karambit | Doppler (Ruby)')
+    expect(api.requests.map((r) => new URL(r.url).pathname)).toEqual([MOGUL_PATH, RUBY_PATH])
+  })
+
+  it('takes a knife page card to its glove finish page', async () => {
+    const api = fakeApi()
+    api.combos(RUBY_PATH, [combo('a', 9, KIMONO, KARAMBIT_RUBY)])
+    renderSite(RUBY_PATH, { api })
+    await loaded()
+
+    const link = within(cards()[0]).getByRole('link', {
+      name: 'See all Specialist Gloves | Crimson Kimono combos',
+    })
+    expect(link).toHaveAttribute('href', '/gloves/specialist/crimson-kimono/combos')
+  })
+
+  it('leaves the link out when the site does not know the other finish', async () => {
+    const api = fakeApi()
+    const retired = item({
+      type_slug: 'karambit',
+      type_name: 'Karambit',
+      finish_slug: 'retired-finish',
+      display_name: 'Retired Finish',
+      active: false,
+    })
+    api.combos(MOGUL_PATH, [combo('a', 8.5, MOGUL, retired)])
+    renderSite(MOGUL_PATH, { api })
+    await loaded()
+
+    const [card] = cards()
+    expect(within(card).queryByRole('link')).toBeNull()
+    expect(card).not.toHaveTextContent('See all')
+    expect(within(card).getByRole('heading')).toHaveTextContent('Karambit | Retired Finish')
+    expect(within(card).getByText('8.5')).toBeInTheDocument()
+    expect(conditions(card)).toHaveLength(4)
+  })
+})
+
 describe('failures', () => {
   afterEach(() => {
     onlineManager.setOnline(true)

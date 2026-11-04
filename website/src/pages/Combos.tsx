@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import { useParams, useLocation } from 'react-router-dom'
-import { ApiError, type Kind, type PublicCombo } from '@/api/client'
+import { Link, useParams, useLocation } from 'react-router-dom'
+import { ApiError, type ComboItem, type Kind, type PublicCombo } from '@/api/client'
 import { useFinishCombos } from '@/api/queries'
 import { ComboPictures } from '@/components/ComboPictures'
 import { floatRange, itemName, patternSeeds } from '@/components/comboText'
@@ -144,8 +144,17 @@ function ScoreCircle({ score }: { score: number }) {
   )
 }
 
+/** The combos page of a finish the bundled catalog knows, or null: any other page says "Item not found". */
+function combosPath(kind: Kind, item: ComboItem): string | null {
+  const known = (kind === 'gloves' ? getAllGloves() : getAllKnives()).some(
+    (i) => i.typeId === item.type_slug && i.finishId === item.finish_slug,
+  )
+  return known ? `/${kind}/${item.type_slug}/${item.finish_slug}/combos` : null
+}
+
 function ComboCard({ combo, isGlove }: { combo: PublicCombo; isGlove: boolean }) {
   const other = isGlove ? combo.knife : combo.glove
+  const otherPath = combosPath(isGlove ? 'knives' : 'gloves', other)
   const conditions = [
     ['Glove Pattern', patternSeeds(combo.glove)],
     ['Knife Pattern', patternSeeds(combo.knife)],
@@ -164,6 +173,16 @@ function ComboCard({ combo, isGlove }: { combo: PublicCombo; isGlove: boolean })
               <p className="text-white/60 text-sm md:text-base mt-1 md:mt-2 whitespace-pre-line">
                 {combo.description}
               </p>
+            )}
+            {otherPath && (
+              <div className="mt-1 md:mt-2">
+                <Link
+                  to={otherPath}
+                  className="text-white/60 hover:text-white text-sm md:text-base transition-colors"
+                >
+                  See all {itemName(other)} combos <span aria-hidden="true">→</span>
+                </Link>
+              </div>
             )}
           </div>
           <ScoreCircle score={combo.rating} />
