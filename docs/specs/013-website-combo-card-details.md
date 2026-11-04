@@ -1,6 +1,6 @@
 # 013: Combo card details
 
-**Status:** Implemented
+**Status:** Audited
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** website
@@ -102,4 +102,31 @@ Notes:
 
 ## Audit
 
-Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
+**Date:** 2026-11-04 · **Branch:** 013-website-combo-card-details · **Commit:** 61e1ca2
+**Verdict:** Pass
+
+This audit replaces the one at commit 4f24df1, which covered the link since dropped. Tests were run with `npx vitest run src/pages/Combos.test.tsx` in `website/` and in the full suite below. For criteria 1 to 3, the code was broken on purpose and the tests failed each time: no Vanilla rule (`:150` fails), "Any" replaced by empty text (`:120`, `:136`, `:150` fail), the middle two rows swapped (all three fail), and rows reading "Any" hidden again (all three fail).
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | Set values, others "Any", in order | Pass | `website/src/pages/Combos.test.tsx:120`: all four rows compared in order |
+| 2 | No conditions: four rows of "Any" | Pass | `Combos.test.tsx:136` |
+| 3 | Vanilla knife: "None" for its rows, "Any" for the unset glove rows | Pass | `Combos.test.tsx:150`, with `float_min` and `float_max` null as in the catalog |
+| 4 | New screenshot; README embeds it with alt text naming the rows | Pass | `website/docs/screenshots/combos.png` (1440×696, commit 607b814) opened: header and two cards with four "Any" rows and no link; `website/README.md:24` |
+| 5 | Lint, types check, tests and build on a clean checkout | Pass | Checks below |
+| 6 | No change under `api/` | Pass | `git diff origin/main...HEAD -- api/` prints nothing |
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Install | `npm ci` in `website/` of a fresh clone at 61e1ca2, no `.env` (only `.env.example`) | Pass, exit 0 |
+| Lint | `npm run lint` | Pass, exit 0 |
+| API types | `npm run api:types:check` | Pass, exit 0 |
+| Tests | `npm test` | Pass, exit 0: 5 files, 53 tests |
+| Build | `npm run build`, then the workflow's `grep -rlF '/src/' dist` | Pass, exit 0, no warnings; no `/src/` paths |
+| Secret scan | `gitleaks git --log-opts="origin/main..013-website-combo-card-details"` and `gitleaks dir .` | Pass, no leaks |
+| Public exposure | Manual review of the branch diff and log; `git check-ignore -v .claude/ CLAUDE.md`; `git ls-files` for private files | Pass: no secrets, hosts, addresses or local paths; the screenshot shows only the page; `.claude/` and `CLAUDE.md` ignored and untracked; 11 commits by the owner, one line each, no trailers |
+| Design conformance | Code compared with Design and Security | Pass: `comboText.ts` returns "Any" or "None", `ComboCard` drops its filter and always shows the grid; nothing else on the card differs from `main`; the dropped link is recorded in Implementation notes |
+
+**Findings**
+
+None.
