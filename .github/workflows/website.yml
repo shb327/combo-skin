@@ -28,7 +28,9 @@ jobs:
           cache: npm
           cache-dependency-path: website/package-lock.json
       - run: npm ci
+      - run: npm run api:types:check
       - run: npm run lint
+      - run: npm test
       - run: npm run build
       # The dev server serves /src/ paths, but a build does not include them.
       - name: Check the build references no /src/ paths
