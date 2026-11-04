@@ -7,3 +7,8 @@ declare module 'swiper/css/pagination' {}
 declare module 'swiper/css/scrollbar' {}
 declare module 'swiper/css/autoplay' {}
 declare module 'swiper/css/controller' {}
+
+interface ImportMetaEnv {
+  /** The API origin, checked and defaulted by vite.config.ts. */
+  readonly VITE_API_BASE_URL: string
+}
