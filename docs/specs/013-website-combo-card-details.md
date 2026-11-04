@@ -1,6 +1,6 @@
 # 013: Combo card details and links
 
-**Status:** Approved
+**Status:** Implemented
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** website
@@ -98,7 +98,28 @@ None. On 2026-11-04 the owner chose to drop the rarity line, to show all four ro
 
 ## Implementation notes
 
-Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+**2026-11-04.** Built on `main` after spec 011 was merged. No requirement changed.
+
+| # | Covered by |
+| --- | --- |
+| 1 | `website/src/pages/Combos.test.tsx:120` "shows the four conditions in order, with the values a combo sets" |
+| 2 | `Combos.test.tsx:136` "says "Any" for every condition a combo leaves open" |
+| 3 | `Combos.test.tsx:150` "says "None" for the pattern and float of a Vanilla knife" (Bayonet \| Vanilla, as in the catalog: `float_min` and `float_max` null) |
+| 4 | `Combos.test.tsx:254` "takes a glove page card to its knife finish page, inside the site". The site renders in a `MemoryRouter`, which changes page only through the router: with the link swapped for a plain `<a href>`, this test fails (checked once by hand) |
+| 5 | `Combos.test.tsx:273` "takes a knife page card to its glove finish page" |
+| 6 | `Combos.test.tsx:285` "leaves the link out when the site does not know the other finish" |
+| 7 | `Combos.test.tsx:254` and `:273`: the link is found by its exact name, without the arrow, and `:254` checks the visible text ends in "→" |
+| 8 | `website/docs/screenshots/combos.png`: Specialist Gloves \| Crimson Kimono at 1440 px wide, from a local API with the owner's combos, header and first two cards (1440×696, 156 KB). `website/README.md` alt text updated, and its feature line now mentions the rows and the link |
+| 9 | Fresh clone, no `.env`: `npm ci`, `npm run lint`, `npm run api:types:check`, `npm test` (56 tests) and `npm run build` (no warnings) each exit 0; no `/src/` path in `dist/` |
+| 10 | `git diff origin/main...HEAD -- api/` prints nothing |
+
+Notes:
+
+- The link text uses `text-sm md:text-base`, the description's sizes, not `text-sm` alone as in Design, so the two lines under the title read at one size on wide screens.
+- A no-break space joins the arrow to "combos": without it, a long name (Butterfly Knife \| Doppler (Ruby)) left the arrow alone on a line.
+- `combosPath` looks the other finish up in the bundled catalog for every card (up to 576 entries); fast enough for the up to 35 cards a page shows today, and simple to cache if pages grow.
+- The existing card test no longer checks that unset conditions are hidden (R1 replaces that part of spec 011's R3); the new tests above check the rows instead.
+- Checked in a browser against the local API: the link works both ways, the new page starts at the top, and the card fits at 375 px wide (the link wraps under the title, the score stays beside it).
 
 ## Audit
 
