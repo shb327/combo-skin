@@ -1,6 +1,6 @@
 # 014: Real combo counts on the website
 
-**Status:** Approved
+**Status:** Implemented
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** website, api
@@ -226,7 +226,47 @@ None. On 2026-11-04 the owner chose every recommendation: `GET /combo-counts` wi
 
 ## Implementation notes
 
-Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+**2026-11-04.** Built on `main` after spec 013. No deviations from Requirements, Design or Acceptance criteria. Details the spec left open:
+
+- **API.** `get_combo_counts` in `api/src/combo_api/combos/public_routes.py` runs one grouped query per kind (`counts_by_finish`), joined to `finishes` and `item_types` for the slugs. `queries.PUBLISHED` is the one published condition, used by the counts and by both list routes. `ComboCounts` is in `schemas.py`. Two existing tests needed a change for a public route without path parameters: `api/tests/test_cors.py`'s path helper gives such a path no slugs, and expects 9 public paths; `api/tests/combos/test_schema.py` expects a 404 response only on routes with a finish in the path, and lists `get_combo_counts`.
+- **Website files.** `src/api/client.ts` gains `comboCounts`, which refuses any body that is not two objects of objects of whole numbers of at least 1. `src/api/counts.ts` holds `finishCount`, `typeCount` and `withFinishCount`. `src/api/queries.ts` has `useComboCounts` (key `["combo-counts"]`); `useFinishCombos` writes the list's length into cached counts, keeping their original age so they still refresh after 5 minutes. `src/components/FinishGrid.tsx` is the finish grid, count strip, filter and empty message, shared by `GloveFinishes.tsx` and `KnifeFinishes.tsx`, which now only look up their type. `Message` moved from `Combos.tsx` to `src/components/Message.tsx`; `comboCount` and the new `comboWord` are in `comboText.ts`.
+- **Filter control.** It is in the page from the start but invisible, disabled and hidden from assistive technology until the counts load, so it keeps its space and nothing moves when it appears. To a visitor and to tests it is not shown, as R10 says.
+- **Type cards.** On narrow cards the strip breaks at the dot ("20 available ·" over "20 combos"), not inside a number and its word.
+- **Test helpers.** The fake API answers `/combo-counts` with `counts(...)`; `combosOf` builds n combos of a finish. `renderSite` also returns `url()` and accepts a number for `navigate`, to step back through history.
+- **Bundle.** Main chunk 400.1 kB (126.3 kB gzipped), up 1.2 kB gzipped; the catalog chunk is unchanged; no chunk-size warning.
+
+| # | Covered by |
+| --- | --- |
+| 1 | `api/tests/combos/test_counts.py:36` |
+| 2 | `test_counts.py:44` (drafts only and unpublished only finishes absent) |
+| 3 | `test_counts.py:80`: 12 finishes compared with their lists, before and after retiring a knife finish and a glove type |
+| 4 | `test_counts.py:93` |
+| 5 | `test_counts.py:36` (no `Cache-Control`); `api/tests/test_cors.py:55` lists `/combo-counts`, and `:67`, `:120` run on it; `test_counts.py:121` (no session, no combo data) |
+| 6 | In `api/`: format, lint, mypy (78 files), `pytest` (322 passed, none skipped), `combo_api.openapi --check` and `export-website --check` exit 0; `api/openapi.json` has `/combo-counts` and `ComboCounts`; no migration changed |
+| 7 | `.github/workflows/api.yml`, two new steps; both commands run by hand against this branch's API (the body check against an empty database only in CI, since the local one holds the owner's combos). The workflow run is checked after the branch is pushed |
+| 8 | `website/src/pages/FinishCards.test.tsx:39` (gloves and knives; exactly one `GET` with `credentials: "omit"`) |
+| 9 | `FinishCards.test.tsx:66` (loading), `:78` (no response, a 500, a bad body, a list) |
+| 10 | `FinishCards.test.tsx:95` |
+| 11 | `FinishCards.test.tsx:116` |
+| 12 | `website/src/pages/FinishFilter.test.tsx:32` (one step back after two toggles is `/gloves`) |
+| 13 | `FinishFilter.test.tsx:54`, `:71`, `:83` |
+| 14 | `FinishFilter.test.tsx:89` |
+| 15 | `FinishFilter.test.tsx:105` |
+| 16 | `FinishCards.test.tsx:134` (a finish not in the bundled catalog is not summed), `:158`, `:167` |
+| 17 | `FinishCards.test.tsx:183` |
+| 18 | `website/src/pages/Combos.test.tsx` unchanged and passing; `FinishCards.test.tsx:195` (home page), `:201` (combos page) |
+| 19 | `grep -rlwE "fetch\|XMLHttpRequest\|axios" src` lists `src/api/client.ts`, `src/api/client.test.ts`, `src/test/fakeApi.ts`, `src/test/render.tsx` |
+| 20 | Fresh clone, no `website/.env`: `npm ci`, `api:types:check`, `lint`, `npm test` (72 passed), `build` (no warning) and the `/src/` check pass; in `admin/`, `api:types:check` passes and the branch changes only `admin/src/api/schema.d.ts` there |
+| 21 | `api/README.md` routes table; `website/README.md` feature list, local run note, Data section and `src/api/` row |
+| 22 | Manual, below |
+| 23 | Checked after the branch is pushed; `gitleaks dir . --no-banner --redact` on a fresh clone: no leaks |
+
+**Criterion 22, manual check** (2026-11-04, this branch's API run with `uvicorn` against the local database with the owner's 72 published combos, `npm run dev` with `VITE_API_BASE_URL` pointing at it): `/gloves/specialist` shows "18 combos" on Crimson Kimono, and its combos page says "18 combos". "Has combos" leaves only Crimson Kimono and sets `?has=combos`, which is kept after opening its combos page and going back, and after a reload. `/gloves` reads "20 available · 20 combos" (Driver), "12 available · 34 combos" (Hand Wraps), "19 available · 18 combos" (Specialist) and "{n} available" for the other five. `/knives/karambit` shows "1 combo" on Vanilla. Checked at 1440 px and 375 px wide, with no horizontal scroll. With the API stopped, `/gloves/specialist?has=combos` shows all 19 finishes, no counts and no control, and Crimson Kimono opens its combos page ("Combos could not be loaded."); the console shows only the refused connections.
+
+### Follow-ups
+
+- Counts in the header search dropdown, and a "Has combos" filter on `/gloves`, `/knives` and search (Non-goals).
+- `website/docs/screenshots/search-gloves.png` shows the type cards without totals; refresh it with the next screenshot update.
 
 ## Audit
 
