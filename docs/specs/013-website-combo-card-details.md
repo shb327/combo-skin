@@ -1,6 +1,6 @@
 # 013: Combo card details and links
 
-**Status:** Implemented
+**Status:** Audited
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** website
@@ -123,4 +123,37 @@ Notes:
 
 ## Audit
 
-Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
+**Date:** 2026-11-04 · **Branch:** 013-website-combo-card-details · **Commit:** 1a40b10
+**Verdict:** Pass with follow-ups
+
+Tests were run with `npx vitest run src/pages/Combos.test.tsx` in `website/` and in the full suite below. For criteria 3, 4, 6 and 7, the code was broken on purpose once and the test failed each time: no Vanilla rule (`:150` fails), a plain `<a href>` instead of the router link (`:254` fails), a link for every finish (`:285` fails), and an arrow without `aria-hidden` (`:254` and `:273` fail).
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | Set values, others "Any", in order | Pass | `website/src/pages/Combos.test.tsx:120`: all four rows compared in order |
+| 2 | No conditions: four rows of "Any" | Pass | `Combos.test.tsx:136` |
+| 3 | Vanilla knife: "None" for its rows, "Any" for the unset glove rows | Pass | `Combos.test.tsx:150`, with `float_min` and `float_max` null as in the catalog |
+| 4 | Glove page link: name, path, opens the knife page inside the site and requests its combos | Pass | `Combos.test.tsx:254`: exact name, `href`, the new page's heading and cards, and the requests in order; fails with a plain `<a>` |
+| 5 | Knife page link to its gloves' page | Pass | `Combos.test.tsx:273`: exact name and `href` |
+| 6 | Unknown other finish: no link; title, score and conditions still shown | Pass | `Combos.test.tsx:285` |
+| 7 | The arrow is not in the link's name | Pass | `Combos.test.tsx:254` and `:273` find the link by exact name; both fail when the arrow is not hidden |
+| 8 | New screenshot; README embeds it with alt text naming the rows and the link | Pass | `website/docs/screenshots/combos.png` (1440×696, commit 2e6a3c5) opened: header, two cards with the link line and four "Any" rows; `website/README.md:24` |
+| 9 | Lint, types check, tests and build on a clean checkout | Pass | Checks below |
+| 10 | No change under `api/` | Pass | `git diff origin/main...HEAD -- api/` prints nothing |
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Install | `npm ci` in `website/` of a fresh clone at 1a40b10, no `.env` (only `.env.example`) | Pass, exit 0 |
+| Lint | `npm run lint` | Pass, exit 0 |
+| API types | `npm run api:types:check` | Pass, exit 0 |
+| Tests | `npm test` | Pass, exit 0: 5 files, 56 tests |
+| Build | `npm run build`, then the workflow's `grep -rlF '/src/' dist` | Pass, exit 0, no warnings; no `/src/` paths |
+| Secret scan | `gitleaks git --log-opts="origin/main..013-website-combo-card-details"` and `gitleaks dir .` | Pass, no leaks |
+| Public exposure | Manual review of the branch diff and log; `git check-ignore -v .claude/ CLAUDE.md`; `git ls-files` for private files | Pass: no secrets, hosts, addresses or local paths; the screenshot shows only the page; `.claude/` and `CLAUDE.md` ignored and untracked; 7 commits by the owner, one line each, no trailers |
+| Design conformance | Code compared with Design and Security | Pass; the two differences (link text size, no-break space) are recorded in Implementation notes |
+
+**Findings**
+
+- (follow-up) `website/src/pages/Combos.tsx:184`: the no-break space is a literal character in the source, which looks like a plain space; an editor or formatter could replace it unnoticed, and no test would catch it. `{' '}` would make it visible.
+- (follow-up) No test checks where the link sits (under the title and description, beside the score, as R3 says); it was checked by eye in a browser during implementation and in the screenshot.
+- (follow-up) `combosPath` searches the bundled catalog for every card on every render (recorded in Implementation notes). Fine for today's page sizes.
