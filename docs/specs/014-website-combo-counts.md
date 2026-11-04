@@ -1,6 +1,6 @@
 # 014: Real combo counts on the website
 
-**Status:** Implemented
+**Status:** Audited
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** website, api
@@ -270,4 +270,54 @@ None. On 2026-11-04 the owner chose every recommendation: `GET /combo-counts` wi
 
 ## Audit
 
-Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
+**Date:** 2026-11-04 · **Branch:** 014-website-combo-counts · **Commit:** 3c7c5de
+**Verdict:** Pass with follow-ups
+
+Website and admin checks ran on a fresh clone of the branch with no `website/.env`; API checks in `api/` of the branch's clean worktree. Tests were read against their criteria twice, once by the implementer and once in a separate reading that also ran mutations of the code in a throwaway copy, to see which ones the tests catch.
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | No combos: `{"gloves": {}, "knives": {}}` | Pass | `api/tests/combos/test_counts.py:36` (exact body, status 200), `uv run pytest` |
+| 2 | Published only, under the right kind and type | Pass | `test_counts.py:44`: exact equality, so finishes with only drafts or only unpublished combos must be absent |
+| 3 | Every count equals its list, with retired items | Pass | `test_counts.py:80`: 12 finishes, before and after retiring a knife finish and a glove type |
+| 4 | Publish and unpublish move the counts; 0 removes the finish | Pass | `test_counts.py:93` |
+| 5 | No `Cache-Control`; CORS test covers the route | Pass | `test_counts.py:36`; `api/tests/test_cors.py:55` lists `/combo-counts` among 9 public paths, and the parametrised tests at `:67` and `:120` run on it |
+| 6 | API format, lint, types, tests, snapshots; no migration | Pass | Checks below; `api/openapi.json` has `/combo-counts` and `ComboCounts`; `git diff --stat origin/main...HEAD -- api/migrations` prints nothing |
+| 7 | Smoke test checks the body and the CORS header | Pass | `.github/workflows/api.yml`, two new steps. Both commands, with only the port changed, run against this branch's API on an empty database: both pass. The workflow run itself waits on a push (criterion 23) |
+| 8 | Finish card counts, one request without credentials | Pass | `website/src/pages/FinishCards.test.tsx:39` (gloves and knives). The "no count" check is the criterion's own pattern, which a "No combos yet" line would pass: follow-up |
+| 9 | Loading and failure: every finish, no count, no control, links work | Pass | `FinishCards.test.tsx:66` (loading, links checked), `:78` (no response, 500, bad body, a list; two requests each, so the retry ran). Weaker than the criterion in places: follow-up |
+| 10 | Card shows the page's number when coming back | Pass | `FinishCards.test.tsx:95` (18 then 19; a finish counted 1 whose page lists none shows no count). Removing the cache update fails it. Goes back by path, not by a history step |
+| 11 | Combos page first, then the type page: one counts request | Pass | `FinishCards.test.tsx:116`. The counts and the list give the same number, so the test cannot show where the card's value came from: follow-up |
+| 12 | Filter off by default; toggling sets the URL without history | Pass | `website/src/pages/FinishFilter.test.tsx:32` (one step back after two toggles is `/gloves`; switching to a pushed history entry fails it) |
+| 13 | `?has=combos` applies once counts load; not while loading or after failure; other values ignored | Pass | `FinishFilter.test.tsx:54`, `:71`, `:83` |
+| 14 | Filter kept after a combos page and back | Pass | `FinishFilter.test.tsx:89` |
+| 15 | No finish with combos: message and "Show all finishes" | Pass | `FinishFilter.test.tsx:105` |
+| 16 | Type card totals; plain "{n} available" while loading or after failure | Pass | `FinishCards.test.tsx:134` (a finish missing from the catalog is not summed), `:158` (/knives), `:167` (loading and failure on /gloves only: follow-up) |
+| 17 | No second counts request on the type page | Pass | `FinishCards.test.tsx:183` |
+| 18 | Combos tests unchanged; home and combos pages send no counts request | Pass | `git diff origin/main...HEAD -- website/src/pages/Combos.test.tsx` is empty; `FinishCards.test.tsx:195`, `:201` |
+| 19 | Network code only in `src/api/` and tests | Pass | `grep -rlwE "fetch\|XMLHttpRequest\|axios" src`: `src/api/client.ts`, `src/api/client.test.ts`, `src/test/fakeApi.ts`, `src/test/render.tsx` |
+| 20 | Fresh clone: website checks; admin types; admin diff | Pass | Checks below; in `admin/`, `npm ci` and `npm run api:types:check` exit 0; `git diff --stat origin/main...HEAD -- admin/` lists only `admin/src/api/schema.d.ts` |
+| 21 | READMEs | Pass | `api/README.md` routes table; `website/README.md` feature list, local run note, Data section and `src/api/` row |
+| 22 | Manual check with the owner's data | Pass | Recorded in Implementation notes (from implementation, with the owner's 72 combos); the smoke commands of criterion 7 were re-run in the audit |
+| 23 | CI on GitHub; gitleaks on a clean clone | Pending | `gitleaks dir . --no-banner --redact` on a fresh clone: no leaks. The branch is not pushed, so the `website`, `api` and `admin` runs are still to be checked |
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Lint | `npm run lint` (fresh clone after `npm ci`); `uv run ruff format --check .`, `uv run ruff check .`, `uv run mypy` (78 files) | Pass |
+| Tests | `npm run api:types:check`, `npm test` (6 files, 72 passed); `uv run pytest` (322 passed, none skipped); `combo_api.openapi --check`, `export-website --check` | Pass |
+| Build | `npm run build` (no warning), then `grep -rlF '/src/' dist` (nothing) | Pass |
+| Secret scan | `gitleaks git --log-opts="origin/main..014-website-combo-counts"`, `gitleaks dir .` on a fresh clone | Pass |
+| Public exposure | Diff and log reviewed: URLs are `localhost` and the test client's loopback address; no secrets, hosts, local paths or emails in files; `.claude/` and `CLAUDE.md` ignored and nothing private tracked; 11 commits by the owner, one line each, no trailers | Pass |
+| Design conformance | Code compared with Design, API / data model and Security | Pass; two small unrecorded differences below, neither changes a requirement |
+
+**Findings**
+
+- (follow-up) Criterion 8 and R5: `FinishCards.test.tsx:20` matches only a number followed by "combo(s)", so a finish without combos showing "No combos yet" or an empty strip would pass. Check that those cards have no strip and no "combo" text.
+- (follow-up) Criterion 9 and R10: the control is hidden three ways (`visibility: hidden`, `aria-hidden`, `disabled`, `src/components/FinishGrid.tsx:45`); the tests pass with either of the first two removed, though a visitor would then see a disabled checkbox while counts load. The failure cases at `FinishCards.test.tsx:78` do not check the links; the only bad body lacks `knives` as well as having a non-number; and nothing tests counts of 0, negative or fractional numbers, so removing that part of the check in `src/api/client.ts` passes every test. `client.test.ts` has no `comboCounts` cases.
+- (follow-up) Criterion 11: `FinishCards.test.tsx:116` uses the same number for the counts and the list. Different numbers would show the card takes the counts' value.
+- (follow-up) Criterion 16: loading and failure are tested on `/gloves` only; `/knives` checks one type's total.
+- (follow-up) `src/api/queries.ts`: keeping the counts' own age when the cache is updated is untested; dropping it passes.
+- (follow-up) Not recorded in Implementation notes: `comboCounts` in `src/api/client.ts` returns only `gloves` and `knives`, so unknown top-level keys are dropped rather than "kept and ignored" (Design, Website request); no visible effect. And if a combos page loads while the counts request is still in flight, the counts answer arrives later and replaces that finish's synced number, so R7 can miss by one in that window.
+- (follow-up) `api/tests/combos/test_counts.py:127` looks for words such as `"id"` anywhere in the body; it passes today but would break on a slug containing them.
+- (follow-up) From Implementation notes: search dropdown counts, a filter on the type pages, and a refreshed `search-gloves.png`.
+- (pending) Criterion 23: confirm the three workflow runs once the branch is pushed.
