@@ -1,6 +1,6 @@
 # 011: The website shows real combos from the API
 
-**Status:** Implemented
+**Status:** Audited
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** website, api
@@ -273,4 +273,53 @@ No deviations from Requirements, Design or Acceptance criteria. Details the spec
 
 ## Audit
 
-Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
+**Date:** 2026-11-04 · **Branch:** 011-website-real-combos · **Commit:** 34992d6
+**Verdict:** Pass with follow-ups
+
+Website checks ran on a fresh clone of the branch with no `website/.env`; API checks in `api/` after `uv sync --locked`. Tests were read against their criteria, by the implementer and in a separate independent reading.
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | One GET, no credentials, API order kept | Pass | `website/src/pages/Combos.test.tsx:53` (ratings 7.5, 9.5, 8.88 kept in that order; the recorded request is exactly one `GET` with `credentials: "omit"`), `npx vitest run` |
+| 2 | Knife page requests its route, cards titled with the gloves | Pass | `Combos.test.tsx:178` |
+| 3 | Card title, score colour, float, seeds, description; none shown when unset | Pass | `Combos.test.tsx:74` (uses 8.88 and 7.6 for two colour thresholds, not 9.5: follow-up) |
+| 4 | Description as text, no `b` element | Pass | `Combos.test.tsx:108` |
+| 5 | Two pictures, alt, lazy, no referrer; off-host picture not shown | Pass | `Combos.test.tsx:119` |
+| 6 | Loading text; "3 combos", "1 combo", "No combos yet" once | Pass | `Combos.test.tsx:145`, `:160`, `:167` (the "no count line while loading" check is weak: follow-up) |
+| 7 | 404 message without retry; one retry then "Try again" for no response, 500, bad body | Pass | `Combos.test.tsx:198`, `:209` |
+| 8 | Unknown slugs: "Item not found", no request | Pass | `Combos.test.tsx:232` |
+| 9 | Coming back within 5 minutes sends no request | Pass | `Combos.test.tsx:245` (back at once, no second request), `:260` (`staleTime` 5 minutes; no clock advanced: follow-up) |
+| 10 | Finish cards without a count; type cards keep "{n} available" | Pass | `website/src/pages/FinishCards.test.tsx:8`, `:24`; `grep -rnE "total(Knives\|Gloves)" src` prints nothing |
+| 11 | Origin rules; a bad origin fails the build | Pass | `website/src/api/origin.test.ts`; `VITE_API_BASE_URL=https://api.example.com/x npm run build` exits 1 naming the variable |
+| 12 | Types check: 0, 1 when stale naming the file, 0 after regenerating | Pass | Run on the clone: 0; with a property added to `PublicCombo` in `api/openapi.json`, 1 with `src/api/schema.d.ts is out of date`; restored, 0 |
+| 13 | Samples and zoom gone; artwork moved byte for byte | Pass | Paths absent, the grep prints nothing; `git diff -M` lists 18 renames at 100% and 4 deletions in `src/assets`; artwork loads on `npm run dev` (Implementation notes) |
+| 14 | No `dangerouslySetInnerHTML`; network calls only in `src/api/` and tests | Pass | Greps on the clone: none; `src/api/client.ts`, `src/api/client.test.ts`, `src/test/fakeApi.ts`, `src/test/render.tsx` |
+| 15 | Fresh clone: install, types, lint, tests, build, `/src/` check | Pass | All exit 0; 47 tests; no warning in the build output |
+| 16 | Workflow adds the types check and tests before the build; rest unchanged | Pass | `git diff main...HEAD -- .github/workflows/website.yml` adds only those two steps; `actionlint` 1.7.12 exits 0 |
+| 17 | Public routes: `*`, `Vary: Origin`, no credentials, 404s too | Pass | `api/tests/test_cors.py:59` (all 8 `catalog` and `combos` routes, read from `api/openapi.json`), `:74`, `:48` |
+| 18 | Admin, health, docs and `POST` get no CORS; preflight gets none | Pass | `test_cors.py:96`, `:103` |
+| 19 | Admin origin keeps credentialed CORS; admin tests unchanged | Pass | `test_cors.py:112`, `:120`; `api/tests/admins/test_http.py` unchanged and passing |
+| 20 | API format, lint, types, tests, snapshot checks; `openapi.json` unchanged | Pass | `ruff format --check`, `ruff check`, `mypy` (77 files), `pytest` 315 passed with none skipped, `combo_api.openapi --check`, `export-website --check` exit 0; `git diff --stat main... -- api/openapi.json` prints nothing |
+| 21 | Smoke test checks the header on combos, none on admin | Pass | `.github/workflows/api.yml` steps; `docker` job of run 41835066471 passed both |
+| 22 | READMEs | Pass | `website/README.md` sections read; `grep -c "combos.ts"` prints 0; `api/README.md` Public CORS paragraph |
+| 23 | Real combos screenshot | Pass | `website/docs/screenshots/combos.png` 1440 by 623, 138,726 bytes, page content only, real combos |
+| 24 | Manual check with the owner's data | Pass | Recorded in Implementation notes; repeated in this audit for the Crimson Kimono, Karambit Doppler (Ruby), Mogul and King Snake pages and the stopped API |
+| 25 | CI on GitHub; gitleaks on a clean clone | Pass | Commit 34992d6: `api` run 41835066471 (`check` and `docker`), `website` 41835066605, `admin` 41835066488 succeeded; `gitleaks dir .` on a clean clone: no leaks |
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Lint | `npm run lint` (fresh clone after `npm ci`); `uv run ruff format --check .`, `uv run ruff check .`, `uv run mypy` | Pass |
+| Tests | `npx vitest run` (47 passed), `npm run api:types:check`; `uv run pytest` (315 passed) | Pass |
+| Build | `npm run build` (no chunk-size warning) and the `/src/` check; Compose image built and run | Pass |
+| Secret scan | `gitleaks git --log-opts="main..011-website-real-combos"`, `gitleaks dir .` on a clean clone | Pass |
+| Public exposure | Diff and log reviewed: URLs are `localhost`, `example.com` placeholders, the game's public image host and public docs; no local paths, hosts, secrets or emails; `.claude/` and `CLAUDE.md` ignored and nothing private tracked; 13 commits authored by the owner, one line each, no trailers | Pass |
+| Design conformance | Code compared with Design, API / data model and Security | Pass; findings below are follow-ups |
+
+**Findings**
+
+- (follow-up) `website/src/pages/Combos.tsx:35`: when a background refetch fails while combos are cached (TanStack Query keeps `data` on error, for example after `refetchOnReconnect` once the 5 minutes have passed), the header shows "N combos" above "Combos could not be loaded.", where R6 hides the count on errors. Hiding the count whenever `isError` fixes it.
+- (follow-up) `website/src/api/queries.ts`: with Query's default `networkMode: 'online'`, a browser that reports itself offline pauses the request, so the page stays on "Loading combos…" instead of R5's error, and "Try again" does nothing visible. `networkMode: 'always'` would show the error.
+- (follow-up) `api/src/combo_api/main.py` `PublicCors`: an unhandled exception is answered 500 by Starlette's outermost error middleware, outside `PublicCors`, so that response has no `Access-Control-Allow-Origin`, against the letter of R12 ("every response"). The website shows the same failure message either way, since the browser reports a network error; `AdminCors` behaves the same.
+- (follow-up) The same: admin-origin responses on public routes carry `Vary: Origin, Origin`, because Starlette's `add_vary_header` appends without checking. Harmless.
+- (follow-up) Tests weaker than their criteria: criterion 3 uses 7.6 instead of 9.5; criterion 6's "no count line" pattern does not match "No combos yet", so a stray "No combos yet" while loading or on errors would pass (`Combos.test.tsx:152`, `:205`, `:220`); criterion 9 checks the 5-minute bound in configuration, not with a clock; `FinishCards.test.tsx:28` matches "{n} available" as a substring.
+- (follow-up) Still open from Implementation notes: the combo counts spec, `VITE_API_BASE_URL` and edge caching in `deploy/`, and links between combo pages.
