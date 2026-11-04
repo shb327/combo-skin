@@ -379,6 +379,37 @@
         "title": "Checks",
         "type": "object"
       },
+      "ComboCounts": {
+        "description": "Published combos per finish, by type slug then finish slug; finishes without any are left\nout.",
+        "properties": {
+          "gloves": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            "title": "Gloves",
+            "type": "object"
+          },
+          "knives": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            "title": "Knives",
+            "type": "object"
+          }
+        },
+        "required": [
+          "gloves",
+          "knives"
+        ],
+        "title": "ComboCounts",
+        "type": "object"
+      },
       "ComboIn": {
         "properties": {
           "description": {
@@ -2449,6 +2480,28 @@
         "summary": "Admin Me",
         "tags": [
           "admin"
+        ]
+      }
+    },
+    "/combo-counts": {
+      "get": {
+        "description": "How many published combos every glove finish and knife finish has; none means left out.",
+        "operationId": "get_combo_counts",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComboCounts"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Combo Counts",
+        "tags": [
+          "combos"
         ]
       }
     },
