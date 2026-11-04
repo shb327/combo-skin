@@ -263,6 +263,21 @@ None. On 2026-11-04 the owner chose every recommendation: `GET /combo-counts` wi
 
 **Criterion 22, manual check** (2026-11-04, this branch's API run with `uvicorn` against the local database with the owner's 72 published combos, `npm run dev` with `VITE_API_BASE_URL` pointing at it): `/gloves/specialist` shows "18 combos" on Crimson Kimono, and its combos page says "18 combos". "Has combos" leaves only Crimson Kimono and sets `?has=combos`, which is kept after opening its combos page and going back, and after a reload. `/gloves` reads "20 available · 20 combos" (Driver), "12 available · 34 combos" (Hand Wraps), "19 available · 18 combos" (Specialist) and "{n} available" for the other five. `/knives/karambit` shows "1 combo" on Vanilla. Checked at 1440 px and 375 px wide, with no horizontal scroll. With the API stopped, `/gloves/specialist?has=combos` shows all 19 finishes, no counts and no control, and Crimson Kimono opens its combos page ("Combos could not be loaded."); the console shows only the refused connections.
 
+### After the audit
+
+**2026-11-04, audit follow-ups fixed (agreed with the owner).** No requirement changed. Each test change was checked by breaking the code it covers and seeing the test fail: the control shown, reachable or usable while counts load; "No combos yet" on a finish without combos; counts of 0 or fractions accepted; the counts' age reset; no update from a combos page; and the counts request not cancellable.
+
+- Finish cards without combos must hold only their name and no strip (`website/src/test/finishPage.ts`, `expectNoCount`), on loading, failure and count tests.
+- While counts load and after they fail, the control must be invisible, disabled and hidden from assistive technology (`expectNoControl`), on gloves and knives. The failure tests check every card's link and add bodies with no `knives`, a type that is not an object, and counts of 0, -1, 1.5 and `"2"`.
+- `website/src/api/client.test.ts:40`, `:51`, `:58`: the counts request, unknown keys, and every refused answer. `comboCounts` now keeps keys it does not know, as Design says (it dropped unknown top-level keys before).
+- Criterion 11 (`FinishCards.test.tsx:172`) uses 7 for the counts and 2 for the list, and the card shows 7.
+- Criterion 16's loading and failure cases run on `/knives` too (`FinishCards.test.tsx:224`).
+- `FinishCards.test.tsx:125`: with the clock faked, counts loaded at 12:00 and updated by a combos page at 12:04 are asked for again at 12:05:01.
+- The late counts answer the audit raised cannot overwrite a finish's number: leaving a type page cancels its counts request, since no other page uses the counts, and the cancelled answer is dropped. `FinishCards.test.tsx:151` locks this in (the request's signal is aborted, the late answer leaves no counts cached, and coming back asks again). No code change.
+- `api/tests/combos/test_counts.py:119` checks the body's shape (two kinds, then slugs, then whole numbers) and that no admin username appears, instead of looking for words anywhere in it.
+
+Website: lint, 94 tests and build pass on a fresh clone; admin types check passes; API: format, lint, mypy and 322 tests pass; both secret scans find nothing.
+
 ### Follow-ups
 
 - Counts in the header search dropdown, and a "Has combos" filter on `/gloves`, `/knives` and search (Non-goals).
@@ -320,4 +335,5 @@ Website and admin checks ran on a fresh clone of the branch with no `website/.en
 - (follow-up) Not recorded in Implementation notes: `comboCounts` in `src/api/client.ts` returns only `gloves` and `knives`, so unknown top-level keys are dropped rather than "kept and ignored" (Design, Website request); no visible effect. And if a combos page loads while the counts request is still in flight, the counts answer arrives later and replaces that finish's synced number, so R7 can miss by one in that window.
 - (follow-up) `api/tests/combos/test_counts.py:127` looks for words such as `"id"` anywhere in the body; it passes today but would break on a slug containing them.
 - (follow-up) From Implementation notes: search dropdown counts, a filter on the type pages, and a refreshed `search-gloves.png`.
+- Every follow-up above except the last and the next was fixed after the audit; see Implementation notes, After the audit.
 - (pending) Criterion 23: confirm the three workflow runs once the branch is pushed.
