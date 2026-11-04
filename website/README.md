@@ -10,7 +10,7 @@ In Counter-Strike 2, players equip cosmetic gloves and knives, each available in
 
 - **Browse gloves**: pick one of 8 glove types, then one of its finishes (94 in total).
 - **Browse knives**: pick one of 20 knife types, then one of its finishes (576 in total).
-- **See combos for a glove or knife finish**: the knives that suit a glove finish, or the gloves that suit a knife finish, best rated first, each with a rating, both finish pictures and, where they matter, pattern seeds, float ranges and a short description.
+- **See combos for a glove or knife finish**: the knives that suit a glove finish, or the gloves that suit a knife finish, best rated first, each with a rating, both finish pictures, the pattern seeds and float ranges that suit it ("Any" where any will do), sometimes a short description, and a link to the other item's combos.
 - **Search** gloves and knives by name from the top bar.
 
 Combos come from the Combo Skin API ([`api/`](../api/README.md)): they are entered in the admin dashboard, and only published combos are shown. In-game screenshots of each combo are planned; until then a card shows the catalog pictures of its gloves and knife.
