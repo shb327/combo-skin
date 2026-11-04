@@ -1,7 +1,7 @@
 import { onlineManager } from '@tanstack/react-query'
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   KARAMBIT_RUBY,
   MOGUL,
@@ -85,16 +85,17 @@ describe('a glove finish page', () => {
         { ...KARAMBIT_RUBY, float_from: 0, float_to: 0.01 },
         'Any ruby works.\nThe darker the better.',
       ),
-      combo('b', 7.6, MOGUL, M9),
+      combo('b', 9.5, MOGUL, M9),
+      combo('c', 7.6, MOGUL, BUTTERFLY),
     ])
     renderSite(MOGUL_PATH, { api })
     await loaded()
 
-    const [first, second] = cards()
+    const [first, second, third] = cards()
     expect(within(first).getByRole('heading')).toHaveTextContent('Karambit | Doppler (Ruby)')
-    const score = within(first).getByText('8.88')
-    expect(score).toHaveStyle({ color: '#00DE12' })
-    expect(within(second).getByText('7.6')).toHaveStyle({ color: '#84cc16' })
+    expect(within(first).getByText('8.88')).toHaveStyle({ color: '#00DE12' })
+    expect(within(second).getByText('9.5')).toHaveStyle({ color: '#00DE12' })
+    expect(within(third).getByText('7.6')).toHaveStyle({ color: '#84cc16' })
 
     expect(first).toHaveTextContent('Knife Float: 0 - 0.01')
     expect(first).toHaveTextContent('Glove Pattern: 2, 179')
@@ -293,11 +294,39 @@ describe('the cache', () => {
     expect(api.requests.map((r) => new URL(r.url).pathname)).toEqual([MOGUL_PATH, RUBY_PATH])
   })
 
-  it('treats combos as fresh for 5 minutes', async () => {
-    const { createQueryClient, COMBOS_STALE_MS } = await import('@/api/queries')
-    expect(COMBOS_STALE_MS).toBe(5 * 60 * 1000)
-    const options = createQueryClient().getDefaultOptions().queries
-    expect(options?.staleTime).toBe(COMBOS_STALE_MS)
-    expect(options?.refetchOnWindowFocus).toBe(false)
+  it('asks again only once 5 minutes have passed', async () => {
+    // Only the clock is faked: timers stay real for Testing Library's waits.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      const start = new Date('2026-11-04T12:00:00Z').getTime()
+      vi.setSystemTime(start)
+      const api = fakeApi()
+      api.combos(MOGUL_PATH, [combo('a', 8, MOGUL, M9)])
+      api.combos(RUBY_PATH, [combo('b', 9, KIMONO, KARAMBIT_RUBY)])
+      const site = renderSite(MOGUL_PATH, { api })
+      expect(await screen.findByText('M9 Bayonet | Urban Masked')).toBeInTheDocument()
+      const mogulRequests = () => api.requests.filter((r) => r.url.endsWith(MOGUL_PATH)).length
+
+      site.navigate(RUBY_PATH)
+      expect(await screen.findByText('Specialist Gloves | Crimson Kimono')).toBeInTheDocument()
+      vi.setSystemTime(start + 4 * 60 * 1000 + 59 * 1000)
+      site.navigate(MOGUL_PATH)
+      expect(await screen.findByText('M9 Bayonet | Urban Masked')).toBeInTheDocument()
+      await new Promise((done) => setTimeout(done, 20))
+      expect(mogulRequests()).toBe(1)
+
+      site.navigate(RUBY_PATH)
+      expect(await screen.findByText('Specialist Gloves | Crimson Kimono')).toBeInTheDocument()
+      vi.setSystemTime(start + 5 * 60 * 1000 + 1000)
+      site.navigate(MOGUL_PATH)
+      await waitFor(() => expect(mogulRequests()).toBe(2))
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not refetch on window focus', async () => {
+    const { createQueryClient } = await import('@/api/queries')
+    expect(createQueryClient().getDefaultOptions().queries?.refetchOnWindowFocus).toBe(false)
   })
 })

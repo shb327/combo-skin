@@ -25,7 +25,7 @@ describe('finish cards', () => {
     renderSite('/gloves')
     for (const type of gloveTypes) {
       const card = screen.getByRole('heading', { name: type.name }).closest('div.group')
-      expect(card).toHaveTextContent(`${type.finishes.length} available`)
+      expect(card).toHaveTextContent(new RegExp(`(^|\\D)${type.finishes.length} available`))
     }
   })
 })
