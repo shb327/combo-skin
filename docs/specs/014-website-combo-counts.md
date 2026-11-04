@@ -1,6 +1,6 @@
 # 014: Real combo counts on the website
 
-**Status:** Draft
+**Status:** Approved
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** website, api
