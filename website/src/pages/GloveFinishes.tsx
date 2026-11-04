@@ -1,8 +1,5 @@
 import { useParams, Link } from 'react-router-dom'
 import { gloveTypes } from '@/data/gloves'
-import { getAllKnives } from '@/data/knives'
-
-const totalKnives = getAllKnives().length
 
 export function GloveFinishes() {
   const { gloveId } = useParams<{ gloveId: string }>()
@@ -41,11 +38,6 @@ export function GloveFinishes() {
             </div>
             <div className="p-2 md:p-4 pt-0">
               <h3 className="text-white font-medium text-center font-mono text-sm md:text-base min-h-[2.5rem] md:min-h-0 flex items-center justify-center">{finish.name}</h3>
-            </div>
-            <div className="bg-white/5 py-2 px-4">
-              <p className="text-center text-sm text-white/60">
-                <span className="text-white font-semibold">{totalKnives}</span> combos
-              </p>
             </div>
           </Link>
         ))}

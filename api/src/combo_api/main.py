@@ -14,8 +14,9 @@ from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.routing import APIRoute
 from sqlalchemy.ext.asyncio import async_sessionmaker
+from starlette.datastructures import MutableHeaders
 from starlette.middleware.cors import CORSMiddleware
-from starlette.types import ASGIApp, Receive, Scope, Send
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from combo_api import health
 from combo_api.admins import passwords
@@ -31,6 +32,8 @@ from combo_api.settings import Settings, load_settings
 LOGGERS = ("combo_api", "uvicorn", "uvicorn.error", "uvicorn.access")
 # Password hashes computed at once; each takes tens of MiB of memory.
 HASH_SLOTS = 2
+# Routes with these tags serve public data that any origin may read (PublicCors).
+PUBLIC_TAGS = {"catalog", "combos"}
 
 logger = logging.getLogger("combo_api.admins")
 # Uvicorn configures only its own loggers; without this, the API's info lines are dropped.
@@ -71,6 +74,46 @@ class AdminCors:
                 await self.cors[origins](scope, receive, send)
                 return
         await self.app(scope, receive, send)
+
+
+class PublicCors:
+    """`Access-Control-Allow-Origin: *` on GET responses of the public read routes.
+
+    Covers requests without an admin origin, so a website on any origin can read the catalog
+    and published combos. No credentials are allowed and no preflight is answered: the
+    website's GET requests are simple requests. Admin origins are left to `AdminCors`.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or scope["method"] != "GET":
+            await self.app(scope, receive, send)
+            return
+        origin = dict(scope["headers"]).get(b"origin", b"").decode("latin-1")
+        public = origin not in scope["app"].state.settings.admin_origins
+
+        async def send_with_cors(message: Message) -> None:
+            # The router has set the matched route on the scope by the time a response starts.
+            route = scope.get("route")
+            if (
+                message["type"] == "http.response.start"
+                and isinstance(route, APIRoute)
+                and PUBLIC_TAGS & set(route.tags)
+            ):
+                headers = MutableHeaders(scope=message)
+                if public:
+                    headers["Access-Control-Allow-Origin"] = "*"
+                # AdminCors has already added it for admin origins; add_vary_header would repeat it.
+                varies = {
+                    v.strip().lower() for line in headers.getlist("vary") for v in line.split(",")
+                }
+                if "origin" not in varies:
+                    headers.add_vary_header("Origin")
+            await send(message)
+
+        await self.app(scope, receive, send_with_cors)
 
 
 async def validation_error(request: Request, error: Exception) -> JSONResponse:
@@ -138,6 +181,7 @@ def create_app(settings: Settings | None = None, env_file: str | None = ".env") 
     app.include_router(combos_admin.router)
     app.include_router(combos_public.router)
     app.add_middleware(AdminCors)
+    app.add_middleware(PublicCors)
     app.add_exception_handler(RequestValidationError, validation_error)
 
     def require_docs(request: Request) -> None:
