@@ -17,6 +17,7 @@ OPERATIONS = {
     ("/admin/knife-order", "put"): ("replace_knife_order", "admin"),
     ("/gloves/{type_slug}/{finish_slug}/combos", "get"): ("list_glove_finish_combos", "combos"),
     ("/knives/{type_slug}/{finish_slug}/combos", "get"): ("list_knife_finish_combos", "combos"),
+    ("/combo-counts", "get"): ("get_combo_counts", "combos"),
 }
 
 
@@ -34,7 +35,9 @@ def test_combo_operations_in_schema() -> None:
         if tag == "admin":
             assert {"401", "403"} <= set(responses), path
         else:
-            assert "401" not in responses and "404" in responses, path
+            # A 404 only for an unknown finish in the path.
+            assert "401" not in responses, path
+            assert ("404" in responses) == ("{finish_slug}" in path), path
 
 
 def number(schema: dict[str, Any], model: str, field: str) -> bool:

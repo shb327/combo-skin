@@ -259,6 +259,14 @@ class PublicCombo(BaseModel):
     knife: Item
 
 
+class ComboCounts(BaseModel):
+    """Published combos per finish, by type slug then finish slug; finishes without any are left
+    out."""
+
+    gloves: dict[str, dict[str, int]]
+    knives: dict[str, dict[str, int]]
+
+
 class AdminCombo(BaseModel):
     id: str
     status: Status

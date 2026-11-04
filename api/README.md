@@ -233,6 +233,7 @@ A missing or invalid setting stops startup with an error that names the variable
 | `GET /admin/me` | The logged-in admin and the session's CSRF token, or 401. |
 | `POST /admin/logout` | Ends the session and clears the cookie; 204. |
 | `GET /gloves/{type}/{finish}/combos`, `GET /knives/{type}/{finish}/combos` | The finish's published combos, highest rating first. `[]` without combos, 404 for an unknown finish. |
+| `GET /combo-counts` | How many published combos each finish has, as `{"gloves": {type: {finish: n}}, "knives": {...}}`; finishes without any are left out. Counted exactly as the lists above. |
 | `GET /admin/combos` | Combos in any status. Filters: `glove_type`, `glove_finish`, `knife_type`, `knife_finish`, `status`; `sort` (`rating` or `updated`), `limit` (up to 500), `offset`. |
 | `POST /admin/combos` | Create a draft combo. 409 `combo_exists` if the pairing has one. |
 | `GET`, `PUT`, `DELETE /admin/combos/{id}` | Read, update (with `version`) or remove (`?version=`) one combo. |

@@ -22,3 +22,14 @@ export function patternSeeds(item: ComboItem): string {
   if (hasNoFloat(item)) return 'None'
   return item.seeds.length > 0 ? item.seeds.join(', ') : 'Any'
 }
+
+/** "combo" or "combos", for a count shown beside it. */
+export function comboWord(count: number): string {
+  return count === 1 ? 'combo' : 'combos'
+}
+
+/** "15 combos", "1 combo", or "No combos yet". */
+export function comboCount(count: number): string {
+  if (count === 0) return 'No combos yet'
+  return `${count} ${comboWord(count)}`
+}

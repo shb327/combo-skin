@@ -1,11 +1,13 @@
 /** A fake of the API for tests: a `fetch` function that records every request and answers from a
- * queue, or from the combos set for a path. Bodies are typed from the generated schema. */
+ * queue, from the combos set for a path, or with the counts set for `/combo-counts`. Bodies are typed from the generated schema. */
 import type { components } from '../api/schema'
 
 type Item = components['schemas']['Item']
 type PublicCombo = components['schemas']['PublicCombo']
+type ComboCounts = components['schemas']['ComboCounts']
 
 export const ORIGIN = 'http://localhost:8000'
+export const COUNTS_PATH = '/combo-counts'
 const IMAGE = 'https://community.akamai.steamstatic.com/economy/image'
 
 export interface Recorded {
@@ -40,28 +42,41 @@ export function deferred(): { reply: Promise<Response>; resolve: (response: Resp
 export interface FakeApi {
   fetch: (request: Request) => Promise<Response>
   requests: Recorded[]
+  /** Each request's abort signal, in the order of `requests`. */
+  signals: AbortSignal[]
   /** Answers for the next requests, in order, before any `combos` set for their path. */
   reply(...replies: Reply[]): void
   /** The combos every later request for this path gets, e.g. `/gloves/specialist/mogul/combos`. */
   combos(path: string, combos: PublicCombo[]): void
+  /** The body every later `/combo-counts` request gets. */
+  counts(counts: ComboCounts): void
 }
 
 export function fakeApi(): FakeApi {
   const requests: Recorded[] = []
+  const signals: AbortSignal[] = []
   const queue: Reply[] = []
   const byPath = new Map<string, PublicCombo[]>()
+  let countsBody: ComboCounts | undefined
 
   return {
     requests,
+    signals,
     reply: (...replies) => queue.push(...replies),
     combos: (path, combos) => byPath.set(path, combos),
+    counts: (counts) => {
+      countsBody = counts
+    },
     async fetch(request) {
       const { url, method, credentials, redirect } = request
       requests.push({ url, method, credentials, redirect })
+      signals.push(request.signal)
       const next = queue.shift()
       if (next === 'network-error') throw new TypeError('Failed to fetch')
       if (next) return next
-      const combos = byPath.get(new URL(url).pathname)
+      const { pathname } = new URL(url)
+      if (pathname === COUNTS_PATH && countsBody) return json(countsBody)
+      const combos = byPath.get(pathname)
       return combos ? json(combos) : notFound()
     },
   }
@@ -108,4 +123,11 @@ export function combo(
   description: string | null = null,
 ): PublicCombo {
   return { id, rating, description, glove, knife }
+}
+
+/** `count` combos of one finish, for pages that only need their number. */
+export function combosOf(glove: Item, count: number): PublicCombo[] {
+  return Array.from({ length: count }, (_, index) =>
+    combo(`c${index}`, 9, glove, item({ type_slug: 'karambit', finish_slug: `finish-${index}` })),
+  )
 }

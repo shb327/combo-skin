@@ -241,6 +241,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/combo-counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Combo Counts
+         * @description How many published combos every glove finish and knife finish has; none means left out.
+         */
+        get: operations["get_combo_counts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/gloves": {
         parameters: {
             query?: never;
@@ -587,6 +607,25 @@ export interface components {
              * @enum {string}
              */
             migrations: "ok" | "pending" | "unknown";
+        };
+        /**
+         * ComboCounts
+         * @description Published combos per finish, by type slug then finish slug; finishes without any are left
+         *     out.
+         */
+        ComboCounts: {
+            /** Gloves */
+            gloves: {
+                [key: string]: {
+                    [key: string]: number;
+                };
+            };
+            /** Knives */
+            knives: {
+                [key: string]: {
+                    [key: string]: number;
+                };
+            };
         };
         /** ComboIn */
         ComboIn: {
@@ -1684,6 +1723,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    get_combo_counts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ComboCounts"];
                 };
             };
         };

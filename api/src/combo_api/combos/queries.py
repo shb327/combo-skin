@@ -22,6 +22,9 @@ KnifeType = aliased(ItemType, name="knife_type")
 Creator = aliased(Admin, name="creator")
 Updater = aliased(Admin, name="updater")
 
+# What the public sees: the combo lists and their counts use this one condition.
+PUBLISHED = Combo.status == "published"
+
 ComboColumns = tuple[Combo, Finish, ItemType, Finish, ItemType, str, str]
 ComboRow = Row[*ComboColumns]
 

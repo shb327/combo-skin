@@ -1,17 +1,19 @@
-"""Public endpoints: the published combos of one glove finish or one knife finish."""
+"""Public endpoints: the published combos of one glove finish or one knife finish, and how many
+every finish has."""
 
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
-from sqlalchemy import Select, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import InstrumentedAttribute
 
 from combo_api.catalog.models import Finish, ItemType
 from combo_api.catalog.routes import NOT_FOUND
 from combo_api.catalog.snapshot import Kind
 from combo_api.combos import queries
 from combo_api.combos.models import Combo, KnifeOrder
-from combo_api.combos.schemas import SLUG_MAX, PublicCombo
+from combo_api.combos.schemas import SLUG_MAX, ComboCounts, PublicCombo
 from combo_api.db import get_session
 
 Session = Annotated[AsyncSession, Depends(get_session)]
@@ -34,7 +36,7 @@ async def finish_of(db: AsyncSession, kind: Kind, type_slug: str, finish_slug: s
 
 
 async def published(db: AsyncSession, query: Select[*queries.ComboColumns]) -> list[PublicCombo]:
-    rows = (await db.execute(query.where(Combo.status == "published"))).all()
+    rows = (await db.execute(query.where(queries.PUBLISHED))).all()
     return [queries.public_out(row) for row in rows]
 
 
@@ -76,3 +78,31 @@ async def list_knife_finish_combos(
         )
     )
     return await published(db, query)
+
+
+async def counts_by_finish(
+    db: AsyncSession, finish_id: InstrumentedAttribute[int]
+) -> dict[str, dict[str, int]]:
+    """Published combos per finish of one side, keyed by type slug then finish slug."""
+    rows = await db.execute(
+        select(ItemType.slug, Finish.slug, func.count())
+        .select_from(Combo)
+        .join(Finish, finish_id == Finish.id)
+        .join(ItemType, Finish.item_type_id == ItemType.id)
+        .where(queries.PUBLISHED)
+        .group_by(ItemType.slug, Finish.slug)
+        .order_by(ItemType.slug, Finish.slug)
+    )
+    counts: dict[str, dict[str, int]] = {}
+    for type_slug, finish_slug, count in rows:
+        counts.setdefault(type_slug, {})[finish_slug] = count
+    return counts
+
+
+@router.get("/combo-counts")
+async def get_combo_counts(db: Session) -> ComboCounts:
+    """How many published combos every glove finish and knife finish has; none means left out."""
+    return ComboCounts(
+        gloves=await counts_by_finish(db, Combo.glove_finish_id),
+        knives=await counts_by_finish(db, Combo.knife_finish_id),
+    )

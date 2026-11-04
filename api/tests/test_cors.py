@@ -28,7 +28,7 @@ def public_paths() -> list[str]:
     for path, operations in schema["paths"].items():
         get = operations.get("get")
         if get and PUBLIC_TAGS & set(get.get("tags", [])):
-            paths.append(path.format(**SLUGS[path.split("/")[1]]))
+            paths.append(path.format(**SLUGS.get(path.split("/")[1], {})))
     return paths
 
 
@@ -57,7 +57,8 @@ def test_public_paths_cover_catalog_and_combos() -> None:
     assert "/knives/karambit/doppler-ruby" in PUBLIC_PATHS
     assert "/gloves/specialist/mogul/combos" in PUBLIC_PATHS
     assert "/knives/karambit/doppler-ruby/combos" in PUBLIC_PATHS
-    assert len(PUBLIC_PATHS) == 8
+    assert "/combo-counts" in PUBLIC_PATHS
+    assert len(PUBLIC_PATHS) == 9
 
 
 @pytest.mark.usefixtures("catalog")

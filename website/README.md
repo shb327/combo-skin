@@ -10,6 +10,7 @@ In Counter-Strike 2, players equip cosmetic gloves and knives, each available in
 
 - **Browse gloves**: pick one of 8 glove types, then one of its finishes (94 in total).
 - **Browse knives**: pick one of 20 knife types, then one of its finishes (576 in total).
+- **See where the combos are before clicking**: type cards show how many combos each type has, finish cards how many each finish has, and a "Has combos" filter hides the finishes without any. The filter is kept in the page's URL (`?has=combos`), so a shared link keeps it.
 - **See combos for a glove or knife finish**: the knives that suit a glove finish, or the gloves that suit a knife finish, best rated first, each with a rating, both finish pictures, the pattern seeds and float ranges that suit it ("Any" where any will do), and sometimes a short description.
 - **Search** gloves and knives by name from the top bar.
 
@@ -35,7 +36,7 @@ npm run dev
 
 Open the local address Vite prints (port 5173 by default). No `.env` file is needed; see Configuration for the optional settings.
 
-Combos pages read the API at `http://localhost:8000` by default. To see combos, start the API with Docker Compose as described in [`api/README.md`](../api/README.md); combos appear once they are published in the admin dashboard. Without the API, every other page works, and a combos page says "Combos could not be loaded." with a "Try again" button.
+Combos pages read the API at `http://localhost:8000` by default. To see combos, start the API with Docker Compose as described in [`api/README.md`](../api/README.md); combos appear once they are published in the admin dashboard. Without the API, every other page works, type and finish cards show no combo counts and no filter, and a combos page says "Combos could not be loaded." with a "Try again" button.
 
 ## Scripts
 
@@ -80,7 +81,7 @@ Without it, Vite answers requests for any other host with 403. `DEV_ALLOWED_HOST
 | --- | --- |
 | `src/pages/` | One component per route: `Home`, `SearchGloves`, `GloveFinishes`, `SearchKnives`, `KnifeFinishes`, `Combos`. Routes are defined in `src/App.tsx`. |
 | `src/components/` | Shared UI: app bar with search, hero, item cards, footer. |
-| `src/api/` | The API client (`client.ts`, the only module that makes requests), its types generated from the OpenAPI snapshot (`schema.d.ts`), the combos query (`queries.ts`), and the API origin and picture host rules. |
+| `src/api/` | The API client (`client.ts`, the only module that makes requests), its types generated from the OpenAPI snapshot (`schema.d.ts`), the combos and counts queries (`queries.ts`, with the count helpers in `counts.ts`), and the API origin and picture host rules. |
 | `src/data/` | The generated knife and glove catalog (`catalog.json`, read by `gloves.ts` and `knives.ts`). |
 | `src/assets/` | Images bundled with the site: logos, glove and knife type images, the home page artwork (`hero/`). |
 | `src/test/` | Test helpers: the fake API and a renderer for the whole site. Tests sit next to the code as `*.test.ts(x)`. |
@@ -94,4 +95,4 @@ The `@` import alias points to `src/`.
 
 Type and finish slugs (`bloodhound`, `doppler-phase-2`) are the ones in the site's URLs, and they never change once assigned.
 
-**Combos** are not in the repository. The combos pages ask the API for the published combos of their finish (`GET /gloves/{type}/{finish}/combos`, `GET /knives/{type}/{finish}/combos`) and show them in the order the API returns: highest rating first. Combos are added, rated and published in the admin dashboard ([`admin/`](../admin/README.md)).
+**Combos** are not in the repository. The combos pages ask the API for the published combos of their finish (`GET /gloves/{type}/{finish}/combos`, `GET /knives/{type}/{finish}/combos`) and show them in the order the API returns: highest rating first. The type and finish pages ask once for every finish's count (`GET /combo-counts`) and keep it for 5 minutes, like the combos; when a combos page loads, its finish's count is updated to match. Combos are added, rated and published in the admin dashboard ([`admin/`](../admin/README.md)).
