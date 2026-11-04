@@ -17,6 +17,9 @@ export function createQueryClient({ retryDelay }: { retryDelay?: number } = {}):
       queries: {
         staleTime: COMBOS_STALE_MS,
         refetchOnWindowFocus: false,
+        // Always try the request: a browser that reports itself offline gets the error and
+        // "Try again", not a paused "Loading combos…".
+        networkMode: 'always',
         retry,
         ...(retryDelay === undefined ? {} : { retryDelay }),
       },

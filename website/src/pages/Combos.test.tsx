@@ -1,6 +1,7 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { onlineManager } from '@tanstack/react-query'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import {
   KARAMBIT_RUBY,
   MOGUL,
@@ -43,6 +44,9 @@ const PANDORA = item({
 })
 
 const cards = () => screen.queryAllByRole('article')
+/** The line under the finish name: the number of combos, or null when there is none. */
+const countLine = () =>
+  screen.getByRole('heading', { level: 1 }).nextElementSibling?.textContent ?? null
 const titles = () => cards().map((card) => within(card).getByRole('heading').textContent)
 
 async function loaded() {
@@ -149,7 +153,7 @@ describe('a glove finish page', () => {
     renderSite(MOGUL_PATH, { api })
 
     expect(await screen.findByText('Loading combos…')).toBeInTheDocument()
-    expect(screen.queryByText(/\bcombos?$/)).toBeNull()
+    expect(countLine()).toBeNull()
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Specialist Gloves | Mogul')
 
     answer.resolve(json([combo('a', 8, MOGUL, M9), combo('b', 7, MOGUL, KARAMBIT_RUBY), combo('c', 6, MOGUL, BUTTERFLY)]))
@@ -195,6 +199,38 @@ describe('a knife finish page', () => {
 })
 
 describe('failures', () => {
+  afterEach(() => {
+    onlineManager.setOnline(true)
+  })
+
+  it('hides the count when a later refresh fails', async () => {
+    const api = fakeApi()
+    api.combos(MOGUL_PATH, [combo('a', 8, MOGUL, M9)])
+    const site = renderSite(MOGUL_PATH, { api })
+    expect(await screen.findByText('1 combo')).toBeInTheDocument()
+
+    api.reply('network-error', 'network-error')
+    await act(() => site.queryClient.refetchQueries().catch(() => {}))
+
+    expect(await screen.findByText('Combos could not be loaded.')).toBeInTheDocument()
+    expect(countLine()).toBeNull()
+    expect(cards()).toHaveLength(0)
+  })
+
+  it('says the combos could not be loaded when the browser is offline', async () => {
+    onlineManager.setOnline(false)
+    const api = fakeApi()
+    api.reply('network-error', 'network-error')
+    renderSite(MOGUL_PATH, { api })
+
+    expect(await screen.findByText('Combos could not be loaded.')).toBeInTheDocument()
+    expect(api.requests).toHaveLength(2)
+
+    api.combos(MOGUL_PATH, [combo('a', 8, MOGUL, M9)])
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByText('1 combo')).toBeInTheDocument()
+  })
+
   it('says the finish was not found on a 404, without retrying', async () => {
     const api = fakeApi()
     api.reply(notFound())
@@ -202,7 +238,7 @@ describe('failures', () => {
 
     expect(await screen.findByText('This finish was not found.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
-    expect(screen.queryByText(/\bcombos?$/)).toBeNull()
+    expect(countLine()).toBeNull()
     expect(api.requests).toHaveLength(1)
   })
 
@@ -217,7 +253,7 @@ describe('failures', () => {
 
     expect(await screen.findByText('Combos could not be loaded.')).toBeInTheDocument()
     expect(api.requests).toHaveLength(2)
-    expect(screen.queryByText(/\bcombos?$/)).toBeNull()
+    expect(countLine()).toBeNull()
 
     api.combos(MOGUL_PATH, [combo('a', 8, MOGUL, M9)])
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))

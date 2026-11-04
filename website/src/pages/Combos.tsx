@@ -32,7 +32,8 @@ export function Combos() {
 function FinishCombos({ kind, item }: { kind: Kind; item: CatalogItem }) {
   const query = useFinishCombos(kind, item.typeId, item.finishId)
   const loading = query.isPending || (query.isError && query.isFetching)
-  const combos = loading ? undefined : query.data
+  // Query keeps the last combos when a later refresh fails; an error shows no count and no cards.
+  const combos = loading || query.isError ? undefined : query.data
 
   return (
     <div className="px-4 md:px-16 lg:px-44 pt-4 md:pt-8 pb-8 md:pb-16">
