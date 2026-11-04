@@ -107,7 +107,8 @@ export function createApi({ baseUrl, fetch: fetchImpl }: ApiOptions): Api {
       ) {
         throw new ApiError('http')
       }
-      return { gloves: data.gloves, knives: data.knives }
+      // Keys it does not know are kept, and ignored.
+      return { ...data, gloves: data.gloves, knives: data.knives }
     },
   }
 }
