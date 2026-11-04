@@ -237,25 +237,25 @@ No deviations from Requirements, Design or Acceptance criteria. Details the spec
 
 | Criterion | Covered by |
 | --- | --- |
-| 1 | `website/src/pages/Combos.test.tsx:53` (order kept, one `GET` with `credentials: "omit"`) |
-| 2 | `website/src/pages/Combos.test.tsx:178` |
-| 3 | `website/src/pages/Combos.test.tsx:74` |
-| 4 | `website/src/pages/Combos.test.tsx:108` |
-| 5 | `website/src/pages/Combos.test.tsx:119` |
-| 6 | `website/src/pages/Combos.test.tsx:145`, `:160`, `:167` |
-| 7 | `website/src/pages/Combos.test.tsx:198`, `:209` (no response, a 500, a body that is not a list) |
-| 8 | `website/src/pages/Combos.test.tsx:232` |
-| 9 | `website/src/pages/Combos.test.tsx:245`, `:260` |
+| 1 | `website/src/pages/Combos.test.tsx:57` (order kept, one `GET` with `credentials: "omit"`) |
+| 2 | `website/src/pages/Combos.test.tsx:183` |
+| 3 | `website/src/pages/Combos.test.tsx:78` (8.88 and 9.5 in green, 7.6 in lime) |
+| 4 | `website/src/pages/Combos.test.tsx:113` |
+| 5 | `website/src/pages/Combos.test.tsx:124` |
+| 6 | `website/src/pages/Combos.test.tsx:150`, `:165`, `:172` |
+| 7 | `website/src/pages/Combos.test.tsx:235`, `:246` (no response, a 500, a body that is not a list), `:207` (a later refresh fails), `:221` (offline browser) |
+| 8 | `website/src/pages/Combos.test.tsx:269` |
+| 9 | `website/src/pages/Combos.test.tsx:282`, `:297` (clock at 4:59 sends no request, at 5:01 one), `:328` |
 | 10 | `website/src/pages/FinishCards.test.tsx:8`, `:24`; `grep -rnE "total(Knives\|Gloves)" src` prints nothing |
 | 11 | `website/src/api/origin.test.ts`; `VITE_API_BASE_URL=https://api.example.com/x npm run build` exits 1 with the variable named |
 | 12 | `npm run api:types:check` exits 1 with no `src/api/schema.d.ts`, 0 after `npm run api:types`, and 1 naming the file with a property added to `PublicCombo` in `api/openapi.json` (change discarded) |
 | 13 | The test and grep in criterion 13 pass; 18 renames at 100%; the home page artwork loads on `npm run dev` (every image `naturalWidth > 0`) |
 | 14 | `grep -rn dangerouslySetInnerHTML src` prints nothing; `grep -rlwE "fetch\|XMLHttpRequest\|axios" src` lists `src/api/client.ts`, `src/api/client.test.ts`, `src/test/fakeApi.ts`, `src/test/render.tsx` |
-| 15 | Fresh clone, no `website/.env`: `npm ci`, `api:types:check`, `lint`, `npm test` (47 passed), `build` (no chunk-size warning) and the `/src/` check pass |
+| 15 | Fresh clone, no `website/.env`: `npm ci`, `api:types:check`, `lint`, `npm test` (50 passed), `build` (no chunk-size warning) and the `/src/` check pass |
 | 16 | `.github/workflows/website.yml` diff adds only the two steps; `actionlint` 1.7.12 exits 0 |
-| 17 | `api/tests/test_cors.py:59` (8 routes from `api/openapi.json`, with and without `Origin`), `:74` (404s), `:48` |
-| 18 | `api/tests/test_cors.py:96` (admin, health, docs, OpenAPI and a `POST`), `:103` (preflight) |
-| 19 | `api/tests/test_cors.py:112`, `:120`; `api/tests/admins/test_http.py` unchanged and passing |
+| 17 | `api/tests/test_cors.py:66` (8 routes from `api/openapi.json`, with and without `Origin`; `Vary` lists `Origin` once), `:81` (404s), `:55` |
+| 18 | `api/tests/test_cors.py:103` (admin, health, docs, OpenAPI and a `POST`), `:110` (preflight) |
+| 19 | `api/tests/test_cors.py:119` (`Vary` lists `Origin` once), `:127`; `api/tests/admins/test_http.py` unchanged and passing |
 | 20 | In `api/`: format, lint, mypy (77 files), `pytest` (315 passed, none skipped), `combo_api.openapi --check` and `export-website --check` exit 0; `api/openapi.json` unchanged |
 | 21 | The new steps in `.github/workflows/api.yml`; run by hand against the API of `main` (the first fails, as it should) and of this branch (both pass); `actionlint` exits 0 |
 | 22 | `website/README.md` and `api/README.md` (Public CORS); `grep -c "combos.ts" website/README.md` prints 0 |
@@ -265,8 +265,21 @@ No deviations from Requirements, Design or Acceptance criteria. Details the spec
 
 **Criterion 24, manual check** (2026-11-04, Compose API built from this branch with the owner's 72 published combos on four glove finishes, `ADMIN_ORIGINS` unchanged, `npm run dev`): Specialist Gloves \| Crimson Kimono shows "18 combos", ratings 9.98 down to 9.21 in order, each card with both pictures; Karambit \| Doppler (Ruby) shows "1 combo", Specialist Gloves \| Crimson Kimono; Specialist Gloves \| Mogul shows "No combos yet" once; with the API stopped, Driver Gloves \| King Snake shows "Combos could not be loaded." after one retry, and after starting the API "Try again" shows "19 combos". The browser console shows only the two refused connections of that check, and no CORS error. `npm run build` and `npm run preview` show the Karambit \| Doppler (Ruby) page the same way.
 
+### After the audit
+
+**2026-11-04, audit follow-ups fixed (agreed with the owner).** No requirement changed; each fix brings the code to the spec's letter.
+
+- A later refresh that failed while combos were cached showed the count above "Combos could not be loaded." (R6). `src/pages/Combos.tsx` now treats any error as having no combos to show (`Combos.test.tsx:207`).
+- A browser that reported itself offline paused the request on "Loading combos…" (R5). `createQueryClient` sets `networkMode: 'always'`, so the request is tried and fails into the error (`Combos.test.tsx:221`).
+- Admin-origin responses on public routes carried `Vary: Origin, Origin`. `PublicCors` adds `Origin` only when `Vary` lacks it (`api/tests/test_cors.py:119`).
+- Tests tightened: criterion 3 uses 9.5; the count line is read from the header instead of a pattern that missed "No combos yet"; the 5-minute cache is checked with a faked clock, which fails with a stale time of 0 or 10 minutes; "{n} available" is matched as a whole number.
+- Not changed: an unhandled exception is still answered 500 by Starlette's outermost error middleware without `Access-Control-Allow-Origin`. Adding it would mean replacing that middleware's error handling for a case the website already reports the same way ("Combos could not be loaded."), since the browser sees a network error. Left as a follow-up.
+
+Website: lint, 50 tests and build pass; API: format, lint, mypy and 315 tests pass.
+
 ### Follow-ups
 
+- Unhandled API errors (500) carry no CORS header (After the audit).
 - Combo counts: a follow-up spec adds `GET /combo-counts`, the published counts of every finish that has combos in one response (`{"gloves": {"specialist/mogul": 34}, "knives": {"karambit/doppler-ruby": 3}}`), real counts on the finish cards, and a "has combos" filter on search and browse. Rejected for it: a per-type counts route, which search across all types would call 28 times; a `combo_count` on the catalog routes, which the website does not call.
 - `deploy/`: set `VITE_API_BASE_URL` for the production build. Decide caching of public API responses at Cloudflare: their headers vary by `Origin` for admin origins, which a shared cache must respect (bypass, or cache only responses to non-admin origins).
 - A combo card could link to the other item's combos page.
@@ -322,4 +335,5 @@ Website checks ran on a fresh clone of the branch with no `website/.env`; API ch
 - (follow-up) `api/src/combo_api/main.py` `PublicCors`: an unhandled exception is answered 500 by Starlette's outermost error middleware, outside `PublicCors`, so that response has no `Access-Control-Allow-Origin`, against the letter of R12 ("every response"). The website shows the same failure message either way, since the browser reports a network error; `AdminCors` behaves the same.
 - (follow-up) The same: admin-origin responses on public routes carry `Vary: Origin, Origin`, because Starlette's `add_vary_header` appends without checking. Harmless.
 - (follow-up) Tests weaker than their criteria: criterion 3 uses 7.6 instead of 9.5; criterion 6's "no count line" pattern does not match "No combos yet", so a stray "No combos yet" while loading or on errors would pass (`Combos.test.tsx:152`, `:205`, `:220`); criterion 9 checks the 5-minute bound in configuration, not with a clock; `FinishCards.test.tsx:28` matches "{n} available" as a substring.
+- The first, second and fourth findings and the weaker tests were fixed after the audit; see Implementation notes, After the audit.
 - (follow-up) Still open from Implementation notes: the combo counts spec, `VITE_API_BASE_URL` and edge caching in `deploy/`, and links between combo pages.
