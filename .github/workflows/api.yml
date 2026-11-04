@@ -69,9 +69,13 @@ jobs:
       - run: test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/admin/me)" -eq 401
       - run: test "$(curl -fsS http://localhost:8000/gloves/specialist/mogul/combos)" = "[]"
       - run: test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/admin/combos)" -eq 401
+      - run: test "$(curl -fsS http://localhost:8000/combo-counts)" = '{"gloves":{},"knives":{}}'
       # Public routes are readable from any origin; admin routes send it no CORS headers.
       - run: |
           headers="$(curl -s -D - -o /dev/null -H 'Origin: http://localhost:5173' http://localhost:8000/gloves/specialist/mogul/combos)"
+          grep -qi '^access-control-allow-origin: \*' <<< "$headers"
+      - run: |
+          headers="$(curl -s -D - -o /dev/null -H 'Origin: http://localhost:5173' http://localhost:8000/combo-counts)"
           grep -qi '^access-control-allow-origin: \*' <<< "$headers"
       - run: |
           headers="$(curl -s -D - -o /dev/null -H 'Origin: http://localhost:5173' http://localhost:8000/admin/combos)"
