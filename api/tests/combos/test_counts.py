@@ -4,6 +4,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from tests.admins.support import USERNAME
 from tests.combos.support import logged_in, retire_finish, retire_type
 from tests.combos.test_public import CRIMSON, RUBY, make, public
 
@@ -124,5 +125,10 @@ async def test_counts_need_no_session(clients: Any, admin_client: AsyncClient) -
     with_session = await admin_client.get("/combo-counts")
     assert with_session.json() == without.json()
     assert "set-cookie" not in with_session.headers
-    for hidden in ("status", "id", "created", "updated", "published"):
-        assert hidden not in without.text
+    # Only kinds, type slugs, finish slugs and whole numbers: no combo data of any kind.
+    body = without.json()
+    assert set(body) == {"gloves", "knives"}
+    for types in body.values():
+        for finishes in types.values():
+            assert all(type(n) is int and n > 0 for n in finishes.values())
+    assert USERNAME not in without.text
