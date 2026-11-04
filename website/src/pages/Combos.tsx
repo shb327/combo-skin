@@ -180,7 +180,8 @@ function ComboCard({ combo, isGlove }: { combo: PublicCombo; isGlove: boolean })
                   to={otherPath}
                   className="text-white/60 hover:text-white text-sm md:text-base transition-colors"
                 >
-                  See all {itemName(other)} combos <span aria-hidden="true">→</span>
+                  {/* A no-break space keeps the arrow on the line of the last word. */}
+                  See all {itemName(other)} combos{' '}<span aria-hidden="true">→</span>
                 </Link>
               </div>
             )}
