@@ -332,6 +332,8 @@ export class ComboStore {
     const combo = this.get(id)
     if (!combo) return [404, { detail: 'combo_not_found' }]
     if (body.version !== combo.version) return conflict('version_conflict')
+    // Required, as in the API: leaving it out never resets the agent.
+    if (!('screenshot_agent' in body)) return refused([['body', 'screenshot_agent'], 'missing'])
     combo.rating = body.rating
     combo.description = body.description ?? null
     Object.assign(combo.glove, conditions(body.glove))

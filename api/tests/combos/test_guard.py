@@ -12,7 +12,8 @@ pytestmark = [pytest.mark.anyio, pytest.mark.usefixtures("catalog", "admin")]
 
 ID = "zzzzzzzzzzzz"
 QUERY = {"glove_type": "specialist", "glove_finish": "mogul", "knife_finish": "fade"}
-# Every admin combo, batch and knife order route: method, path, query, body.
+# Every admin combo, batch, knife order, agent and screenshot settings route: method, path,
+# query, body.
 ROUTES: list[tuple[str, str, dict[str, Any], Any]] = [
     ("GET", "/admin/combos", {}, None),
     ("POST", "/admin/combos", {}, combo_body()),
@@ -26,6 +27,9 @@ ROUTES: list[tuple[str, str, dict[str, Any], Any]] = [
     ("POST", "/admin/batches", {}, {}),
     ("GET", "/admin/knife-order", {}, None),
     ("PUT", "/admin/knife-order", {}, {"slugs": []}),
+    ("GET", "/admin/agents", {}, None),
+    ("GET", "/admin/screenshot-settings", {}, None),
+    ("PUT", "/admin/screenshot-settings", {}, {"default_agent": 5404}),
 ]
 WRITES = {"POST", "PUT", "PATCH", "DELETE"}
 

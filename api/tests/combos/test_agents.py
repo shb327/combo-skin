@@ -162,6 +162,25 @@ async def test_batch_rows_carry_their_agents(admin_client: AsyncClient) -> None:
     assert saved["updated"][0]["screenshot_agent"]["def_index"] == DARRYL
 
 
+async def test_batch_refuses_a_retired_agent(
+    admin_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    headers = await logged_in(admin_client)
+    await retire_agent(db_session, OPERATOR)
+    body = {
+        "glove": {"type_slug": "specialist", "finish_slug": "crimson-kimono"},
+        "knife_finish": "doppler-ruby",
+        "create": [{"knife_type": "butterfly", "rating": 9.5, "screenshot_agent": OPERATOR}],
+    }
+    response = await admin_client.post("/admin/batches", json=body, headers=headers)
+    assert response.status_code == 422
+    [problem] = response.json()["detail"]
+    assert (problem["loc"], problem["type"]) == (
+        ["body", "create", 0, "screenshot_agent"],
+        "agent_retired",
+    )
+
+
 async def test_batch_refuses_an_unknown_agent(admin_client: AsyncClient) -> None:
     headers = await logged_in(admin_client)
     body = {
@@ -184,9 +203,16 @@ async def test_default_agent_setting(
 ) -> None:
     assert (await admin_client.get("/admin/screenshot-settings")).status_code == 401
     headers = await logged_in(admin_client)
-    await create(admin_client, headers)
-    await create(admin_client, headers, knife=("bayonet", "fade"))
+    published = await create(admin_client, headers)
+    unpublished = await create(admin_client, headers, knife=("bayonet", "fade"))
+    await create(admin_client, headers, knife=("gut", "fade"))
     own = await create(admin_client, headers, knife=("flip", "fade"))
+    # Every status counts: one published, one unpublished, one draft use the default.
+    ids = {"ids": [published["id"], unpublished["id"]]}
+    await admin_client.post("/admin/combos/publish", json=ids, headers=headers)
+    await admin_client.post(
+        "/admin/combos/unpublish", json={"ids": [unpublished["id"]]}, headers=headers
+    )
     path = f"/admin/combos/{own['id']}"
     await admin_client.put(path, json=change(screenshot_agent=DARRYL), headers=headers)
     before = (await db_session.execute(select(Combo.id, Combo.version, Combo.updated_at))).all()
@@ -196,7 +222,7 @@ async def test_default_agent_setting(
     assert response.headers["cache-control"] == "no-store"
     settings = response.json()
     assert settings["default_agent"]["def_index"] == RICKSAW
-    assert settings["using_default"] == 2
+    assert settings["using_default"] == 3
 
     with caplog.at_level(logging.INFO, logger="combo_api.combos"):
         response = await admin_client.put(
@@ -204,7 +230,7 @@ async def test_default_agent_setting(
         )
     assert response.status_code == 200, response.text
     assert response.json()["default_agent"]["def_index"] == DARRYL
-    assert response.json()["using_default"] == 2
+    assert response.json()["using_default"] == 3
     assert (await admin_client.get("/admin/screenshot-settings")).json() == response.json()
     after = (await db_session.execute(select(Combo.id, Combo.version, Combo.updated_at))).all()
     assert sorted(after) == sorted(before)
@@ -212,7 +238,7 @@ async def test_default_agent_setting(
     assert row.default_agent_def_index == DARRYL
     assert row.updated_by is not None
     assert (
-        f"default agent changed admin={USERNAME} def_index={DARRYL} using_default=2" in caplog.text
+        f"default agent changed admin={USERNAME} def_index={DARRYL} using_default=3" in caplog.text
     )
 
 

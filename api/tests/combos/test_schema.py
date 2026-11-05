@@ -70,6 +70,7 @@ def test_agent_operations_in_schema() -> None:
         operation = schema["paths"][path][method]
         assert (operation["operationId"], operation["tags"]) == (operation_id, ["admin"])
         assert {"401", "403"} <= set(operation["responses"]), path
+        assert ("503" in operation["responses"]) == ("settings" in path), path
     schemas = schema["components"]["schemas"]
     assert set(schemas["Agent"]["properties"]) == {
         "def_index",
