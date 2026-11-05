@@ -394,7 +394,8 @@ function BatchRow({
     (key === 'rating' && (!ownRating || open)) ||
     (key.startsWith('knife.') && row.text.knife !== undefined && open) ||
     (key.startsWith('glove.') && row.text.glove !== undefined && open) ||
-    (key === 'description' && row.text.description !== undefined && open)
+    (key === 'description' && row.text.description !== undefined && open) ||
+    (key === 'agent' && row.text.agent !== undefined && open)
   const listed = Object.entries(errors).filter(([key]) => !inFields(key))
   return (
     <li className="rounded-lg border border-white/10 p-3" aria-label={name}>
@@ -504,6 +505,7 @@ function BatchRow({
                   label={`Screenshot agent, ${name} only`}
                   searchLabel={`Find a screenshot agent for ${name}`}
                   value={row.text.agent ?? null}
+                  error={errors.agent}
                   onChange={(agent) => onChange({ agent })}
                 />
               </Override>

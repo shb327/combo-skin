@@ -54,6 +54,7 @@ export const FIELD_LABELS: Record<string, string> = {
   'knife.seeds': 'Knife pattern seeds',
   'knife.finish': 'Knife',
   knife_type: 'Knife',
+  agent: 'Screenshot agent',
 }
 
 export function comboText(combo: AdminCombo): ComboText {

@@ -71,3 +71,16 @@ describe('problemMessage', () => {
     expect(problemMessage('toString')).toBe(REFUSED)
   })
 })
+
+describe('agent refusals', () => {
+  it('belong to the screenshot agent field, with fixed messages', () => {
+    expect(formField({ loc: ['body', 'screenshot_agent'], type: 'agent_retired' })).toBe('agent')
+    expect(batchPlace({ loc: ['body', 'create', 1, 'screenshot_agent'], type: 'agent_not_found' })).toEqual({
+      list: 'create',
+      index: 1,
+      field: 'agent',
+    })
+    expect(problemMessage('agent_retired')).toBe('This agent is no longer in the game.')
+    expect(problemMessage('agent_not_found')).toBe('This agent is not in the catalog.')
+  })
+})

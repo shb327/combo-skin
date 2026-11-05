@@ -57,6 +57,7 @@ export function ComboFields({
         label="Screenshot agent"
         value={values.agent}
         known={storedAgent}
+        error={errors.agent}
         onChange={(agent) => onChange({ ...values, agent })}
       />
       <DescriptionField

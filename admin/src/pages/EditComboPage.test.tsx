@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { COMBO_MESSAGES } from '../combos/messages'
-import { FakeApi, error } from '../test/fakeApi'
+import { FakeApi, error, refusal } from '../test/fakeApi'
 import { renderApp, where } from '../test/render'
 
 function withCombo(status: 'draft' | 'published' = 'draft') {
@@ -199,5 +199,22 @@ describe('the screenshot agent of a combo', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByText('Saved. Version 2.')).toBeInTheDocument()
     expect(JSON.parse(fake.to('PUT /admin/combos/{id}')[0].body).screenshot_agent).toBe(5305)
+  })
+})
+
+describe('an agent refused by the API', () => {
+  it('shows the refusal at the picker and in the summary', async () => {
+    const { fake, path } = withCombo()
+    fake.next('PUT /admin/combos/{id}', refusal([['body', 'screenshot_agent'], 'agent_retired']))
+    const { user } = renderApp(path, fake)
+    const agent = await screen.findByRole('group', { name: 'Screenshot agent' })
+    await user.type(await within(agent).findByRole('combobox'), 'darryl')
+    await user.keyboard('{ArrowDown}{Enter}')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    const search = within(agent).getByRole('combobox', { name: 'Find a screenshot agent' })
+    await waitFor(() => expect(search).toHaveAccessibleDescription('This agent is no longer in the game.'))
+    expect(search).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('alert')).toHaveTextContent('Screenshot agent: This agent is no longer in the game.')
+    expect(within(agent).getByText('Bloody Darryl The Strapped | The Professionals')).toBeInTheDocument()
   })
 })

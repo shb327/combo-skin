@@ -367,3 +367,31 @@ describe('screenshot agents in a batch', () => {
     expect(create.map((c: { screenshot_agent: number }) => c.screenshot_agent)).toEqual([4613, 4613, 4613])
   })
 })
+
+describe('an agent refused in a batch', () => {
+  it('shows the refusal on the row it points at', async () => {
+    const fake = new FakeApi().withSession()
+    fake.next('POST /admin/batches', refusal([['body', 'create', 1, 'screenshot_agent'], 'agent_retired']))
+    const { user } = renderApp(RUBY, fake)
+    await user.type(await screen.findByLabelText('Top rating'), '9.5')
+    await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
+    await waitFor(() => expect(row('Butterfly Knife')).toHaveTextContent('Screenshot agent: This agent is no longer in the game.'))
+    expect(row('Karambit')).not.toHaveTextContent('no longer in the game')
+    expect(screen.getByRole('alert')).toHaveTextContent('Butterfly Knife, screenshot agent')
+  })
+
+  it('shows it at the knife own agent when it has one', async () => {
+    const fake = new FakeApi().withSession()
+    fake.next('POST /admin/batches', refusal([['body', 'create', 0, 'screenshot_agent'], 'agent_retired']))
+    const { user } = renderApp(RUBY, fake)
+    await user.type(await screen.findByLabelText('Top rating'), '9.5')
+    await user.click(screen.getByRole('button', { name: 'Own values for Karambit' }))
+    await user.click(screen.getByRole('button', { name: 'Set own screenshot agent for Karambit' }))
+    const own = screen.getByRole('group', { name: 'Screenshot agent, Karambit only' })
+    await user.type(within(own).getByRole('combobox'), 'darryl')
+    await user.keyboard('{ArrowDown}{Enter}')
+    await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
+    const search = within(own).getByRole('combobox')
+    await waitFor(() => expect(search).toHaveAccessibleDescription('This agent is no longer in the game.'))
+  })
+})
