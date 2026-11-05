@@ -9,6 +9,7 @@ export type Item = Schemas['Item']
 export type Kind = 'glove' | 'knife'
 type Status = AdminCombo['status']
 type Conditions = Schemas['Conditions']
+type Agent = Schemas['Agent']
 
 interface FakeFinish {
   slug: string
@@ -91,6 +92,26 @@ function find(kind: Kind, typeSlug: string, finishSlug: string) {
   return type && found ? { type, finish: found } : null
 }
 
+/** Agents of the fake catalog, as the API lists them: Counter-Terrorists first, then by name.
+ * Operator is retired, so the list leaves it out. */
+const agent = (def_index: number, name: string, team: 'ct' | 't', active = true): Agent => ({
+  def_index,
+  name,
+  team,
+  image_url: `${IMAGE_ORIGIN}/economy/image/fake/agent/${def_index}`,
+  rarity: { code: 'rarity_ancient_character', name: 'Master', color: '#eb4b4b' },
+  active,
+})
+export const AGENTS: Agent[] = [
+  agent(4619, "'Blueberries' Buckshot | NSWC SEAL", 'ct'),
+  agent(5404, 'Lt. Commander Ricksaw | NSWC SEAL', 'ct'),
+  agent(4613, 'Bloody Darryl The Strapped | The Professionals', 't'),
+]
+export const RETIRED_AGENT = agent(5305, 'Operator | FBI SWAT', 'ct', false)
+export const RICKSAW = 5404
+const agentOf = (defIndex: number | null | undefined) =>
+  defIndex == null ? null : ([...AGENTS, RETIRED_AGENT].find((a) => a.def_index === defIndex) ?? null)
+
 /** A picture URL on the game's image host; never fetched in tests. */
 export const picture = (type: string, finish: string) => `${IMAGE_ORIGIN}/economy/image/fake/${type}/${finish}`
 
@@ -169,6 +190,8 @@ export interface NewCombo {
   description?: string | null
   gloveConditions?: Partial<Conditions>
   knifeConditions?: Partial<Conditions>
+  /** The screenshot agent's definition index; none means the default. */
+  agent?: number | null
   by?: string
 }
 
@@ -189,6 +212,7 @@ const conditions = (c: Partial<Conditions> | undefined): Conditions => ({
 export class ComboStore {
   combos: AdminCombo[] = []
   knifeOrder = ['karambit', 'butterfly', 'm9-bayonet']
+  defaultAgent = RICKSAW
   private ids = 0
   private ticks = 0
   // Order of last change, for sort=updated.
@@ -219,6 +243,7 @@ export class ComboStore {
       description: spec.description ?? null,
       glove: item('glove', gloveType, gloveFinish, spec.gloveConditions),
       knife: item('knife', knifeType, knifeFinish, spec.knifeConditions),
+      screenshot_agent: agentOf(spec.agent),
       created_at: at,
       created_by: by,
       updated_at: at,
@@ -279,6 +304,9 @@ export class ComboStore {
     if (!glove) return refused([['body', 'glove', 'finish_slug'], 'finish_not_found'])
     if (!knife) return refused([['body', 'knife', 'finish_slug'], 'finish_not_found'])
     if (!glove.finish.active) return refused([['body', 'glove', 'finish_slug'], 'finish_retired'])
+    if (body.screenshot_agent != null && !agentOf(body.screenshot_agent)) {
+      return refused([['body', 'screenshot_agent'], 'agent_not_found'])
+    }
     if (this.pairing(body.glove.type_slug, body.glove.finish_slug, body.knife.type_slug, body.knife.finish_slug)) {
       return conflict('combo_exists')
     }
@@ -289,6 +317,7 @@ export class ComboStore {
       description: body.description ?? null,
       gloveConditions: conditions(body.glove),
       knifeConditions: conditions(body.knife),
+      agent: body.screenshot_agent,
       by,
     })
     return [201, combo]
@@ -303,10 +332,13 @@ export class ComboStore {
     const combo = this.get(id)
     if (!combo) return [404, { detail: 'combo_not_found' }]
     if (body.version !== combo.version) return conflict('version_conflict')
+    // Required, as in the API: leaving it out never resets the agent.
+    if (!('screenshot_agent' in body)) return refused([['body', 'screenshot_agent'], 'missing'])
     combo.rating = body.rating
     combo.description = body.description ?? null
     Object.assign(combo.glove, conditions(body.glove))
     Object.assign(combo.knife, conditions(body.knife))
+    combo.screenshot_agent = agentOf(body.screenshot_agent)
     combo.version += 1
     this.touch(combo, by)
     return [200, combo]
@@ -420,6 +452,7 @@ export class ComboStore {
           knife: { type_slug: row.knife_type, finish_slug: body.knife_finish, ...conditions(row.knife) },
           rating: row.rating,
           description: row.description,
+          screenshot_agent: row.screenshot_agent,
         },
         by,
       ) as [number, AdminCombo]
@@ -434,6 +467,23 @@ export class ComboStore {
       return combo
     })
     return [200, { created, updated }]
+  }
+
+  agents(): Answer {
+    return [200, AGENTS]
+  }
+
+  screenshotSettings(): Answer {
+    const usingDefault = this.combos.filter((c) => c.screenshot_agent === null).length
+    return [200, { default_agent: agentOf(this.defaultAgent), using_default: usingDefault }]
+  }
+
+  replaceScreenshotSettings(body: Schemas['ScreenshotSettingsIn']): Answer {
+    const found = agentOf(body.default_agent)
+    if (!found) return refused([['body', 'default_agent'], 'agent_not_found'])
+    if (!found.active) return refused([['body', 'default_agent'], 'agent_retired'])
+    this.defaultAgent = found.def_index
+    return this.screenshotSettings()
   }
 
   getKnifeOrder(): Answer {

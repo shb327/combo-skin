@@ -38,12 +38,15 @@ If login says it cannot reach the API, check that the API is running, and that `
 
 ## Screens
 
-- **Home**: the two directions, By gloves and By knife; the number of combos and how many glove and knife finishes still have none; then how many drafts exist across all finishes, with **Publish all drafts** (asks first; unpublished combos stay unpublished), then a link to the knife order, which is not in the navigation.
+- **Home**: the two directions, By gloves and By knife; the number of combos and how many glove and knife finishes still have none; then how many drafts exist across all finishes, with **Publish all drafts** (asks first; unpublished combos stay unpublished), then links to the knife order and the screenshots page, which are not in the navigation.
 - **By gloves** (`/gloves`): search for a glove finish by any words of its type and name ("kimono spec"), or browse: the glove types are listed under the search, and each type's page (`/gloves/<type>`) lists its finishes with their float range and how many combos and drafts each has. A finish's page shows its combos: knife, rating, conditions and status, with filters by status and knife finish and sorting by rating or last change. From there, **Add knife** creates one combo, and **Start a batch** enters many.
-- **Batch**: pick a knife finish name (Ruby, Blue Steel, ...). Every knife type that has it is listed in the knife order, ticked; a knife type already paired with these gloves shows as "already exists", unticked, and can be ticked to update its rating and description; it keeps its current description unless you type one. The top rating fills the next knives 0.05 lower each, never below 0; any rating can be typed by hand, and the knives below follow it. Float ranges, pattern seeds and the description apply to every knife, and each knife can have its own. Save creates everything as drafts, all or nothing, then offers to publish the new combos.
+- **Batch**: pick a knife finish name (Ruby, Blue Steel, ...). Every knife type that has it is listed in the knife order, ticked; a knife type already paired with these gloves shows as "already exists", unticked, and can be ticked to update its rating and description; it keeps its current description unless you type one. The top rating fills the next knives 0.05 lower each, never below 0; any rating can be typed by hand, and the knives below follow it. Float ranges, pattern seeds, the screenshot agent and the description apply to every knife, and each knife can have its own (a knife's own agent can be "Default" while the batch has another). Save creates everything as drafts, all or nothing, then offers to publish the new combos.
 - **By knife** (`/knives`, `/knives/<type>`): the same for knives, searched or browsed by type, adding gloves one at a time.
-- **Edit** (`/combos/<id>`): rating, float ranges, pattern seeds and description, saved with the version that was read. If someone else saved first, the page shows their values and yours, and you keep yours or take theirs. Publish, unpublish, and delete a draft or unpublished combo.
+- **Edit** (`/combos/<id>`): rating, float ranges, pattern seeds, screenshot agent and description, saved with the version that was read. If someone else saved first, the page shows their values and yours, and you keep yours or take theirs. Publish, unpublish, and delete a draft or unpublished combo.
 - **Knife order** (`/knife-order`): move knife types up, down or to a position, then save. Shared by every admin.
+- **Screenshots** (`/screenshots`): the default agent, used by every combo without its own screenshot agent, with how many combos use it. Choosing another asks first.
+
+**Screenshot agents.** Every combo form has a screenshot agent: the agent whose arms hold the knife and gloves in the combo's screenshot. It shows the chosen agent's picture and name, or "Default" with the default agent's. Focusing its search opens the whole list: "Default" first, then Counter-Terrorists and Terrorists; type any words of a name (`darryl`, `nswc`) to narrow it, pick with the keyboard, or choose **Use default**. An agent the API refuses (for example one retired since the list loaded) is marked at the picker.
 
 Ratings are typed with a dot or a comma and shown with two decimals; the Up and Down arrow keys step by 0.05. Float values take up to 4 decimals and must lie inside the finish's own range.
 
@@ -107,11 +110,11 @@ Lint guard rails, tested in `src/lint.test.ts`: only `src/api/client.ts` may mak
 | `vite.config.ts` | Vite and Vitest configuration, the API origin check, the Content Security Policy |
 | `eslint.config.js` | ESLint, with the guard rails |
 | `scripts/api-types.mjs`, `scripts/check-bundle.mjs` | API types generation and check; the build check |
-| `src/combos/` | Shared pieces of the combo screens: value parsing and checks, the batch rating fill and rows, finish search, mapping API refusals to fields, server state with TanStack Query, the unsaved changes store, and the form components |
+| `src/combos/` | Shared pieces of the combo screens: value parsing and checks, the batch rating fill and rows, the search combobox (finishes and agents), the screenshot agent picker, mapping API refusals to fields, server state with TanStack Query, the unsaved changes store, and the form components |
 | `src/main.tsx`, `src/App.tsx` | Entry point; routes |
 | `src/index.css` | Tailwind, the website's colour tokens, Montserrat |
 | `src/api/` | `schema.d.ts` (generated), `client.ts` (the only network code), `errors.ts` (messages), `origin.ts` (origin check) |
 | `src/auth/` | Session provider and hook, the route guard, the return path after login |
 | `src/components/` | Layout with header and navigation; page titles |
-| `src/pages/` | Login, Home, finish search with the type grid, type pages and finish pages for both directions, add, batch, edit, knife order, Not found |
+| `src/pages/` | Login, Home, finish search with the type grid, type pages and finish pages for both directions, add, batch, edit, knife order, screenshots, Not found |
 | `src/test/` | Fake API, render helper, test setup |

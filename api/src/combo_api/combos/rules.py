@@ -7,7 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from combo_api.catalog.models import Finish, ItemType
+from combo_api.catalog.models import Agent, Finish, ItemType
 from combo_api.catalog.snapshot import Kind
 from combo_api.combos.schemas import Conditions, FinishRef, decimal
 
@@ -67,3 +67,32 @@ def check_conditions(finish: Finish, conditions: Conditions, loc: Loc, problems:
         problems.add((*loc, "float_from"), "float_outside_finish", message)
     if conditions.float_to is not None and decimal(conditions.float_to) > high:
         problems.add((*loc, "float_to"), "float_outside_finish", message)
+
+
+async def resolve_agent(
+    db: AsyncSession, def_index: int, loc: Loc, problems: Problems, *, keep: int | None = None
+) -> Agent | None:
+    """The agent a request names, or None with a problem added. A retired agent is refused,
+    unless it is the one the combo already has (`keep`, an `agents.id`)."""
+    agent = await db.scalar(select(Agent).where(Agent.def_index == def_index))
+    if agent is None:
+        problems.add(loc, "agent_not_found", "No agent has this definition index")
+        return None
+    if not agent.active and agent.id != keep:
+        problems.add(loc, "agent_retired", "This agent is no longer in the game")
+    return agent
+
+
+async def agent_id(
+    db: AsyncSession,
+    def_index: int | None,
+    loc: Loc,
+    problems: Problems,
+    *,
+    keep: int | None = None,
+) -> int | None:
+    """The `agents.id` for a request's screenshot agent; None for the default."""
+    if def_index is None:
+        return None
+    agent = await resolve_agent(db, def_index, loc, problems, keep=keep)
+    return None if agent is None else agent.id

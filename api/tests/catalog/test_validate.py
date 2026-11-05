@@ -15,6 +15,13 @@ SNAPSHOT = load_snapshot()
 ORDER = load_display_order()
 
 
+def replace_agent(snapshot: Snapshot, which: int, **changes: object) -> Snapshot:
+    agents = tuple(
+        a.model_copy(update=changes) if a.def_index == which else a for a in snapshot.agents
+    )
+    return snapshot.model_copy(update={"agents": agents})
+
+
 def replace_type(snapshot: Snapshot, slug: str, **changes: object) -> Snapshot:
     types = tuple(
         t.model_copy(update=changes) if t.slug == slug else t for t in snapshot.item_types
@@ -148,3 +155,37 @@ def test_display_order_may_list_retired_finishes() -> None:
     retired = replace_finish(SNAPSHOT, "karambit", 38, retired=True)
     assert "fade" in ORDER.finishes["knife/karambit"]
     validate(retired, ORDER)
+
+
+def test_duplicate_agent_definition_index() -> None:
+    fails(
+        replace_agent(SNAPSHOT, 4613, def_index=5404),
+        "Duplicate agent definition index 5404: Bloody Darryl The Strapped | The Professionals "
+        "and Lt. Commander Ricksaw | NSWC SEAL",
+    )
+
+
+def test_duplicate_agent_codename() -> None:
+    fails(
+        replace_agent(SNAPSHOT, 4613, codename="customplayer_ctm_st6_varianti"),
+        "Duplicate agent codename 'customplayer_ctm_st6_varianti': "
+        "Bloody Darryl The Strapped | The Professionals and Lt. Commander Ricksaw | NSWC SEAL",
+    )
+
+
+def test_agent_team() -> None:
+    fails(
+        replace_agent(SNAPSHOT, 5404, team="spectator"),
+        "Lt. Commander Ricksaw | NSWC SEAL (5404): team 'spectator' is not ct or t",
+    )
+
+
+@pytest.mark.parametrize(
+    "url", ["https://example.com/agent.png", "http://community.akamai.steamstatic.com/a.png"]
+)
+def test_agent_image_host(url: str) -> None:
+    fails(
+        replace_agent(SNAPSHOT, 5404, image_url=url),
+        "Lt. Commander Ricksaw | NSWC SEAL (5404): image URL is not HTTPS on a "
+        ".steamstatic.com host",
+    )

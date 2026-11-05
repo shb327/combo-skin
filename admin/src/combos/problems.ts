@@ -12,6 +12,8 @@ export const REFUSALS = {
   combo_not_found: 'This combo no longer exists.',
   combo_not_in_batch: 'This combo is not part of this batch.',
   decimal_max_places: 'Too many decimals.',
+  agent_not_found: 'This agent is not in the catalog.',
+  agent_retired: 'This agent is no longer in the game.',
 } as const
 
 export const REFUSED = 'The API refused this value.'
@@ -29,10 +31,11 @@ const ITEM_FIELDS: Record<string, string> = {
 }
 
 /** The field a path names inside one combo: `rating`, `description`, `knife.float_from`,
- * `glove.seeds`, `knife.finish`, `knife_type`; null when it names none. */
+ * `glove.seeds`, `knife.finish`, `knife_type`, `agent`; null when it names none. */
 function comboField(path: (string | number)[]): string | null {
   const [first, second] = path
   if (first === 'rating' || first === 'description' || first === 'knife_type') return first
+  if (first === 'screenshot_agent') return 'agent'
   if ((first === 'glove' || first === 'knife') && typeof second === 'string' && ITEM_FIELDS[second]) {
     return `${first}.${ITEM_FIELDS[second]}`
   }

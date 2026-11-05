@@ -4,6 +4,7 @@ import { ApiError } from '../api/errors'
 import { useApi } from '../api/useApi'
 import type { components } from '../api/schema'
 import { useTitle } from '../components/useTitle'
+import { AgentPicker } from '../combos/AgentPicker'
 import { EMPTY_BATCH, batchRows, checkBatch, knifeBatchRange, rowDescription, type BatchText, type Row, type RowText } from '../combos/batch'
 import { ConditionsFields, DescriptionField, RatingField } from '../combos/fields'
 import { Picture } from '../combos/Picture'
@@ -322,6 +323,12 @@ function BatchRows({
           errors={itemErrors(checked.batch, 'knife')}
           onChange={(value) => change((current) => ({ ...current, knife: value }))}
         />
+        <AgentPicker
+          id="batch-agent"
+          label="Screenshot agent"
+          value={text.agent ?? null}
+          onChange={(agent) => change((current) => ({ ...current, agent }))}
+        />
         <DescriptionField
           id="batch-description"
           value={text.description}
@@ -387,7 +394,8 @@ function BatchRow({
     (key === 'rating' && (!ownRating || open)) ||
     (key.startsWith('knife.') && row.text.knife !== undefined && open) ||
     (key.startsWith('glove.') && row.text.glove !== undefined && open) ||
-    (key === 'description' && row.text.description !== undefined && open)
+    (key === 'description' && row.text.description !== undefined && open) ||
+    (key === 'agent' && row.text.agent !== undefined && open)
   const listed = Object.entries(errors).filter(([key]) => !inFields(key))
   return (
     <li className="rounded-lg border border-white/10 p-3" aria-label={name}>
@@ -486,6 +494,21 @@ function BatchRow({
                   onChange={(glove) => onChange({ glove })}
                 />
               </Override>
+              <Override
+                label={`own screenshot agent for ${name}`}
+                active={row.text.agent !== undefined}
+                onSet={() => onChange({ agent: batch.agent ?? null })}
+                onClear={() => onChange({ agent: undefined })}
+              >
+                <AgentPicker
+                  id={`${id}-agent`}
+                  label={`Screenshot agent, ${name} only`}
+                  searchLabel={`Find a screenshot agent for ${name}`}
+                  value={row.text.agent ?? null}
+                  error={errors.agent}
+                  onChange={(agent) => onChange({ agent })}
+                />
+              </Override>
             </>
           )}
           <Override
@@ -530,6 +553,7 @@ function overrides(row: Row) {
     row.text.ownRating !== undefined && 'rating',
     row.text.knife && 'knife',
     row.text.glove && 'gloves',
+    row.text.agent !== undefined && 'agent',
     row.text.description !== undefined && 'description',
   ]
     .filter(Boolean)

@@ -27,6 +27,8 @@ STATUSES = ("draft", "published", "unpublished")
 SEED_MAX = 1000
 SEEDS_MAX = 100
 DESCRIPTION_MAX = 1000
+# Lt. Commander Ricksaw | NSWC SEAL: the agent screenshots use when a combo names none.
+DEFAULT_AGENT_DEF_INDEX = 5404
 
 
 def float_range(side: str) -> str:
@@ -77,6 +79,10 @@ class Combo(Base):
     knife_seeds: Mapped[list[int]] = mapped_column(
         ARRAY(Integer), server_default=text("'{}'"), default=list
     )
+    # The agent whose arms hold the items in the combo's screenshot; null means the default.
+    screenshot_agent_id: Mapped[int | None] = mapped_column(
+        ForeignKey("agents.id", ondelete="RESTRICT")
+    )
     rating: Mapped[Decimal] = mapped_column(Numeric(4, 2))
     description: Mapped[str | None] = mapped_column(Text)
     status: Mapped[Status] = mapped_column(Text)
@@ -96,3 +102,16 @@ class KnifeOrder(Base):
 
     position: Mapped[int] = mapped_column(primary_key=True, autoincrement=False)
     type_slug: Mapped[str] = mapped_column(Text, unique=True)
+
+
+class ScreenshotSettings(Base):
+    """One row: the default screenshot agent. A definition index, not a foreign key: migrations
+    run before the catalog import."""
+
+    __tablename__ = "screenshot_settings"
+    __table_args__ = (CheckConstraint("id = 1", name="single_row"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=False)
+    default_agent_def_index: Mapped[int]
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_by: Mapped[int | None] = mapped_column(ForeignKey("admins.id", ondelete="RESTRICT"))

@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router'
 import { useTitle } from '../components/useTitle'
-import { FinishSearch } from '../combos/FinishSearch'
+import { SearchCombobox } from '../combos/SearchCombobox'
 import { Picture } from '../combos/Picture'
 import { typePicture } from '../combos/pictures'
 import { DIRECTION, SEARCH_EXAMPLE, finishPath, typePath } from '../combos/paths'
@@ -24,7 +24,7 @@ export function FinishesPage({ kind }: { kind: Kind }) {
       <div className="mt-6">
         {catalog.data ? (
           <>
-            <FinishSearch
+            <SearchCombobox
               label={kind === 'glove' ? 'Find gloves' : 'Find a knife'}
               entries={catalog.data}
               autoFocus

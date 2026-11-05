@@ -145,6 +145,15 @@ export function HomePage() {
           Change the order
         </Link>
       </div>
+      <div className="mt-6 rounded-lg border border-white/10 p-5">
+        <h2 className="font-semibold">Screenshots</h2>
+        <p className="mt-1 text-sm text-white/70">
+          The agent screenshots are drawn with, for every combo without its own.
+        </p>
+        <Link to="/screenshots" className={`${SECONDARY} mt-3 inline-block`}>
+          Change the default agent
+        </Link>
+      </div>
       {confirming && (
         <ConfirmDialog
           title={`Publish all ${count} ${count === 1 ? 'draft' : 'drafts'}?`}

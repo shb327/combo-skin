@@ -48,7 +48,7 @@ describe('home', () => {
     expect(fake.to('GET /gloves/{type}/{finish}')).toHaveLength(1)
     expect(fake.to('GET /knives/{type}/{finish}')).toHaveLength(1)
     const headings = within(main).getAllByRole('heading').map((h) => h.textContent)
-    expect(headings).toEqual(['Combos', 'Drafts', 'Knife order'])
+    expect(headings).toEqual(['Combos', 'Drafts', 'Knife order', 'Screenshots'])
     const order = within(main).getByRole('link', { name: 'Change the order' })
     expect(order).toHaveAttribute('href', '/knife-order')
     expect(within(main).queryByRole('link', { name: /^Knife order/ })).toBeNull()

@@ -12,6 +12,12 @@ from tests.catalog.support import FIXTURES, find
 
 COMMIT = "0123456789abcdef0123456789abcdef01234567"
 RAW = (FIXTURES / "raw_skins.json").read_bytes()
+RAW_AGENTS = (FIXTURES / "raw_agents.json").read_bytes()
+
+
+def files(raw: bytes = RAW, raw_agents: bytes = RAW_AGENTS) -> Any:
+    """A stand-in for `source.download`: the skins or the agents file of the fixture."""
+    return lambda commit, file=source.FILE: raw_agents if file == source.AGENTS_FILE else raw
 
 
 def raw_with(paint_index: str, **changes: Any) -> bytes:
@@ -28,7 +34,11 @@ def raw_with(paint_index: str, **changes: Any) -> bytes:
 def normalise(
     raw: bytes = RAW, previous: Snapshot | None = None, overrides: dict[str, str] | None = None
 ) -> Snapshot:
-    return source.normalise(raw, COMMIT, previous, overrides or {})
+    return source.normalise(raw, RAW_AGENTS, COMMIT, previous, overrides or {})
+
+
+def agents_without(def_index: str) -> bytes:
+    return json.dumps([a for a in json.loads(RAW_AGENTS) if a["def_index"] != def_index]).encode()
 
 
 def test_only_knives_and_gloves_are_kept() -> None:
@@ -95,7 +105,7 @@ def write_order(path: Path, order: dict[str, Any]) -> Path:
 def test_refresh_writes_a_valid_snapshot_and_lists_unplaced_finishes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setattr(source, "download", lambda commit: RAW)
+    monkeypatch.setattr(source, "download", files())
     order = write_order(
         tmp_path / "order.json",
         {"types": {"knife": ["karambit"]}, "finishes": {"knife/karambit": ["vanilla", "fade"]}},
@@ -121,7 +131,7 @@ def test_refresh_writes_a_valid_snapshot_and_lists_unplaced_finishes(
 def test_refresh_writes_nothing_when_validation_fails(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(source, "download", lambda commit: RAW)
+    monkeypatch.setattr(source, "download", files())
     order = write_order(tmp_path / "order.json", {"types": {"knife": ["spoon"]}, "finishes": {}})
     snapshot = tmp_path / "snapshot.json"
     args = [
@@ -214,7 +224,7 @@ def test_new_type_cannot_take_a_retired_type_slug() -> None:
 
 
 def run_refresh(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, raw: bytes, order: Path) -> int:
-    monkeypatch.setattr(source, "download", lambda commit: raw)
+    monkeypatch.setattr(source, "download", files(raw))
     snapshot = tmp_path / "snapshot.json"
     args = [
         "refresh",
@@ -253,3 +263,51 @@ def test_display_order_may_list_retired_finishes(
     assert run_refresh(tmp_path, monkeypatch, raw_without(507, "38"), order) == 0
     snapshot = load_snapshot(tmp_path / "snapshot.json")
     assert karambit_finish(snapshot, 38).retired
+
+
+def test_agents_are_normalised() -> None:
+    snapshot = normalise()
+    assert snapshot.source.agents_file == "public/api/en/agents.json"
+    assert [a.def_index for a in snapshot.agents] == [4613, 4619, 5305, 5404]
+    ricksaw = snapshot.agents[-1]
+    assert ricksaw.name == "Lt. Commander Ricksaw | NSWC SEAL"
+    assert ricksaw.codename == "customplayer_ctm_st6_varianti"
+    assert (ricksaw.team, ricksaw.retired) == ("ct", False)
+    assert ricksaw.rarity.code == "rarity_ancient_character"
+    assert ricksaw.image_url.startswith("https://community.akamai.steamstatic.com/")
+    assert snapshot.agents[0].team == "t"
+
+
+def test_missing_agent_is_kept_retired() -> None:
+    previous = normalise()
+    snapshot = source.normalise(RAW, agents_without("5305"), COMMIT, previous, {})
+    operator = next(a for a in snapshot.agents if a.def_index == 5305)
+    assert operator == next(a for a in previous.agents if a.def_index == 5305).model_copy(
+        update={"retired": True}
+    )
+    back = normalise(previous=snapshot)
+    assert not any(a.retired for a in back.agents)
+    assert back == previous
+
+
+def test_refresh_downloads_agents_from_the_same_commit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    asked: list[tuple[str, str]] = []
+
+    def download(commit: str, file: str = source.FILE) -> bytes:
+        asked.append((commit, file))
+        return RAW_AGENTS if file == source.AGENTS_FILE else RAW
+
+    order = write_order(tmp_path / "order.json", {"types": {}, "finishes": {}})
+    monkeypatch.setattr(source, "download", download)
+    snapshot = tmp_path / "snapshot.json"
+    args = ["refresh", "--commit", COMMIT, "--snapshot", str(snapshot), "--display-order"]
+    assert main([*args, str(order)]) == 0
+    assert sorted(asked) == [(COMMIT, source.AGENTS_FILE), (COMMIT, source.FILE)]
+    assert len(load_snapshot(snapshot).agents) == 4
+    assert "4 agents" in capsys.readouterr().out
+    monkeypatch.setattr(source, "download", files(RAW, agents_without("5305")))
+    assert main([*args, str(order)]) == 0
+    err = capsys.readouterr().err
+    assert f"Retired since {COMMIT[:12]}:\n  Operator | FBI SWAT\n" in err

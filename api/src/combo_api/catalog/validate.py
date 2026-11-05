@@ -5,6 +5,7 @@ from urllib.parse import urlsplit
 
 from combo_api.catalog.slugs import SLUG_PATTERN
 from combo_api.catalog.snapshot import (
+    Agent,
     CatalogError,
     DisplayOrder,
     Finish,
@@ -18,6 +19,7 @@ KNOWN_PHASES = frozenset(
 )
 PHASED_FINISHES = frozenset({"Doppler", "Gamma Doppler"})
 IMAGE_HOST_SUFFIX = ".steamstatic.com"
+TEAMS = frozenset({"ct", "t"})
 
 
 def label(item_type: ItemType, finish: Finish | None = None) -> str:
@@ -28,6 +30,30 @@ def label(item_type: ItemType, finish: Finish | None = None) -> str:
 
 def duplicates(values: list[str] | list[int]) -> list[str]:
     return [str(value) for value, count in Counter(values).items() if count > 1]
+
+
+def image_problem(name: str, image_url: str) -> list[str]:
+    url = urlsplit(image_url)
+    if url.scheme != "https" or not (url.hostname or "").endswith(IMAGE_HOST_SUFFIX):
+        return [f"{name}: image URL is not HTTPS on a {IMAGE_HOST_SUFFIX} host"]
+    return []
+
+
+def agent_problems(agents: tuple[Agent, ...]) -> list[str]:
+    found = []
+    for field in ("def_index", "codename"):
+        values = [getattr(a, field) for a in agents]
+        for value in duplicates(values):
+            names = " and ".join(a.name for a in agents if str(getattr(a, field)) == value)
+            shown = value if field == "def_index" else repr(value)
+            what = "definition index" if field == "def_index" else "codename"
+            found.append(f"Duplicate agent {what} {shown}: {names}")
+    for agent in agents:
+        name = f"{agent.name} ({agent.def_index})"
+        if agent.team not in TEAMS:
+            found.append(f"{name}: team {agent.team!r} is not ct or t")
+        found += image_problem(name, agent.image_url)
+    return found
 
 
 def finish_problems(item_type: ItemType, finish: Finish) -> list[str]:
@@ -49,9 +75,7 @@ def finish_problems(item_type: ItemType, finish: Finish) -> list[str]:
             problems.append(f"{name}: no paint kit codename")
     if finish.name in PHASED_FINISHES and finish.phase not in KNOWN_PHASES:
         problems.append(f"{name}: missing or unknown phase {finish.phase!r}")
-    url = urlsplit(finish.image_url)
-    if url.scheme != "https" or not (url.hostname or "").endswith(IMAGE_HOST_SUFFIX):
-        problems.append(f"{name}: image URL is not HTTPS on a {IMAGE_HOST_SUFFIX} host")
+    problems += image_problem(name, finish.image_url)
     return problems
 
 
@@ -104,7 +128,7 @@ def problems(snapshot: Snapshot, order: DisplayOrder) -> list[str]:
         ]
         for finish in finishes:
             found += finish_problems(item_type, finish)
-    return found + order_problems(snapshot, order)
+    return found + agent_problems(snapshot.agents) + order_problems(snapshot, order)
 
 
 def validate(snapshot: Snapshot, order: DisplayOrder) -> None:

@@ -20,7 +20,8 @@ pytestmark = pytest.mark.anyio
 
 SNAPSHOT = load_snapshot()
 ORDER = load_display_order()
-ROWS = 28 + 670
+AGENTS = 63
+ROWS = 28 + 670 + AGENTS
 ORDER_NO_KUKRI = ORDER.model_copy(
     update={
         "types": {**ORDER.types, "knife": tuple(s for s in ORDER.types["knife"] if s != "kukri")},
@@ -95,7 +96,14 @@ async def all_rows(session: AsyncSession) -> set[tuple[Any, ...]]:
     finishes = await session.execute(
         select(models.Finish.id, models.Finish.slug, models.Finish.updated_at)
     )
-    return {("type", *row) for row in types} | {("finish", *row) for row in finishes}
+    agents = await session.execute(
+        select(models.Agent.id, models.Agent.def_index, models.Agent.updated_at)
+    )
+    return (
+        {("type", *row) for row in types}
+        | {("finish", *row) for row in finishes}
+        | {("agent", *row) for row in agents}
+    )
 
 
 async def test_import_into_empty_catalog(db_session: AsyncSession) -> None:
@@ -112,6 +120,10 @@ async def test_import_into_empty_catalog(db_session: AsyncSession) -> None:
         .group_by(models.ItemType.kind)
     )
     assert {kind: n for kind, n in finishes} == {"knife": 576, "glove": 94}
+    teams = await db_session.execute(
+        select(models.Agent.team, func.count()).group_by(models.Agent.team)
+    )
+    assert {team: n for team, n in teams} == {"ct": 29, "t": 34}
 
 
 async def test_second_import_changes_nothing(db_session: AsyncSession) -> None:
@@ -267,3 +279,83 @@ async def test_every_entry_matches_its_row(db_session: AsyncSession) -> None:
                 finish.image_url,
                 not finish.retired,
             ), f"{item_type.name} | {finish.display_name}"
+
+
+def with_agent(snapshot: Snapshot, def_index: int, **changes: object) -> Snapshot:
+    agents = tuple(
+        a.model_copy(update=changes) if a.def_index == def_index else a for a in snapshot.agents
+    )
+    return snapshot.model_copy(update={"agents": agents})
+
+
+async def agent_rows(session: AsyncSession) -> dict[int, tuple[Any, ...]]:
+    rows = await session.execute(
+        select(models.Agent.def_index, models.Agent.id, models.Agent.active)
+    )
+    return {row[0]: tuple(row[1:]) for row in rows}
+
+
+async def test_every_agent_matches_its_row(db_session: AsyncSession) -> None:
+    await import_snapshot(db_session, SNAPSHOT, ORDER)
+    rows = {row.def_index: row for row in await db_session.scalars(select(models.Agent))}
+    assert len(rows) == AGENTS
+    for agent in SNAPSHOT.agents:
+        row = rows[agent.def_index]
+        assert (
+            row.codename,
+            row.name,
+            row.team,
+            row.rarity_code,
+            row.rarity_name,
+            row.rarity_color,
+            row.image_url,
+            row.active,
+        ) == (
+            agent.codename,
+            agent.name,
+            agent.team,
+            agent.rarity.code,
+            agent.rarity.name,
+            agent.rarity.color,
+            agent.image_url,
+            not agent.retired,
+        )
+
+
+async def test_retired_agent_is_deactivated_in_place(db_session: AsyncSession) -> None:
+    await import_snapshot(db_session, SNAPSHOT, ORDER)
+    before = await agent_rows(db_session)
+    counts = await import_snapshot(db_session, with_agent(SNAPSHOT, 5305, retired=True), ORDER)
+    assert counts == Counts(deactivated=1, unchanged=ROWS - 1)
+    after = await agent_rows(db_session)
+    assert after[5305] == (before[5305][0], False)
+    assert {k: v for k, v in after.items() if k != 5305} == {
+        k: v for k, v in before.items() if k != 5305
+    }
+    counts = await import_snapshot(db_session, SNAPSHOT, ORDER)
+    assert counts == Counts(updated=1, unchanged=ROWS - 1)
+    assert await agent_rows(db_session) == before
+
+
+async def test_agent_missing_from_snapshot_is_deactivated(db_session: AsyncSession) -> None:
+    await import_snapshot(db_session, SNAPSHOT, ORDER)
+    fewer = SNAPSHOT.model_copy(
+        update={"agents": tuple(a for a in SNAPSHOT.agents if a.def_index != 5305)}
+    )
+    counts = await import_snapshot(db_session, fewer, ORDER)
+    assert counts.deactivated == 1
+    assert (await agent_rows(db_session))[5305][1] is False
+
+
+async def test_reused_agent_codename_is_refused(db_session: AsyncSession) -> None:
+    await import_snapshot(db_session, SNAPSHOT, ORDER)
+    before = await all_rows(db_session)
+    ricksaw = next(a for a in SNAPSHOT.agents if a.def_index == 5404)
+    moved = ricksaw.model_copy(update={"def_index": 9999, "name": "Ricksaw II"})
+    agents = (*(a for a in SNAPSHOT.agents if a.def_index != 5404), moved)
+    with pytest.raises(CatalogError) as error:
+        await import_snapshot(db_session, SNAPSHOT.model_copy(update={"agents": agents}), ORDER)
+    message = str(error.value)
+    assert "Ricksaw II (9999)" in message
+    assert "Lt. Commander Ricksaw | NSWC SEAL (5404)" in message
+    assert await all_rows(db_session) == before

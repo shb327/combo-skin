@@ -49,6 +49,16 @@
             "title": "Rating",
             "type": "number"
           },
+          "screenshot_agent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Agent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "status": {
             "enum": [
               "draft",
@@ -80,6 +90,7 @@
           "description",
           "glove",
           "knife",
+          "screenshot_agent",
           "created_at",
           "created_by",
           "updated_at",
@@ -125,6 +136,48 @@
         "title": "AdminSession",
         "type": "object"
       },
+      "Agent": {
+        "description": "A game agent screenshots can be drawn with.",
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "def_index": {
+            "title": "Def Index",
+            "type": "integer"
+          },
+          "image_url": {
+            "title": "Image Url",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "rarity": {
+            "$ref": "#/components/schemas/Rarity"
+          },
+          "team": {
+            "enum": [
+              "ct",
+              "t"
+            ],
+            "title": "Team",
+            "type": "string"
+          }
+        },
+        "required": [
+          "def_index",
+          "name",
+          "team",
+          "image_url",
+          "rarity",
+          "active"
+        ],
+        "title": "Agent",
+        "type": "object"
+      },
       "BatchCreate": {
         "properties": {
           "description": {
@@ -156,6 +209,19 @@
             "minimum": 0.0,
             "title": "Rating",
             "type": "number"
+          },
+          "screenshot_agent": {
+            "anyOf": [
+              {
+                "maximum": 2147483647.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Screenshot Agent"
           }
         },
         "required": [
@@ -435,6 +501,19 @@
             "minimum": 0.0,
             "title": "Rating",
             "type": "number"
+          },
+          "screenshot_agent": {
+            "anyOf": [
+              {
+                "maximum": 2147483647.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Screenshot Agent"
           }
         },
         "required": [
@@ -492,6 +571,19 @@
             "title": "Rating",
             "type": "number"
           },
+          "screenshot_agent": {
+            "anyOf": [
+              {
+                "maximum": 2147483647.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Screenshot Agent"
+          },
           "version": {
             "minimum": 1.0,
             "title": "Version",
@@ -503,7 +595,8 @@
           "rating",
           "description",
           "glove",
-          "knife"
+          "knife",
+          "screenshot_agent"
         ],
         "title": "ComboUpdate",
         "type": "object"
@@ -1262,6 +1355,38 @@
         "title": "Ready",
         "type": "object"
       },
+      "ScreenshotSettings": {
+        "properties": {
+          "default_agent": {
+            "$ref": "#/components/schemas/Agent"
+          },
+          "using_default": {
+            "title": "Using Default",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "default_agent",
+          "using_default"
+        ],
+        "title": "ScreenshotSettings",
+        "type": "object"
+      },
+      "ScreenshotSettingsIn": {
+        "properties": {
+          "default_agent": {
+            "maximum": 2147483647.0,
+            "minimum": 0.0,
+            "title": "Default Agent",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "default_agent"
+        ],
+        "title": "ScreenshotSettingsIn",
+        "type": "object"
+      },
       "TypeDetail": {
         "properties": {
           "codename": {
@@ -1404,6 +1529,52 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/admin/agents": {
+      "get": {
+        "description": "Agents still in the game: Counter-Terrorists first, then Terrorists, each by name.",
+        "operationId": "list_agents",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Agent"
+                  },
+                  "title": "Response List Agents",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`not_authenticated`"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`origin_not_allowed` or `csrf_failed`"
+          }
+        },
+        "summary": "List Agents",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/admin/batches": {
       "post": {
         "description": "Save a batch in one request: all of it, or nothing.",
@@ -2478,6 +2649,128 @@
           }
         },
         "summary": "Admin Me",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/screenshot-settings": {
+      "get": {
+        "description": "The default screenshot agent, used by every combo without its own.",
+        "operationId": "get_screenshot_settings",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScreenshotSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`not_authenticated`"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`origin_not_allowed` or `csrf_failed`"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`default_agent_missing`"
+          }
+        },
+        "summary": "Get Screenshot Settings",
+        "tags": [
+          "admin"
+        ]
+      },
+      "put": {
+        "description": "Change the default screenshot agent. No combo changes.",
+        "operationId": "replace_screenshot_settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScreenshotSettingsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScreenshotSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`not_authenticated`"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`origin_not_allowed` or `csrf_failed`"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`default_agent_missing`"
+          }
+        },
+        "summary": "Replace Screenshot Settings",
         "tags": [
           "admin"
         ]

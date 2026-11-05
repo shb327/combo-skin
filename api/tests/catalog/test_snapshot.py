@@ -14,7 +14,7 @@ from combo_api.catalog.snapshot import (
     ordered_types,
     unlisted,
 )
-from combo_api.catalog.source import FILE, LICENSE, REPOSITORY
+from combo_api.catalog.source import AGENTS_FILE, FILE, LICENSE, REPOSITORY
 from combo_api.catalog.validate import problems
 from tests.catalog.support import find, website_slugs
 
@@ -35,6 +35,7 @@ KNIFE_FINISHES = {
 def test_snapshot_records_its_source() -> None:
     source = SNAPSHOT.source
     assert (source.repository, source.file, source.license) == (REPOSITORY, FILE, LICENSE)
+    assert source.agents_file == AGENTS_FILE
     assert len(source.commit) == 40
     assert int(source.commit, 16) >= 0
 
@@ -54,6 +55,20 @@ def test_snapshot_counts() -> None:
     assert sum(knives.values()) == 576
     assert len(gloves) == 8
     assert sum(len(t.finishes) for t in gloves) == 94
+
+
+def test_snapshot_agents() -> None:
+    agents = SNAPSHOT.agents
+    assert len(agents) == 63
+    assert [a.team for a in agents].count("ct") == 29
+    assert [a.team for a in agents].count("t") == 34
+    assert not any(a.retired for a in agents)
+    assert [a.def_index for a in agents] == sorted(a.def_index for a in agents)
+    ricksaw = next(a for a in agents if a.def_index == 5404)
+    assert ricksaw.name == "Lt. Commander Ricksaw | NSWC SEAL"
+    assert ricksaw.codename == "customplayer_ctm_st6_varianti"
+    assert ricksaw.team == "ct"
+    assert ricksaw.rarity.name == "Master"
 
 
 def test_karambit_vanilla() -> None:

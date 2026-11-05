@@ -55,3 +55,33 @@ def test_numbers_are_numbers() -> None:
     for model in ("Conditions", "ItemIn", "Item"):
         assert number(schema, model, "float_from"), model
         assert number(schema, model, "float_to"), model
+
+
+AGENT_OPERATIONS = {
+    ("/admin/agents", "get"): "list_agents",
+    ("/admin/screenshot-settings", "get"): "get_screenshot_settings",
+    ("/admin/screenshot-settings", "put"): "replace_screenshot_settings",
+}
+
+
+def test_agent_operations_in_schema() -> None:
+    schema = create_app().openapi()
+    for (path, method), operation_id in AGENT_OPERATIONS.items():
+        operation = schema["paths"][path][method]
+        assert (operation["operationId"], operation["tags"]) == (operation_id, ["admin"])
+        assert {"401", "403"} <= set(operation["responses"]), path
+        assert ("503" in operation["responses"]) == ("settings" in path), path
+    schemas = schema["components"]["schemas"]
+    assert set(schemas["Agent"]["properties"]) == {
+        "def_index",
+        "name",
+        "team",
+        "image_url",
+        "rarity",
+        "active",
+    }
+    assert "screenshot_agent" in schemas["AdminCombo"]["required"]
+    assert "screenshot_agent" in schemas["ComboUpdate"]["required"]
+    assert "screenshot_agent" not in schemas["ComboIn"].get("required", [])
+    assert "screenshot_agent" in schemas["BatchCreate"]["properties"]
+    assert "screenshot_agent" not in schemas["PublicCombo"]["properties"]

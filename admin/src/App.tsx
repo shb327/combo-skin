@@ -16,6 +16,7 @@ import { HomePage } from './pages/HomePage'
 import { KnifeOrderPage } from './pages/KnifeOrderPage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { ScreenshotsPage } from './pages/ScreenshotsPage'
 import { TypePage } from './pages/TypePage'
 
 /** A page mounted afresh for each path, so its form starts from that path's values. */
@@ -52,6 +53,7 @@ export function App({ api, queryClient }: { api: Api; queryClient: QueryClient }
                 <Route path="knives/:type/:finish/add" element={<ByPath><AddComboPage kind="knife" /></ByPath>} />
                 <Route path="combos/:id" element={<ByPath><EditComboPage /></ByPath>} />
                 <Route path="knife-order" element={<KnifeOrderPage />} />
+                <Route path="screenshots" element={<ScreenshotsPage />} />
                 <Route path="*" element={<NotFoundPage />} />
               </Route>
             </Routes>

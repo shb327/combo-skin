@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { FakeApi, json } from '../test/fakeApi'
 import { picture } from '../test/fakeCatalog'
+import { IMAGE_ORIGIN } from '../api/images'
 import { renderApp } from '../test/render'
 
 const imagesIn = (element: HTMLElement) => [...element.querySelectorAll('img')]
@@ -125,9 +126,11 @@ describe('pictures', () => {
     window.history.pushState(null, '', `/combos/${combo.id}`)
     window.dispatchEvent(new PopStateEvent('popstate'))
     await screen.findByRole('heading', { name: 'Edit combo' })
+    // Both items, then the default screenshot agent.
     await waitFor(() => expect(sources(screen.getByRole('main'))).toEqual([
       picture('specialist', 'crimson-kimono'),
       picture('karambit', 'doppler-ruby'),
+      `${IMAGE_ORIGIN}/economy/image/fake/agent/5404`,
     ]))
     for (const img of imagesIn(screen.getByRole('main'))) expectPicture(img, img.getAttribute('src') as string)
   })
