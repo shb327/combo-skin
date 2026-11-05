@@ -29,7 +29,7 @@ describe('editing a combo', () => {
     expect(main).toHaveTextContent(/Created .* by placeholder-admin/)
     expect(main).toHaveTextContent(/Last changed .* by placeholder-admin/)
     // The pairing has no inputs: the only search is the screenshot agent's.
-    expect(screen.getAllByRole('combobox').map((input) => input.id)).toEqual(['edit-agent-search'])
+    expect(screen.getAllByRole('combobox').map((input) => input.id)).toEqual(['edit-agent'])
     expect(screen.getByLabelText('Rating')).toHaveValue('9.10')
     expect(within(screen.getByRole('group', { name: 'Knife' })).getByLabelText('Float to')).toHaveValue('0.01')
 

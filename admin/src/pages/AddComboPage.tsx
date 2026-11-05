@@ -4,7 +4,7 @@ import { ApiError } from '../api/errors'
 import { useApi } from '../api/useApi'
 import { useTitle } from '../components/useTitle'
 import { ComboFields } from '../combos/ComboFields'
-import { FinishSearch } from '../combos/FinishSearch'
+import { SearchCombobox } from '../combos/SearchCombobox'
 import { Picture } from '../combos/Picture'
 import { EMPTY_COMBO, checkCombo, problemErrors, summaryEntries, type ComboText, type FieldErrors } from '../combos/form'
 import { COMBO_MESSAGES, comboErrorMessage, isCode } from '../combos/messages'
@@ -164,7 +164,7 @@ export function AddComboPage({ kind }: { kind: Kind }) {
           </div>
         ) : catalog.data ? (
           <>
-            <FinishSearch
+            <SearchCombobox
               label={otherKind === 'knife' ? 'Find a knife' : 'Find gloves'}
               inputId={OTHER_ID}
               placeholder={SEARCH_EXAMPLE[otherKind]}

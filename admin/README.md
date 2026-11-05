@@ -110,7 +110,7 @@ Lint guard rails, tested in `src/lint.test.ts`: only `src/api/client.ts` may mak
 | `vite.config.ts` | Vite and Vitest configuration, the API origin check, the Content Security Policy |
 | `eslint.config.js` | ESLint, with the guard rails |
 | `scripts/api-types.mjs`, `scripts/check-bundle.mjs` | API types generation and check; the build check |
-| `src/combos/` | Shared pieces of the combo screens: value parsing and checks, the batch rating fill and rows, finish search, the screenshot agent picker, mapping API refusals to fields, server state with TanStack Query, the unsaved changes store, and the form components |
+| `src/combos/` | Shared pieces of the combo screens: value parsing and checks, the batch rating fill and rows, the search combobox (finishes and agents), the screenshot agent picker, mapping API refusals to fields, server state with TanStack Query, the unsaved changes store, and the form components |
 | `src/main.tsx`, `src/App.tsx` | Entry point; routes |
 | `src/index.css` | Tailwind, the website's colour tokens, Montserrat |
 | `src/api/` | `schema.d.ts` (generated), `client.ts` (the only network code), `errors.ts` (messages), `origin.ts` (origin check) |

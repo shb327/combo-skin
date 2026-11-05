@@ -225,7 +225,8 @@ export function useScreenshotSettings() {
   })
 }
 
-export const agentLabel = (agent: Agent) => `${agent.name} · ${agent.team === 'ct' ? 'CT' : 'T'}`
+/** Team names, as the agent lists group them. */
+export const TEAMS: Record<Agent['team'], string> = { ct: 'Counter-Terrorists', t: 'Terrorists' }
 
 /** After any combo write: lists, counts, single combos, batch candidates and the number of
  * combos using the default agent are stale. */

@@ -1,6 +1,6 @@
-import { FinishSearch } from './FinishSearch'
+import { SearchCombobox } from './SearchCombobox'
 import { Picture } from './Picture'
-import { agentLabel, useAgents, useScreenshotSettings, type Agent } from './queries'
+import { TEAMS, useAgents, useScreenshotSettings, type Agent } from './queries'
 import { SECONDARY } from './styles'
 import { QueryState } from './ui'
 
@@ -9,6 +9,7 @@ interface AgentEntry {
   id: string
   label: string
   imageUrl: string
+  group?: string
   value: number | null
 }
 
@@ -22,6 +23,7 @@ export function AgentPicker({
   value,
   known = null,
   allowDefault = true,
+  error,
   onChange,
 }: {
   id: string
@@ -30,6 +32,8 @@ export function AgentPicker({
   value: number | null
   known?: Agent | null
   allowDefault?: boolean
+  /** A refusal from the API for this field. */
+  error?: string
   onChange(value: number | null): void
 }) {
   const agents = useAgents()
@@ -47,18 +51,21 @@ export function AgentPicker({
             </button>
           )}
           <div className="mt-2">
-            <FinishSearch<AgentEntry>
+            <SearchCombobox<AgentEntry>
               label={searchLabel}
-              inputId={`${id}-search`}
+              inputId={id}
               placeholder="For example: ricksaw"
+              openOnFocus
+              error={error}
               entries={[
                 ...(allowDefault
                   ? [{ id: 'default', label: `Default (${fallback.name})`, imageUrl: fallback.image_url, value: null }]
                   : []),
                 ...agents.data.map((agent) => ({
                   id: String(agent.def_index),
-                  label: agentLabel(agent),
+                  label: agent.name,
                   imageUrl: agent.image_url,
+                  group: TEAMS[agent.team],
                   value: agent.def_index,
                 })),
               ]}

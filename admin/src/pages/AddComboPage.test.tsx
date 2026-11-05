@@ -134,17 +134,36 @@ describe('the screenshot agent', () => {
     expect(JSON.parse(fake.to('POST /admin/combos')[0].body).screenshot_agent).toBe(4613)
   })
 
-  it('lists the default first, and every agent with its team', async () => {
+  it('opens on focus with the default first, then the agents grouped by team', async () => {
     const { user } = renderApp(ADD, new FakeApi().withSession())
     const agent = await screen.findByRole('group', { name: 'Screenshot agent' })
-    await user.type(await within(agent).findByRole('combobox', { name: 'Find a screenshot agent' }), 'default')
-    expect(within(agent).getByRole('option', { name: /Default \(Lt. Commander Ricksaw/ })).toBeInTheDocument()
-    await user.clear(within(agent).getByRole('combobox'))
-    await user.type(within(agent).getByRole('combobox'), 'nswc')
+    await within(agent).findByText('Default')
+    expect(agent.querySelector('img')?.getAttribute('src')).toMatch(/fake\/agent\/5404$/)
+    const search = await within(agent).findByRole('combobox', { name: 'Find a screenshot agent' })
+    expect(within(agent).queryByRole('option')).toBeNull()
+    await user.click(search)
+    const list = within(agent).getByRole('listbox')
+    expect(within(list).getAllByRole('option').map((o) => o.textContent)).toEqual([
+      'Default (Lt. Commander Ricksaw | NSWC SEAL)',
+      "'Blueberries' Buckshot | NSWC SEAL",
+      'Lt. Commander Ricksaw | NSWC SEAL',
+      'Bloody Darryl The Strapped | The Professionals',
+    ])
+    const groups = within(list).getAllByRole('group')
+    expect(groups.map((g) => g.getAttribute('aria-label'))).toEqual(['Counter-Terrorists', 'Terrorists'])
+    expect(within(groups[1]).getAllByRole('option').map((o) => o.textContent)).toEqual([
+      'Bloody Darryl The Strapped | The Professionals',
+    ])
+    // Enter without a highlighted option chooses nothing; Down then Enter takes the first.
+    await user.keyboard('{Enter}')
+    expect(within(agent).getByRole('listbox')).toBeVisible()
+    await user.keyboard('{ArrowDown}{ArrowDown}{Enter}')
+    expect(within(agent).getByText("'Blueberries' Buckshot | NSWC SEAL")).toBeInTheDocument()
+    await user.type(search, 'nswc')
     expect(within(agent).getAllByRole('option').map((o) => o.textContent)).toEqual([
       'Default (Lt. Commander Ricksaw | NSWC SEAL)',
-      "'Blueberries' Buckshot | NSWC SEAL · CT",
-      'Lt. Commander Ricksaw | NSWC SEAL · CT',
+      "'Blueberries' Buckshot | NSWC SEAL",
+      'Lt. Commander Ricksaw | NSWC SEAL',
     ])
   })
 })
