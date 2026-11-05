@@ -8,6 +8,7 @@ from pydantic import BaseModel, TypeAdapter
 
 from combo_api.catalog.slugs import finish_slug, type_slug
 from combo_api.catalog.snapshot import (
+    Agent,
     CatalogError,
     Finish,
     ItemType,
@@ -19,6 +20,7 @@ from combo_api.catalog.snapshot import (
 
 REPOSITORY = "ByMykel/CSGO-API"
 FILE = "public/api/en/skins.json"
+AGENTS_FILE = "public/api/en/agents.json"
 LICENSE = "MIT"
 COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
 KIND_BY_CATEGORY: dict[str, Kind] = {
@@ -26,6 +28,7 @@ KIND_BY_CATEGORY: dict[str, Kind] = {
     "sfui_invpanel_filter_gloves": "glove",
 }
 VANILLA = "Vanilla"
+TEAMS = {"counter-terrorists": "ct", "terrorists": "t"}
 
 
 class RawWeapon(BaseModel):
@@ -59,14 +62,34 @@ class RawSkin(BaseModel):
     image: str
 
 
+class RawTeam(BaseModel):
+    id: str
+
+
+class RawOriginal(BaseModel):
+    name: str
+
+
+class RawAgent(BaseModel):
+    """One entry of the dataset's `agents.json`. Other fields are ignored."""
+
+    def_index: int
+    name: str
+    team: RawTeam
+    rarity: RawRarity
+    image: str
+    original: RawOriginal
+
+
 RAW_ENTRIES = TypeAdapter(list[dict[str, Any]])
+RAW_AGENTS = TypeAdapter(list[RawAgent])
 
 
-def download(commit: str) -> bytes:
-    """The dataset file at a full commit SHA. The only network access in the catalog."""
+def download(commit: str, file: str = FILE) -> bytes:
+    """A dataset file at a full commit SHA. The only network access in the catalog."""
     if not COMMIT_PATTERN.fullmatch(commit):
         raise CatalogError(f"--commit must be a full 40-character commit SHA, got {commit!r}")
-    url = f"https://raw.githubusercontent.com/{REPOSITORY}/{commit}/{FILE}"
+    url = f"https://raw.githubusercontent.com/{REPOSITORY}/{commit}/{file}"
     with urllib.request.urlopen(url, timeout=60) as response:
         data: bytes = response.read()
     return data
@@ -77,14 +100,18 @@ def clean(name: str) -> str:
 
 
 def normalise(
-    raw: bytes, commit: str, previous: Snapshot | None, overrides: dict[str, str]
+    raw: bytes,
+    raw_agents: bytes,
+    commit: str,
+    previous: Snapshot | None,
+    overrides: dict[str, str],
 ) -> Snapshot:
-    """Knives and gloves from the dataset as a snapshot.
+    """Knives, gloves and agents from the dataset as a snapshot.
 
     A type or finish already in `previous` keeps its slug. A new finish takes its slug from
     `overrides` (keyed `<def_index>:<paint_index>`) if listed, otherwise from its name. Types
     and finishes of `previous` missing from the dataset are kept, retired, so their slugs stay
-    taken.
+    taken. Agents missing from the dataset are kept retired too.
     """
     entries = RAW_ENTRIES.validate_json(raw)
     skins: list[tuple[Kind, RawSkin]] = []
@@ -160,9 +187,37 @@ def normalise(
         check_finish_slugs(item_type)
     check_type_slugs(list(item_types.values()))
     return Snapshot(
-        source=Source(repository=REPOSITORY, commit=commit, file=FILE, license=LICENSE),
+        source=Source(
+            repository=REPOSITORY,
+            commit=commit,
+            file=FILE,
+            agents_file=AGENTS_FILE,
+            license=LICENSE,
+        ),
         item_types=tuple(item_types[d] for d in sorted(item_types)),
+        agents=normalise_agents(raw_agents, previous),
     )
+
+
+def normalise_agents(raw: bytes, previous: Snapshot | None) -> tuple[Agent, ...]:
+    """Agents by definition index; those of `previous` missing from the dataset, retired."""
+    agents: dict[int, Agent] = {}
+    for entry in RAW_AGENTS.validate_json(raw):
+        if entry.def_index in agents:
+            raise CatalogError(f"{entry.name}: listed twice ({entry.def_index})")
+        agents[entry.def_index] = Agent(
+            def_index=entry.def_index,
+            codename=entry.original.name,
+            name=entry.name,
+            team=TEAMS.get(entry.team.id, entry.team.id),
+            rarity=Rarity(code=entry.rarity.id, name=entry.rarity.name, color=entry.rarity.color),
+            image_url=entry.image,
+            retired=False,
+        )
+    for old in previous.agents if previous else ():
+        if old.def_index not in agents:
+            agents[old.def_index] = old.model_copy(update={"retired": True})
+    return tuple(agents[d] for d in sorted(agents))
 
 
 def described(name: str, game_id: int, retired: bool) -> str:
@@ -217,4 +272,11 @@ def retirement_changes(
                 retired.append(name)
             elif not is_retired and was_retired is True:
                 back.append(name)
+    agents_before = {a.def_index: a.retired for a in previous.agents}
+    for agent in snapshot.agents:
+        was_retired = agents_before.get(agent.def_index)
+        if agent.retired and was_retired is False:
+            retired.append(agent.name)
+        elif not agent.retired and was_retired is True:
+            back.append(agent.name)
     return retired, back

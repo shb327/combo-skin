@@ -57,16 +57,31 @@ class ItemType(Model):
     retired: bool
 
 
+class Agent(Model):
+    """A game agent (player character), drawn holding the knife and gloves in screenshots."""
+
+    def_index: int
+    codename: str
+    name: str
+    # `ct` or `t`; checked by validation, so the message can name the agent.
+    team: str
+    rarity: Rarity
+    image_url: str
+    retired: bool
+
+
 class Source(Model):
     repository: str
     commit: str
     file: str
+    agents_file: str
     license: str
 
 
 class Snapshot(Model):
     source: Source
     item_types: tuple[ItemType, ...]
+    agents: tuple[Agent, ...] = ()
 
 
 class DisplayOrder(Model):
@@ -123,6 +138,14 @@ def ordered_finishes(item_type: ItemType, order: DisplayOrder) -> list[Finish]:
         order.finishes.get(finish_key(item_type), ()),
         lambda f: f.slug,
         lambda f: f.paint_index,
+    )
+
+
+def ordered_agents(snapshot: Snapshot) -> list[Agent]:
+    """Agents still in the game: Counter-Terrorists first, then Terrorists, each by name."""
+    return sorted(
+        (a for a in snapshot.agents if not a.retired),
+        key=lambda a: (a.team != "ct", a.name.casefold(), a.def_index),
     )
 
 

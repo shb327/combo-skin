@@ -1,0 +1,118 @@
+[
+  {
+    "id": "agent-4613",
+    "name": "Bloody Darryl The Strapped | The Professionals",
+    "description": "Before he was leader of the heist gang 'The Professionals' Sir Bloody Darryl was more simply called, Bloody Darryl. Still your friendly neighborhood psychopath in every sense of the word. Not actually Australian according to Australians. \\n\\n<i>I'm just gonna give them a bit of Razzle Dazzle.</i>",
+    "def_index": "4613",
+    "rarity": {
+      "id": "rarity_legendary_character",
+      "name": "Superior",
+      "color": "#d32ce6"
+    },
+    "collections": [
+      {
+        "id": "collection-set-op11-characters",
+        "name": "Operation Riptide Agents",
+        "image": "https://raw.githubusercontent.com/ByMykel/counter-strike-image-tracker/main/static/panorama/images/econ/set_icons/set_op11_characters_png.png"
+      }
+    ],
+    "team": {
+      "id": "terrorists",
+      "name": "Terrorist"
+    },
+    "market_hash_name": "Bloody Darryl The Strapped | The Professionals",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIa-2lmxU-LR0dnuNm6E8Vl45Iv181z1fgn8oYby8iRe_OGnZ6psLM-FD3WWlKAhtLhqHXDilxgm4z7dztesJH2SbgApCMchFrQNsRSxw4XhYeK0swbYlcsbmucxTysR",
+    "model_player": "agents/models/tm_professional/tm_professional_varf5.vmdl",
+    "original": {
+      "name": "customplayer_tm_professional_varf5",
+      "image_inventory": "econ/characters/customplayer_tm_professional_varf5"
+    }
+  },
+  {
+    "id": "agent-4619",
+    "name": "'Blueberries' Buckshot | NSWC SEAL",
+    "description": "Known as SEAL Team's \\\"Weapons Sommelier\\\" Buckshot has thoroughly field-tested and reviewed almost every available military weapon in staggering depth. ST6 relies on Buckshot's knowledge of lesser-known guns for edge case advantages in ground based operations.\\n\\nSeen here sporting the classic NUE Type 1 uniform otherwise known as 'blueberries'. \\n\\n<i>They talk to me. The guns. They have feelings.</i>",
+    "def_index": "4619",
+    "rarity": {
+      "id": "rarity_mythical_character",
+      "name": "Exceptional",
+      "color": "#8847ff"
+    },
+    "collections": [
+      {
+        "id": "collection-set-op10-characters",
+        "name": "Broken Fang Agents",
+        "image": "https://raw.githubusercontent.com/ByMykel/counter-strike-image-tracker/main/static/panorama/images/econ/set_icons/set_op10_characters_png.png"
+      }
+    ],
+    "team": {
+      "id": "counter-terrorists",
+      "name": "Counter-Terrorist"
+    },
+    "market_hash_name": "'Blueberries' Buckshot | NSWC SEAL",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIa-2lmxU-LR0dnuNm6E8Vl45Iv181z1fh7lk6nz6XRk-fO8YaVjNPrdXWLElL5ytbBsTXrqzUxzsWmHzN-gI3-TbwQmC5pzQLELsUbrx9bmP_SiuVJe8Pfo4Q",
+    "model_player": "agents/models/ctm_st6/ctm_st6_variantj.vmdl",
+    "original": {
+      "name": "customplayer_ctm_st6_variantj",
+      "image_inventory": "econ/characters/customplayer_ctm_st6_variantj"
+    }
+  },
+  {
+    "id": "agent-5305",
+    "name": "Operator | FBI SWAT",
+    "description": "Members of the FBI's SWAT team are deployed in high-risk situations. Counterterrorism, hostage rescue, and bomb defusals are a few of the many disciplines FBI SWAT agents specialize in.\\n\\n<i>Fidelity, Bravery, Integrity.</i>",
+    "def_index": "5305",
+    "rarity": {
+      "id": "rarity_rare_character",
+      "name": "Distinguished",
+      "color": "#4b69ff"
+    },
+    "collections": [
+      {
+        "id": "collection-set-op9-characters",
+        "name": "Shattered Web Agents",
+        "image": "https://raw.githubusercontent.com/ByMykel/counter-strike-image-tracker/main/static/panorama/images/econ/set_icons/set_op9_characters_png.png"
+      }
+    ],
+    "team": {
+      "id": "counter-terrorists",
+      "name": "Counter-Terrorist"
+    },
+    "market_hash_name": "Operator | FBI SWAT",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIa-2lmxU-LR0dnuNm6E8Vl45Iv181z1fh7lk6nm_ytk-fO8YaVjNPbdCjfAkbcl5LM6S3jkxUsj42TQzdf7JH_Caw5zDMMlEOAIt0Hqk9bmY_SiuVKnm4HYYQ",
+    "model_player": "agents/models/ctm_fbi/ctm_fbi_variantf.vmdl",
+    "original": {
+      "name": "customplayer_ctm_fbi_variantf",
+      "image_inventory": "econ/characters/customplayer_ctm_fbi_variantf"
+    }
+  },
+  {
+    "id": "agent-5404",
+    "name": "Lt. Commander Ricksaw | NSWC SEAL",
+    "description": "Lt. Commander Ricksaw's comically laissez-faire attitude toward heavy combat keeps his SEAL team calm and deadly in the most dire situations. \\n\\nHaving lead more special ops than any other SEAL to date, Ricksaw knows life is short, and encourages his team to make the most of the time they have—including cheerfully serving up bullets and frag grenades to high- value targets at any and all occasions.\\n\\n<i>Hotdogs, hellcats and hand grenades. Hooya!</i>",
+    "def_index": "5404",
+    "rarity": {
+      "id": "rarity_ancient_character",
+      "name": "Master",
+      "color": "#eb4b4b"
+    },
+    "collections": [
+      {
+        "id": "collection-set-op9-characters",
+        "name": "Shattered Web Agents",
+        "image": "https://raw.githubusercontent.com/ByMykel/counter-strike-image-tracker/main/static/panorama/images/econ/set_icons/set_op9_characters_png.png"
+      }
+    ],
+    "team": {
+      "id": "counter-terrorists",
+      "name": "Counter-Terrorist"
+    },
+    "market_hash_name": "Lt. Commander Ricksaw | NSWC SEAL",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIa-2lmxU-LR0dnuNm6E8Vl45Iv181z1fh7lk6nz6XRk-fO8YaVjNPndVz-Ul74hsbNoHi21kUly6mrQzNagcijBPQEnCsciTOdY4Rm6m4XvN_SiuVLIl2LQXw",
+    "model_player": "agents/models/ctm_st6/ctm_st6_varianti.vmdl",
+    "original": {
+      "name": "customplayer_ctm_st6_varianti",
+      "image_inventory": "econ/characters/customplayer_ctm_st6_varianti"
+    }
+  }
+]

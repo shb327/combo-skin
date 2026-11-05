@@ -44,12 +44,16 @@ def refresh(args: argparse.Namespace) -> int:
     order = load_display_order(args.display_order)
     previous = load_snapshot(args.snapshot) if args.snapshot.exists() else None
     raw = source.download(args.commit)
-    snapshot = source.normalise(raw, args.commit, previous, load_slug_overrides(SLUG_OVERRIDES))
+    raw_agents = source.download(args.commit, source.AGENTS_FILE)
+    snapshot = source.normalise(
+        raw, raw_agents, args.commit, previous, load_slug_overrides(SLUG_OVERRIDES)
+    )
     validate(snapshot, order)
     args.snapshot.write_text(dump_snapshot(snapshot))
     types = len(snapshot.item_types)
     finishes = sum(len(t.finishes) for t in snapshot.item_types)
-    print(f"Wrote {args.snapshot.name}: {types} types, {finishes} finishes")
+    agents = len(snapshot.agents)
+    print(f"Wrote {args.snapshot.name}: {types} types, {finishes} finishes, {agents} agents")
     if previous is not None:
         retired, back = source.retirement_changes(previous, snapshot)
         since = previous.source.commit[:12]
