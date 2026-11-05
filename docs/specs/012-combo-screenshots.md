@@ -233,7 +233,7 @@ None that change a requirement. Smaller details the spec left open:
 
 ### After the audit (2026-11-06)
 
-The audit (Pass with follow-ups, commit be39817) listed six follow-ups that could be fixed on the branch; all six are fixed, each with a test. Criterion 14 still waits on a push.
+The audit (Pass with follow-ups, commit be39817) listed six follow-ups that could be fixed on the branch; all six are fixed, each with a test. Criterion 14 waited on a push; its runs are recorded in Criterion coverage and the Audit table.
 
 - **Agent list (Design, Dashboard display).** The agent search now opens on focus with "Default (<name>)" first, then the agents in an ARIA group per team, "Counter-Terrorists" then "Terrorists"; typing narrows it as before. Labels are the agent's name only, since the group gives the team. Enter on an untouched list chooses nothing. The finish searches are unchanged: they still open only once something is typed. `src/pages/AddComboPage.test.tsx` "opens on focus with the default first, then the agents grouped by team".
 - **Agent refusals.** `agent_not_found` and `agent_retired` have fixed messages ("This agent is not in the catalog.", "This agent is no longer in the game.") and map to the screenshot agent field: on the add and edit pages the message shows at the picker and in the error summary; in a batch, on the knife's row, and at its own picker when it has one. `src/combos/problems.test.ts` "agent refusals", `src/pages/EditComboPage.test.tsx` "an agent refused by the API", `src/pages/BatchPage.test.tsx` "an agent refused in a batch" (2 tests).
@@ -264,7 +264,7 @@ Test ids are relative to `api/` or `admin/`.
 | 11 | `tests/combos/test_schema.py::test_agent_operations_in_schema`; `uv run python -m combo_api.openapi --check` exit 0; `npm run api:types:check` exit 0 in `admin/` and `website/` |
 | 12 | `api/README.md` Catalog, Combos (screenshot agent, batches, default agent), Endpoints and Layout; `admin/README.md` Screens, screenshot agents and Project structure |
 | 13 | In `api/`: format check, lint, mypy (80 files), `pytest` (347 passed, none skipped), OpenAPI check and `export-website --check` exit 0; `docker build` exit 0. In `admin/`: `npm ci`, `api:types:check`, `lint`, `typecheck`, `npm test` (299 passed), `build` (no chunk-size warning) and `check:bundle` exit 0. In `website/`: `api:types:check`, `lint`, `npm test` (94 passed) and `build` exit 0 |
-| 14 | Pending: workflow runs after the owner pushes. `gitleaks git` over the branch and `gitleaks dir .`: no leaks. URLs added outside the generated snapshot and the agents fixture: the game's image host and an `example.com` placeholder in tests, and the dataset's raw-file URL template (now taking the file name) |
+| 14 | Workflow runs on commit d0c614d: `api` run 42130991227 (jobs `check` and `docker`), `admin` run 42130991115 and `website` run 42130991291 (job `build`) succeeded on the pull request, as did the push runs for the same commit. `gitleaks git` over the branch and `gitleaks dir .`: no leaks. URLs added outside the generated snapshot and the agents fixture: the game's image host and an `example.com` placeholder in tests, and the dataset's raw-file URL template (now taking the file name) |
 
 ## Audit
 
@@ -288,7 +288,7 @@ All checks ran on a fresh clone of the branch, with `api/.env` copied from `api/
 | 11 | OpenAPI and generated types | Pass | `tests/combos/test_schema.py::test_agent_operations_in_schema`; `uv run python -m combo_api.openapi --check` exit 0; `npm run api:types:check` exit 0 in `admin/` and `website/` |
 | 12 | READMEs | Pass | `api/README.md` Catalog, Combos (screenshot agent, batches, default agent), Endpoints, Layout; `admin/README.md` Screens, screenshot agents, Project structure |
 | 13 | Section checks | Pass | See the checks table |
-| 14 | CI on GitHub; gitleaks | Pending | gitleaks clean (below). The workflow runs wait on a push of the branch |
+| 14 | CI on GitHub; gitleaks | Pass | gitleaks clean (below). Recorded after the follow-up fixes: on commit d0c614d: `api` run 42130991227 (jobs `check` and `docker`), `admin` run 42130991115 and `website` run 42130991291 (job `build`) succeeded on the pull request, as did the push runs for the same commit |
 
 | Check | Command | Result |
 | --- | --- | --- |
@@ -309,5 +309,5 @@ All checks ran on a fresh clone of the branch, with `api/.env` copied from `api/
 - (follow-up) Security S1 says the existing guard test covers the new routes. The structural guard (`tests/admins/test_require_admin.py`) does, but `tests/combos/test_guard.py` (401 without a session, 403 without the CSRF token, `no-store` on refusals for every admin route) does not list the three new routes; `test_agents.py` covers 401 on both `GET`s and 403 on the `PUT` only.
 - (follow-up) Tests weaker than their criteria, though the behaviour is right: no committed test sends a retired agent in a batch row (probe above); the add page test checks the "Default" tag and name but not the picture (probe above); `using_default` is tested with drafts only, not across statuses; the admin fake accepts an update without `screenshot_agent` (`admin/src/test/fakeCatalog.ts`), where the real API answers 422.
 - (follow-up) Recorded in Implementation notes: `FinishSearch` now also searches agents and could have a more general name.
-- (follow-up) Criterion 14 waits on a push: record the workflow runs for the branch's latest commit here once they succeed.
+- (follow-up) Criterion 14 was pending at the audit, as the branch was not pushed; the runs for d0c614d, after the follow-up fixes, succeeded (table above).
 - The first six findings were fixed after the audit; see Implementation notes, After the audit.
