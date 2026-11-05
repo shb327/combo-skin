@@ -1,6 +1,6 @@
 # 012: Screenshot agents
 
-**Status:** Implemented
+**Status:** Audited
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api, admin
@@ -255,4 +255,45 @@ Test ids are relative to `api/` or `admin/`.
 
 ## Audit
 
-Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
+**Date:** 2026-11-06 · **Branch:** 012-combo-screenshots · **Commit:** be39817
+**Verdict:** Pass with follow-ups
+
+All checks ran on a fresh clone of the branch, with `api/.env` copied from `api/.env.example` (database port changed to a separate test database) and no `admin/.env` or `website/.env`. Test ids are relative to `api/` or `admin/`. Where a committed test is weaker than its criterion, the behaviour was also checked with throwaway tests run in the clone and not committed ("probe" below). The code was also read against Design, API / data model and Security independently of the Implementation notes.
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | 63 agents with the source file recorded; refresh reproduces | Pass | `tests/catalog/test_snapshot.py::test_snapshot_records_its_source`, `::test_snapshot_agents`, `::test_snapshot_is_written_canonically`; `refresh --commit cbe5eec…` in the clone, then `git diff --exit-code` on `snapshot.json`: exit 0; against `main` the snapshot diff only adds lines |
+| 2 | Agent validation names the agent; retired carry-forward | Pass | `tests/catalog/test_validate.py::test_duplicate_agent_definition_index`, `::test_duplicate_agent_codename`, `::test_agent_team`, `::test_agent_image_host` (2 cases); `tests/catalog/test_source.py::test_missing_agent_is_kept_retired` (retired, then back, equal to the first snapshot) |
+| 3 | Migration `0005`; default agent seeded | Pass | `tests/test_migrations.py::test_revision_history`, `::test_upgrade_downgrade_upgrade`, `::test_models_match_migrations`, `::test_head_has_only_known_tables`, `::test_default_agent_is_seeded`; `uv run alembic check`: "No new upgrade operations detected"; `alembic history`: `0004 -> 0005 (head)` |
+| 4 | Import inserts, re-runs and deactivates agents; Compose | Pass | `tests/catalog/test_importer.py::test_import_into_empty_catalog`, `::test_second_import_changes_nothing`, `::test_retired_agent_is_deactivated_in_place`, `::test_agent_missing_from_snapshot_is_deactivated`, `::test_every_agent_matches_its_row`, `::test_reused_agent_codename_is_refused`; the clone's Compose stack as a separate project without published ports: `migrate` and `catalog` exited 0 (`761 inserted`), a second `catalog` run `761 unchanged` |
+| 5 | `GET /admin/agents` order, fields, 401 | Pass | `tests/combos/test_agents.py::test_list_agents`; in the Compose stack, 401 without a session |
+| 6 | Create, update, required field, unknown and retired agents | Pass | `tests/combos/test_agents.py::test_create_with_and_without_an_agent`, `::test_update_sets_the_agent`, `::test_update_needs_the_agent_field`, `::test_unknown_and_retired_agents` |
+| 7 | Batch rows carry their agents; updates keep theirs | Pass | `tests/combos/test_agents.py::test_batch_rows_carry_their_agents`, `::test_batch_refuses_an_unknown_agent`; probe: a retired agent in a batch row gets 422 `agent_retired` |
+| 8 | Default agent setting; no agent in public bodies | Pass | `tests/combos/test_agents.py::test_default_agent_setting`, `::test_default_agent_refusals`, `::test_public_responses_have_no_agent`; see findings on test strength |
+| 9 | Picker on add and edit; batch-wide and own agents | Pass | `src/pages/AddComboPage.test.tsx` "the screenshot agent", `src/pages/EditComboPage.test.tsx` "the screenshot agent of a combo", `src/pages/BatchPage.test.tsx` "screenshot agents in a batch", `src/combos/pictures.test.tsx` (the default agent's picture on the edit page); probe: the add page shows the default agent's picture |
+| 10 | Screenshots page confirmation | Pass | `src/pages/ScreenshotsPage.test.tsx` (Home link, confirmation with the count, Cancel sends nothing, Confirm sends the `PUT`) |
+| 11 | OpenAPI and generated types | Pass | `tests/combos/test_schema.py::test_agent_operations_in_schema`; `uv run python -m combo_api.openapi --check` exit 0; `npm run api:types:check` exit 0 in `admin/` and `website/` |
+| 12 | READMEs | Pass | `api/README.md` Catalog, Combos (screenshot agent, batches, default agent), Endpoints, Layout; `admin/README.md` Screens, screenshot agents, Project structure |
+| 13 | Section checks | Pass | See the checks table |
+| 14 | CI on GitHub; gitleaks | Pending | gitleaks clean (below). The workflow runs wait on a push of the branch |
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Lint | `uv run ruff format --check .`, `uv run ruff check .`; `npm run lint` in `admin/` and `website/` | Pass |
+| Type check | `uv run mypy` (80 files); `npm run typecheck` in `admin/` | Pass |
+| Tests | `uv run pytest` (347 passed, none skipped); `npm test` in `admin/` (299 passed) and `website/` (94 passed); `npm run api:types:check` in both apps | Pass |
+| Snapshot checks | `uv run python -m combo_api.openapi --check`, `uv run python -m combo_api.catalog export-website --check` | Pass |
+| Build | `npm ci && npm run build` and `npm run check:bundle` in `admin/`, `npm ci && npm run build` in `website/` (no chunk-size warning); `docker build` of `api/` (228,571,793 bytes) | Pass |
+| Secret scan | `gitleaks git` over the branch's 10 commits, `gitleaks dir .` on the clean clone | Pass |
+| Public exposure | Diff and log reviewed: URLs added are the game's image host and an `example.com` placeholder in tests and the dataset's raw-file template; no hosts, addresses, local paths or secrets; `.claude/` and `CLAUDE.md` ignored through the repository's local exclude file and nothing private or `.env` tracked; 10 commits authored by the owner, one line each, no trailers | Pass |
+| Design conformance | Code read against Design, API / data model and Security | Pass, with an unrecorded difference in the picker (findings) |
+
+**Findings**
+
+- (follow-up) Unrecorded difference from Design, Dashboard display: the agent list does not open on focus with "Default (<name>)" first and the agents grouped CT and T. It shows only once something is typed (`admin/src/combos/FinishSearch.tsx:35`), "Default (…)" appears only when the typed words match it, and teams are a "· CT" / "· T" suffix in CT-first order rather than groups. R7 and criterion 9 are met: the list is searchable and shows picture, name and team.
+- (follow-up) `agent_not_found` and `agent_retired` have no fixed message in `admin/src/combos/problems.ts` and `screenshot_agent` maps to no field, so a refusal (for example an agent retired after the list loaded) shows "The API refused this value." in the form's summary, not at the picker.
+- (follow-up) Edge cases the spec leaves open: `GET` and `PUT /admin/screenshot-settings` answer 500 when the default agent is not in the catalog yet (`api/src/combo_api/combos/agents.py:34`, before the first import), which also leaves every picker on its error state; and if the default agent is ever retired, the Screenshots page shows "Agent 5404" without a picture, since it passes no `known` agent (`admin/src/pages/ScreenshotsPage.tsx`).
+- (follow-up) Security S1 says the existing guard test covers the new routes. The structural guard (`tests/admins/test_require_admin.py`) does, but `tests/combos/test_guard.py` (401 without a session, 403 without the CSRF token, `no-store` on refusals for every admin route) does not list the three new routes; `test_agents.py` covers 401 on both `GET`s and 403 on the `PUT` only.
+- (follow-up) Tests weaker than their criteria, though the behaviour is right: no committed test sends a retired agent in a batch row (probe above); the add page test checks the "Default" tag and name but not the picture (probe above); `using_default` is tested with drafts only, not across statuses; the admin fake accepts an update without `screenshot_agent` (`admin/src/test/fakeCatalog.ts`), where the real API answers 422.
+- (follow-up) Recorded in Implementation notes: `FinishSearch` now also searches agents and could have a more general name.
+- (follow-up) Criterion 14 waits on a push: record the workflow runs for the branch's latest commit here once they succeed.
