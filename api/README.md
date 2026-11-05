@@ -246,7 +246,7 @@ A missing or invalid setting stops startup with an error that names the variable
 | `GET /admin/batches/finishes`, `GET /admin/batches/candidates`, `POST /admin/batches` | Batch finish names, candidates, and saving a batch. |
 | `GET`, `PUT /admin/knife-order` | Read or replace the knife order. |
 | `GET /admin/agents` | Agents still in the game: Counter-Terrorists first, then Terrorists, each by name. |
-| `GET`, `PUT /admin/screenshot-settings` | The default screenshot agent and how many combos use it (`using_default`); replace it with `{"default_agent": <definition index>}`. |
+| `GET`, `PUT /admin/screenshot-settings` | The default screenshot agent and how many combos use it (`using_default`); replace it with `{"default_agent": <definition index>}`. 503 `default_agent_missing` while the default agent is not in the catalog (before the first import). |
 | `GET /docs`, `GET /openapi.json` | Interactive docs and the schema, unless `DOCS_ENABLED=false`. |
 
 ## Layout

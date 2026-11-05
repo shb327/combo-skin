@@ -46,7 +46,7 @@ If login says it cannot reach the API, check that the API is running, and that `
 - **Knife order** (`/knife-order`): move knife types up, down or to a position, then save. Shared by every admin.
 - **Screenshots** (`/screenshots`): the default agent, used by every combo without its own screenshot agent, with how many combos use it. Choosing another asks first.
 
-**Screenshot agents.** Every combo form has a screenshot agent: the agent whose arms hold the knife and gloves in the combo's screenshot. It shows the chosen agent's picture and name, or "Default" with the default agent's; search by any words of a name (`darryl`, `nswc`) and pick with the keyboard, or choose **Use default**.
+**Screenshot agents.** Every combo form has a screenshot agent: the agent whose arms hold the knife and gloves in the combo's screenshot. It shows the chosen agent's picture and name, or "Default" with the default agent's. Focusing its search opens the whole list: "Default" first, then Counter-Terrorists and Terrorists; type any words of a name (`darryl`, `nswc`) to narrow it, pick with the keyboard, or choose **Use default**. An agent the API refuses (for example one retired since the list loaded) is marked at the picker.
 
 Ratings are typed with a dot or a comma and shown with two decimals; the Up and Down arrow keys step by 0.05. Float values take up to 4 decimals and must lie inside the finish's own range.
 
