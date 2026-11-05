@@ -94,7 +94,13 @@ export function AddComboPage({ kind }: { kind: Kind }) {
     setSummary([])
     try {
       await api.request('post', '/admin/combos', {
-        body: { glove, knife, rating: result.value.rating, description: result.value.description },
+        body: {
+          glove,
+          knife,
+          rating: result.value.rating,
+          description: result.value.description,
+          screenshot_agent: values.agent,
+        },
       })
       draft.forget()
       await writes()

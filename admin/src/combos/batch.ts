@@ -30,6 +30,8 @@ export interface RowText {
   glove?: ConditionsText
   knife?: ConditionsText
   description?: string
+  /** The row's own screenshot agent; null is its own choice of the default agent. */
+  agent?: number | null
 }
 
 export interface BatchText {
@@ -37,6 +39,8 @@ export interface BatchText {
   glove: ConditionsText
   knife: ConditionsText
   description: string
+  /** The batch-wide screenshot agent; null is the default agent. */
+  agent: number | null
   rows: Record<string, RowText>
 }
 
@@ -45,6 +49,7 @@ export const EMPTY_BATCH: BatchText = {
   glove: NO_CONDITIONS,
   knife: NO_CONDITIONS,
   description: '',
+  agent: null,
   rows: {},
 }
 
@@ -128,6 +133,7 @@ export function resolved(row: Row, text: BatchText) {
     glove: row.text.glove ?? text.glove,
     knife: row.text.knife ?? (row.vanilla ? NO_CONDITIONS : text.knife),
     description: rowDescription(row, text),
+    agent: row.text.agent !== undefined ? row.text.agent : text.agent,
   }
 }
 
@@ -196,6 +202,7 @@ export function checkBatch(
           description: rowDescription.value,
           glove: gloveChecked.value as Conditions,
           knife: knifeChecked.value as Conditions,
+          screenshot_agent: values.agent,
         })
         sent.create.push(row.slug)
       }

@@ -11,6 +11,8 @@ export type Item = Schemas['Item']
 export type Candidates = Schemas['Candidates']
 export type FinishDetail = Schemas['FinishDetail']
 export type Kind = 'glove' | 'knife'
+export type Agent = Schemas['Agent']
+export type ScreenshotSettings = Schemas['ScreenshotSettings']
 export type ComboStatus = AdminCombo['status']
 
 /** One finish of the catalog, as the searches use it. */
@@ -58,6 +60,8 @@ export const keys = {
   candidates: ['candidates'] as const,
   candidatesFor: (type: string, finish: string, knifeFinish: string) => ['candidates', type, finish, knifeFinish] as const,
   knifeOrder: ['knife-order'] as const,
+  agents: ['agents'] as const,
+  screenshotSettings: ['screenshot-settings'] as const,
 }
 
 export const finishLabel = (item: { type_name: string; display_name: string }) =>
@@ -202,13 +206,36 @@ export function useKnifeOrder() {
   })
 }
 
-/** After any combo write: lists, counts, single combos and batch candidates are stale. */
+/** Agents still in the game, Counter-Terrorists first; loaded once per page load. */
+export function useAgents() {
+  const api = useApi()
+  return useQuery({
+    queryKey: keys.agents,
+    staleTime: Infinity,
+    queryFn: async () => (await api.request('get', '/admin/agents')).data ?? [],
+  })
+}
+
+/** The default screenshot agent, and how many combos use it. */
+export function useScreenshotSettings() {
+  const api = useApi()
+  return useQuery({
+    queryKey: keys.screenshotSettings,
+    queryFn: async () => (await api.request('get', '/admin/screenshot-settings')).data as ScreenshotSettings,
+  })
+}
+
+export const agentLabel = (agent: Agent) => `${agent.name} · ${agent.team === 'ct' ? 'CT' : 'T'}`
+
+/** After any combo write: lists, counts, single combos, batch candidates and the number of
+ * combos using the default agent are stale. */
 export function useComboWrites() {
   const client = useQueryClient()
   return () =>
     Promise.all([
       client.invalidateQueries({ queryKey: keys.combos }),
       client.invalidateQueries({ queryKey: keys.candidates }),
+      client.invalidateQueries({ queryKey: keys.screenshotSettings }),
     ])
 }
 

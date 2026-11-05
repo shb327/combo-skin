@@ -28,7 +28,8 @@ describe('editing a combo', () => {
     expect(main).toHaveTextContent('Version 1')
     expect(main).toHaveTextContent(/Created .* by placeholder-admin/)
     expect(main).toHaveTextContent(/Last changed .* by placeholder-admin/)
-    expect(screen.queryByRole('combobox')).toBeNull()
+    // The pairing has no inputs: the only search is the screenshot agent's.
+    expect(screen.getAllByRole('combobox').map((input) => input.id)).toEqual(['edit-agent-search'])
     expect(screen.getByLabelText('Rating')).toHaveValue('9.10')
     expect(within(screen.getByRole('group', { name: 'Knife' })).getByLabelText('Float to')).toHaveValue('0.01')
 
@@ -46,6 +47,7 @@ describe('editing a combo', () => {
       description: null,
       glove: { float_from: null, float_to: null, seeds: [5] },
       knife: { float_from: 0, float_to: 0.01, seeds: [] },
+      screenshot_agent: null,
     })
     expect(screen.getByRole('main')).toHaveTextContent('Version 2')
   })
@@ -158,5 +160,44 @@ describe('editing a combo', () => {
     renderApp(path, fake)
     expect(await screen.findByLabelText('Description')).toHaveValue('<img src=x onerror=alert(1)>')
     expect(document.querySelector('img[src="x"]')).toBeNull()
+  })
+})
+
+describe('the screenshot agent of a combo', () => {
+  it('shows the default agent, saves a chosen one, and goes back to the default', async () => {
+    const { fake, path } = withCombo()
+    const { user } = renderApp(path, fake)
+    const agent = await screen.findByRole('group', { name: 'Screenshot agent' })
+    expect(await within(agent).findByText('Lt. Commander Ricksaw | NSWC SEAL')).toBeInTheDocument()
+    expect(within(agent).getByText('Default')).toBeInTheDocument()
+
+    await user.type(within(agent).getByRole('combobox', { name: 'Find a screenshot agent' }), 'buckshot')
+    await user.keyboard('{ArrowDown}{Enter}')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText('Saved. Version 2.')).toBeInTheDocument()
+    expect(JSON.parse(fake.to('PUT /admin/combos/{id}')[0].body).screenshot_agent).toBe(4619)
+    expect(within(agent).getByText("'Blueberries' Buckshot | NSWC SEAL")).toBeInTheDocument()
+
+    await user.click(within(agent).getByRole('button', { name: 'Use default' }))
+    expect(within(agent).getByText('Default')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText('Saved. Version 3.')).toBeInTheDocument()
+    expect(JSON.parse(fake.to('PUT /admin/combos/{id}')[1].body).screenshot_agent).toBeNull()
+  })
+
+  it('keeps a retired agent the combo already has', async () => {
+    const fake = new FakeApi().withSession()
+    const combo = fake.store.add({
+      glove: 'specialist/crimson-kimono',
+      knife: 'karambit/doppler-ruby',
+      rating: 9,
+      agent: 5305,
+    })
+    const { user } = renderApp(`/combos/${combo.id}`, fake)
+    const agent = await screen.findByRole('group', { name: 'Screenshot agent' })
+    expect(await within(agent).findByText('Operator | FBI SWAT')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText('Saved. Version 2.')).toBeInTheDocument()
+    expect(JSON.parse(fake.to('PUT /admin/combos/{id}')[0].body).screenshot_agent).toBe(5305)
   })
 })

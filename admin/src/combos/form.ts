@@ -21,6 +21,8 @@ export interface ComboText {
   glove: ConditionsText
   knife: ConditionsText
   description: string
+  /** The screenshot agent's definition index; null is the default agent. */
+  agent: number | null
 }
 
 export interface ComboValue {
@@ -32,7 +34,13 @@ export interface ComboValue {
 
 export type FieldErrors = Record<string, string>
 
-export const EMPTY_COMBO: ComboText = { rating: '', glove: NO_CONDITIONS, knife: NO_CONDITIONS, description: '' }
+export const EMPTY_COMBO: ComboText = {
+  rating: '',
+  glove: NO_CONDITIONS,
+  knife: NO_CONDITIONS,
+  description: '',
+  agent: null,
+}
 
 export const FIELD_LABELS: Record<string, string> = {
   rating: 'Rating',
@@ -54,6 +62,7 @@ export function comboText(combo: AdminCombo): ComboText {
     glove: conditionsText(combo.glove),
     knife: conditionsText(combo.knife),
     description: combo.description ?? '',
+    agent: combo.screenshot_agent?.def_index ?? null,
   }
 }
 

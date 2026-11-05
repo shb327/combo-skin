@@ -1,6 +1,6 @@
 /** A fake of the API for tests: a `fetch` function that routes by method and path, answers
  * with bodies typed from the generated schema, and records every request. Login and session
- * routes, the catalog, and combos (through `ComboStore`). Usernames, passwords and tokens here
+ * routes, the catalog, and combos, agents and the default agent (through `ComboStore`). Usernames, passwords and tokens here
  * are placeholders. */
 import type { components } from '../api/schema'
 import { ComboStore, catalogAnswer, type Answer, type Kind } from './fakeCatalog'
@@ -35,6 +35,9 @@ export type Route =
   | 'POST /admin/batches'
   | 'GET /admin/knife-order'
   | 'PUT /admin/knife-order'
+  | 'GET /admin/agents'
+  | 'GET /admin/screenshot-settings'
+  | 'PUT /admin/screenshot-settings'
 
 const FIXED = new Set([
   '/admin/me',
@@ -47,6 +50,8 @@ const FIXED = new Set([
   '/admin/batches/candidates',
   '/admin/batches',
   '/admin/knife-order',
+  '/admin/agents',
+  '/admin/screenshot-settings',
   '/gloves',
   '/knives',
 ])
@@ -237,6 +242,12 @@ export class FakeApi {
         return store.getKnifeOrder()
       case 'PUT /admin/knife-order':
         return store.replaceKnifeOrder(body)
+      case 'GET /admin/agents':
+        return store.agents()
+      case 'GET /admin/screenshot-settings':
+        return store.screenshotSettings()
+      case 'PUT /admin/screenshot-settings':
+        return store.replaceScreenshotSettings(body)
       default:
         return [404, { detail: 'Not Found' }]
     }

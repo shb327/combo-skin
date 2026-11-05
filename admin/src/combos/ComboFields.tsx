@@ -1,8 +1,10 @@
+import { AgentPicker } from './AgentPicker'
 import { ConditionsFields, DescriptionField, RatingField } from './fields'
 import { itemErrors, type ComboText, type FieldErrors } from './form'
+import type { Agent } from './queries'
 import type { FinishRange } from './values'
 
-/** Rating, both items' conditions and the description of one combo. */
+/** Rating, both items' conditions, the screenshot agent and the description of one combo. */
 export function ComboFields({
   prefix,
   values,
@@ -10,6 +12,7 @@ export function ComboFields({
   errors,
   onChange,
   unknown,
+  storedAgent = null,
 }: {
   prefix: string
   values: ComboText
@@ -18,6 +21,8 @@ export function ComboFields({
   onChange(values: ComboText): void
   /** The item not chosen yet: its range is not one finish's, so it is not shown. */
   unknown?: 'glove' | 'knife'
+  /** The combo's stored agent, which may be retired and so missing from the list. */
+  storedAgent?: Agent | null
 }) {
   return (
     <>
@@ -46,6 +51,13 @@ export function ComboFields({
         showRange={unknown !== 'knife'}
         errors={itemErrors(errors, 'knife')}
         onChange={(knife) => onChange({ ...values, knife })}
+      />
+      <AgentPicker
+        id={`${prefix}-agent`}
+        label="Screenshot agent"
+        value={values.agent}
+        known={storedAgent}
+        onChange={(agent) => onChange({ ...values, agent })}
       />
       <DescriptionField
         id={`${prefix}-description`}

@@ -9,7 +9,15 @@ import { Picture } from '../combos/Picture'
 import { EMPTY_COMBO, checkCombo, comboText, problemErrors, summaryEntries, type ComboText, type FieldErrors } from '../combos/form'
 import { COMBO_MESSAGES, comboErrorMessage, isCode } from '../combos/messages'
 import { finishPath } from '../combos/paths'
-import { finishLabel, keys, useCombo, useComboWrites, type AdminCombo } from '../combos/queries'
+import {
+  finishLabel,
+  keys,
+  useAgents,
+  useCombo,
+  useComboWrites,
+  useScreenshotSettings,
+  type AdminCombo,
+} from '../combos/queries'
 import { LINK, PRIMARY, SECONDARY } from '../combos/styles'
 import { ConfirmDialog, ErrorSummary, QueryState, RestoredNotice, StatusBadge, type SummaryEntry } from '../combos/ui'
 import { useDraft } from '../combos/useDrafts'
@@ -39,13 +47,14 @@ function rating(text: string) {
 }
 
 /** Each field whose value differs between the stored combo and the owner's form. */
-function differences(theirs: ComboText, mine: ComboText): [string, string, string][] {
+function differences(theirs: ComboText, mine: ComboText, agentName: (value: number | null) => string): [string, string, string][] {
   const rows: [string, string, string][] = [
     ['Rating', rating(theirs.rating), rating(mine.rating)],
     ['Gloves float', range(theirs.glove), range(mine.glove)],
     ['Gloves pattern seeds', seeds(theirs.glove), seeds(mine.glove)],
     ['Knife float', range(theirs.knife), range(mine.knife)],
     ['Knife pattern seeds', seeds(theirs.knife), seeds(mine.knife)],
+    ['Screenshot agent', agentName(theirs.agent), agentName(mine.agent)],
     ['Description', theirs.description.trim() || 'none', mine.description.trim() || 'none'],
   ]
   return rows.filter(([, a, b]) => a !== b)
@@ -60,6 +69,8 @@ export function EditComboPage() {
   const queryClient = useQueryClient()
   const writes = useComboWrites()
   const combo = useCombo(id)
+  const agents = useAgents()
+  const settings = useScreenshotSettings()
   const stored = combo.data
   const draft = useDraft<EditValues>(`edit:${id}`, stored ? { ...comboText(stored), version: stored.version } : { ...EMPTY_COMBO, version: 0 })
   const [attempted, setAttempted] = useState(false)
@@ -118,7 +129,7 @@ export function EditComboPage() {
     try {
       const { data } = await api.request('put', '/admin/combos/{combo_id}', {
         params: { path: { combo_id: id } },
-        body: { version: values.version, ...result.value },
+        body: { version: values.version, ...result.value, screenshot_agent: values.agent },
       })
       draft.forget()
       queryClient.setQueryData(keys.combo(id), data)
@@ -179,6 +190,12 @@ export function EditComboPage() {
   }
 
   const theirs = conflict ? comboText(conflict) : null
+
+  function agentName(value: number | null) {
+    if (value === null) return settings.data ? `Default (${settings.data.default_agent.name})` : 'Default'
+    const named = [...(agents.data ?? []), stored?.screenshot_agent, conflict?.screenshot_agent]
+    return named.find((agent) => agent?.def_index === value)?.name ?? `Agent ${value}`
+  }
 
   return (
     <section>
@@ -257,7 +274,7 @@ export function EditComboPage() {
               </tr>
             </thead>
             <tbody>
-              {differences(theirs, values).map(([field, a, b]) => (
+              {differences(theirs, values, agentName).map(([field, a, b]) => (
                 <tr key={field}>
                   <td className="pr-3">{field}</td>
                   <td className="pr-3 break-all">{a}</td>
@@ -299,6 +316,7 @@ export function EditComboPage() {
           values={values}
           ranges={ranges}
           errors={errors}
+          storedAgent={stored.screenshot_agent}
           onChange={(next) => {
             setServerErrors({})
             draft.set((current) => ({ ...current, ...next }))
