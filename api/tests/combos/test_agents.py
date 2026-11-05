@@ -251,3 +251,31 @@ async def test_public_responses_have_no_agent(clients: Any, admin_client: AsyncC
         assert response.status_code == 200
         assert response.text != "[]"
         assert "agent" not in response.text, route
+
+
+async def test_default_agent_missing_from_the_catalog(
+    admin_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    headers = await logged_in(admin_client)
+    await db_session.execute(update(ScreenshotSettings).values(default_agent_def_index=1))
+    response = await admin_client.get("/admin/screenshot-settings")
+    assert response.status_code == 503
+    assert response.json() == {"detail": "default_agent_missing"}
+    assert response.headers["cache-control"] == "no-store"
+    # Choosing an agent that is in the catalog repairs it.
+    response = await admin_client.put(
+        "/admin/screenshot-settings", json={"default_agent": RICKSAW}, headers=headers
+    )
+    assert response.status_code == 200
+    assert response.json()["default_agent"]["def_index"] == RICKSAW
+
+
+async def test_retired_default_agent_is_still_shown(
+    admin_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    await logged_in(admin_client)
+    await retire_agent(db_session, RICKSAW)
+    response = await admin_client.get("/admin/screenshot-settings")
+    assert response.status_code == 200
+    agent = response.json()["default_agent"]
+    assert (agent["def_index"], agent["active"]) == (RICKSAW, False)

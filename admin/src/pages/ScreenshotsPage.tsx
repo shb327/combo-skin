@@ -74,6 +74,7 @@ export function ScreenshotsPage() {
         label="Default agent"
         searchLabel="Find an agent"
         value={settings.data?.default_agent.def_index ?? null}
+        known={settings.data?.default_agent}
         allowDefault={false}
         onChange={choose}
       />

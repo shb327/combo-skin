@@ -2,13 +2,14 @@
 `require_admin`."""
 
 import logging
+from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from combo_api.admins import clock
-from combo_api.admins.deps import ADMIN_RESPONSES, AdminDep, Session
+from combo_api.admins.deps import ADMIN_RESPONSES, AdminDep, Session, error_response, refuse
 from combo_api.catalog.models import Agent
 from combo_api.combos import queries, rules
 from combo_api.combos.models import Combo
@@ -18,6 +19,11 @@ from combo_api.combos.schemas import ScreenshotSettings, ScreenshotSettingsIn
 
 logger = logging.getLogger("combo_api.combos")
 router = APIRouter(prefix="/admin", tags=["admin"], responses=ADMIN_RESPONSES)
+
+# The default agent is not in the catalog: the catalog has not been imported yet.
+MISSING: dict[int | str, dict[str, Any]] = {
+    status.HTTP_503_SERVICE_UNAVAILABLE: error_response("`default_agent_missing`")
+}
 
 
 @router.get("/agents")
@@ -31,20 +37,20 @@ async def list_agents(current: AdminDep, db: Session) -> list[AgentOut]:
 async def settings_out(db: AsyncSession, row: SettingsRow) -> ScreenshotSettings:
     agent = await db.scalar(select(Agent).where(Agent.def_index == row.default_agent_def_index))
     if agent is None:
-        raise RuntimeError("the default screenshot agent is not in the catalog; run the import")
+        raise refuse(status.HTTP_503_SERVICE_UNAVAILABLE, "default_agent_missing")
     using = await db.scalar(
         select(func.count()).select_from(Combo).where(Combo.screenshot_agent_id.is_(None))
     )
     return ScreenshotSettings(default_agent=queries.agent_out(agent), using_default=using or 0)
 
 
-@router.get("/screenshot-settings")
+@router.get("/screenshot-settings", responses=MISSING)
 async def get_screenshot_settings(current: AdminDep, db: Session) -> ScreenshotSettings:
     """The default screenshot agent, used by every combo without its own."""
     return await settings_out(db, await db.get_one(SettingsRow, 1))
 
 
-@router.put("/screenshot-settings")
+@router.put("/screenshot-settings", responses=MISSING)
 async def replace_screenshot_settings(
     change: ScreenshotSettingsIn, current: AdminDep, db: Session
 ) -> ScreenshotSettings:

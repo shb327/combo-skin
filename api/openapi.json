@@ -2688,6 +2688,16 @@
               }
             },
             "description": "`origin_not_allowed` or `csrf_failed`"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`default_agent_missing`"
           }
         },
         "summary": "Get Screenshot Settings",
@@ -2748,6 +2758,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`default_agent_missing`"
           }
         },
         "summary": "Replace Screenshot Settings",

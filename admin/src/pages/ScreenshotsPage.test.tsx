@@ -47,4 +47,14 @@ describe('the screenshots page', () => {
     expect(JSON.parse(fake.to('PUT /admin/screenshot-settings')[0].body)).toEqual({ default_agent: 4613 })
     expect(within(current).getByText('Bloody Darryl The Strapped | The Professionals')).toBeInTheDocument()
   })
+
+  it('shows a retired default agent by name and picture', async () => {
+    const fake = new FakeApi().withSession()
+    fake.store.defaultAgent = 5305
+    renderApp('/screenshots', fake)
+    const current = await screen.findByRole('group', { name: 'Default agent' })
+    expect(await within(current).findByText('Operator | FBI SWAT')).toBeInTheDocument()
+    expect(within(current).getByText('No longer in the game')).toBeInTheDocument()
+    expect(current.querySelector('img')?.getAttribute('src')).toMatch(/fake\/agent\/5305$/)
+  })
 })
