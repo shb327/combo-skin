@@ -229,8 +229,21 @@ None that change a requirement. Smaller details the spec left open:
 
 ### Follow-ups
 
-- `admin/src/combos/FinishSearch.tsx` now also searches agents; a more general name would fit it.
 - Spec 015 builds on this one: render inputs, re-rendering on a change of default, and the rest of the Screenshots page.
+
+### After the audit (2026-11-06)
+
+The audit (Pass with follow-ups, commit be39817) listed six follow-ups that could be fixed on the branch; all six are fixed, each with a test. Criterion 14 still waits on a push.
+
+- **Agent list (Design, Dashboard display).** The agent search now opens on focus with "Default (<name>)" first, then the agents in an ARIA group per team, "Counter-Terrorists" then "Terrorists"; typing narrows it as before. Labels are the agent's name only, since the group gives the team. Enter on an untouched list chooses nothing. The finish searches are unchanged: they still open only once something is typed. `src/pages/AddComboPage.test.tsx` "opens on focus with the default first, then the agents grouped by team".
+- **Agent refusals.** `agent_not_found` and `agent_retired` have fixed messages ("This agent is not in the catalog.", "This agent is no longer in the game.") and map to the screenshot agent field: on the add and edit pages the message shows at the picker and in the error summary; in a batch, on the knife's row, and at its own picker when it has one. `src/combos/problems.test.ts` "agent refusals", `src/pages/EditComboPage.test.tsx` "an agent refused by the API", `src/pages/BatchPage.test.tsx` "an agent refused in a batch" (2 tests).
+- **Default agent missing from the catalog.** `GET` and `PUT /admin/screenshot-settings` answer 503 `default_agent_missing` (declared in `api/openapi.json`) instead of a 500, for example before the first import; choosing an agent that is in the catalog repairs it. A new error code, for a case the spec left open. `tests/combos/test_agents.py::test_default_agent_missing_from_the_catalog`; `tests/combos/test_schema.py::test_agent_operations_in_schema` checks the 503 on both routes only.
+- **Retired default agent.** The Screenshots page passes the default agent to its picker, so a retired default still shows by name and picture with "No longer in the game". `src/pages/ScreenshotsPage.test.tsx` "shows a retired default agent by name and picture"; `tests/combos/test_agents.py::test_retired_default_agent_is_still_shown`.
+- **Guard test.** `tests/combos/test_guard.py` lists `GET /admin/agents` and `GET` and `PUT /admin/screenshot-settings`: 401 without a session, 403 without the CSRF token, `no-store` on every response.
+- **Stronger tests.** A retired agent in a batch row (`tests/combos/test_agents.py::test_batch_refuses_a_retired_agent`); the default agent's picture on the add page (the add page test above); `using_default` across published, unpublished and draft combos (`::test_default_agent_setting`); the admin fake refuses an update without `screenshot_agent`, as the API does.
+- **Name.** `admin/src/combos/FinishSearch.tsx` is now `SearchCombobox.tsx` (`SearchCombobox`), as it searches finishes and agents.
+
+Checks after the fixes, on commit 2fd471d: in `api/`, format, lint, mypy, `pytest` (350 passed, none skipped), OpenAPI and export checks, `docker build`; in `admin/`, `api:types:check`, `lint`, `typecheck`, `npm test` (304 passed), `build` and `check:bundle`; in `website/`, `api:types:check`, `lint`, `npm test` (94 passed) and `build`: all exit 0. `gitleaks git` over the branch: no leaks.
 
 ### Criterion coverage
 
@@ -297,3 +310,4 @@ All checks ran on a fresh clone of the branch, with `api/.env` copied from `api/
 - (follow-up) Tests weaker than their criteria, though the behaviour is right: no committed test sends a retired agent in a batch row (probe above); the add page test checks the "Default" tag and name but not the picture (probe above); `using_default` is tested with drafts only, not across statuses; the admin fake accepts an update without `screenshot_agent` (`admin/src/test/fakeCatalog.ts`), where the real API answers 422.
 - (follow-up) Recorded in Implementation notes: `FinishSearch` now also searches agents and could have a more general name.
 - (follow-up) Criterion 14 waits on a push: record the workflow runs for the branch's latest commit here once they succeed.
+- The first six findings were fixed after the audit; see Implementation notes, After the audit.
