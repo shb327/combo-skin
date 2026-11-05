@@ -101,6 +101,7 @@ async def create_combo(combo: ComboIn, current: AdminDep, db: Session) -> AdminC
         rules.check_conditions(glove[0], combo.glove, ("body", "glove"), problems)
     if knife:
         rules.check_conditions(knife[0], combo.knife, ("body", "knife"), problems)
+    agent = await rules.agent_id(db, combo.screenshot_agent, ("body", "screenshot_agent"), problems)
     if glove is None or knife is None or problems.errors:
         raise problems.error()
     if await queries.pairing_exists(db, glove[0], knife[0]):
@@ -112,6 +113,7 @@ async def create_combo(combo: ComboIn, current: AdminDep, db: Session) -> AdminC
         combo.knife,
         combo.rating,
         combo.description,
+        agent,
         current.id,
         clock.now(),
     )
@@ -228,6 +230,13 @@ async def update_combo(
     ):
         finish = await db.get_one(Finish, finish_id)
         rules.check_conditions(finish, conditions, ("body", side), problems)
+    agent = await rules.agent_id(
+        db,
+        change.screenshot_agent,
+        ("body", "screenshot_agent"),
+        problems,
+        keep=row.screenshot_agent_id,
+    )
     if problems.errors:
         raise problems.error()
     for column, value in {
@@ -235,6 +244,7 @@ async def update_combo(
         **queries.stored("knife", change.knife),
         "rating": decimal(change.rating),
         "description": change.description,
+        "screenshot_agent_id": agent,
         "version": row.version + 1,
         "updated_at": clock.now(),
         "updated_by": current.id,

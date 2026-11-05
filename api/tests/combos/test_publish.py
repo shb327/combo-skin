@@ -111,6 +111,7 @@ async def test_publishing_does_not_break_an_open_edit(
         "description": None,
         "glove": {},
         "knife": {},
+        "screenshot_agent": None,
     }
     response = await admin_client.put(f"/admin/combos/{combo_id}", json=change, headers=headers)
     assert response.status_code == 200, response.text

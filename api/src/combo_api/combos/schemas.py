@@ -65,6 +65,8 @@ Description = Annotated[
     str | None, Field(max_length=4 * DESCRIPTION_MAX), AfterValidator(clean_description)
 ]
 Slug = Annotated[str, Field(min_length=1, max_length=SLUG_MAX)]
+# An agent by the game's definition index.
+AgentIndex = Annotated[int, Field(strict=True, ge=0, le=2_147_483_647)]
 PublicId = Annotated[str, Field(min_length=1, max_length=SLUG_MAX)]
 
 
@@ -107,6 +109,8 @@ class ComboIn(BaseModel):
     knife: ItemIn
     rating: Rating
     description: Description = None
+    # The agent the screenshot is drawn with; null means the default agent.
+    screenshot_agent: AgentIndex | None = None
 
 
 class ComboUpdate(BaseModel):
@@ -115,6 +119,8 @@ class ComboUpdate(BaseModel):
     description: Description
     glove: Conditions
     knife: Conditions
+    # Required, so a client that leaves it out does not reset it to the default by accident.
+    screenshot_agent: AgentIndex | None
 
 
 IdList = Annotated[list[PublicId], Field(min_length=1, max_length=500)]
@@ -187,6 +193,7 @@ class BatchCreate(BaseModel):
     description: Description = None
     glove: Conditions = Field(default_factory=Conditions)
     knife: Conditions = Field(default_factory=Conditions)
+    screenshot_agent: AgentIndex | None = None
 
 
 class BatchUpdate(BaseModel):
@@ -234,6 +241,27 @@ class KnifeOrderIn(BaseModel):
     slugs: Annotated[list[Slug], Field(max_length=100)]
 
 
+class Agent(BaseModel):
+    """A game agent screenshots can be drawn with."""
+
+    def_index: int
+    name: str
+    team: Literal["ct", "t"]
+    image_url: str
+    rarity: Rarity
+    active: bool
+
+
+class ScreenshotSettings(BaseModel):
+    default_agent: Agent
+    # Combos, in any status, without their own agent.
+    using_default: int
+
+
+class ScreenshotSettingsIn(BaseModel):
+    default_agent: AgentIndex
+
+
 class Item(BaseModel):
     type_slug: str
     type_name: str
@@ -275,6 +303,8 @@ class AdminCombo(BaseModel):
     description: str | None
     glove: Item
     knife: Item
+    # Null means the default agent.
+    screenshot_agent: Agent | None
     created_at: datetime
     created_by: str
     updated_at: datetime

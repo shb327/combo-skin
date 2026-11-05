@@ -9,11 +9,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from combo_api.admins.models import Admin
-from combo_api.catalog.models import Finish, ItemType
+from combo_api.catalog.models import Agent, Finish, ItemType
 from combo_api.catalog.routes import Rarity
 from combo_api.combos.ids import new_public_id
 from combo_api.combos.models import Combo
-from combo_api.combos.schemas import AdminCombo, Conditions, Item, PublicCombo, decimal, number
+from combo_api.combos.schemas import (
+    AdminCombo,
+    Conditions,
+    Item,
+    PublicCombo,
+    decimal,
+    number,
+)
+from combo_api.combos.schemas import Agent as AgentOut
 
 GloveFinish = aliased(Finish, name="glove_finish")
 GloveType = aliased(ItemType, name="glove_type")
@@ -25,7 +33,7 @@ Updater = aliased(Admin, name="updater")
 # What the public sees: the combo lists and their counts use this one condition.
 PUBLISHED = Combo.status == "published"
 
-ComboColumns = tuple[Combo, Finish, ItemType, Finish, ItemType, str, str]
+ComboColumns = tuple[Combo, Finish, ItemType, Finish, ItemType, str, str, Agent | None]
 ComboRow = Row[*ComboColumns]
 
 
@@ -39,6 +47,7 @@ def combos() -> Select[*ComboColumns]:
             KnifeType,
             Creator.username,
             Updater.username,
+            Agent,
         )
         .join(GloveFinish, Combo.glove_finish_id == GloveFinish.id)
         .join(GloveType, GloveFinish.item_type_id == GloveType.id)
@@ -46,6 +55,7 @@ def combos() -> Select[*ComboColumns]:
         .join(KnifeType, KnifeFinish.item_type_id == KnifeType.id)
         .join(Creator, Combo.created_by == Creator.id)
         .join(Updater, Combo.updated_by == Updater.id)
+        .outerjoin(Agent, Combo.screenshot_agent_id == Agent.id)
     )
 
 
@@ -56,6 +66,7 @@ def new_combo(
     knife_conditions: Conditions,
     rating: float,
     description: str | None,
+    screenshot_agent_id: int | None,
     admin_id: int,
     now: datetime,
 ) -> Combo:
@@ -68,6 +79,7 @@ def new_combo(
         **stored("knife", knife_conditions),
         rating=decimal(rating),
         description=description,
+        screenshot_agent_id=screenshot_agent_id,
         status="draft",
         version=1,
         created_at=now,
@@ -131,8 +143,19 @@ def combo_item(combo: Combo, side: str, finish: Finish, item_type: ItemType) -> 
     )
 
 
+def agent_out(agent: Agent) -> AgentOut:
+    return AgentOut(
+        def_index=agent.def_index,
+        name=agent.name,
+        team=agent.team,
+        image_url=agent.image_url,
+        rarity=Rarity(code=agent.rarity_code, name=agent.rarity_name, color=agent.rarity_color),
+        active=agent.active,
+    )
+
+
 def admin_out(row: ComboRow) -> AdminCombo:
-    combo, glove, glove_type, knife, knife_type, created_by, updated_by = row
+    combo, glove, glove_type, knife, knife_type, created_by, updated_by, agent = row
     return AdminCombo(
         id=combo.public_id,
         status=combo.status,
@@ -141,6 +164,7 @@ def admin_out(row: ComboRow) -> AdminCombo:
         description=combo.description,
         glove=combo_item(combo, "glove", glove, glove_type),
         knife=combo_item(combo, "knife", knife, knife_type),
+        screenshot_agent=None if agent is None else agent_out(agent),
         created_at=combo.created_at,
         created_by=created_by,
         updated_at=combo.updated_at,
@@ -150,7 +174,7 @@ def admin_out(row: ComboRow) -> AdminCombo:
 
 
 def public_out(row: ComboRow) -> PublicCombo:
-    combo, glove, glove_type, knife, knife_type, _, _ = row
+    combo, glove, glove_type, knife, knife_type, *_ = row
     return PublicCombo(
         id=combo.public_id,
         rating=float(combo.rating),

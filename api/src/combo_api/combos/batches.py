@@ -65,7 +65,7 @@ async def save(
     glove_finish = glove[0] if glove else None
     knife_types: set[int] = set()
 
-    creates: list[tuple[BatchCreate, Finish]] = []
+    creates: list[tuple[BatchCreate, Finish, int | None]] = []
     for index, entry in enumerate(batch.create):
         loc: rules.Loc = ("body", "create", index)
         knife_type = await rules.find_type(db, "knife", entry.knife_type)
@@ -86,7 +86,10 @@ async def save(
         if glove_finish is not None:
             rules.check_conditions(glove_finish, entry.glove, (*loc, "glove"), problems)
         rules.check_conditions(finish, entry.knife, (*loc, "knife"), problems)
-        creates.append((entry, finish))
+        agent = await rules.agent_id(
+            db, entry.screenshot_agent, (*loc, "screenshot_agent"), problems
+        )
+        creates.append((entry, finish, agent))
 
     updates: list[tuple[BatchUpdate, Combo]] = []
     for index, change in enumerate(batch.update):
@@ -111,7 +114,7 @@ async def save(
         raise problems.error()
     if any(row.version != change.version for change, row in updates):
         raise refuse(409, "version_conflict")
-    for _, finish in creates:
+    for _, finish, _ in creates:
         if await queries.pairing_exists(db, glove_finish, finish):
             raise refuse(409, "combo_exists")
 
@@ -124,10 +127,11 @@ async def save(
             entry.knife,
             entry.rating,
             entry.description,
+            agent,
             current.id,
             now,
         )
-        for entry, finish in creates
+        for entry, finish, agent in creates
     ]
     db.add_all(created)
     for change, row in updates:

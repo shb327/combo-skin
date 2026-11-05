@@ -81,6 +81,7 @@ async def test_log_events(admin_client: AsyncClient, caplog: pytest.LogCaptureFi
             "description": None,
             "glove": {},
             "knife": {},
+            "screenshot_agent": None,
         }
         await admin_client.put(path, json=change, headers=headers)
         ids = {"ids": [combo["id"]]}

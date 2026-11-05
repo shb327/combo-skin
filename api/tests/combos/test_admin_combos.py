@@ -74,6 +74,7 @@ async def test_create_returns_a_draft(admin_client: AsyncClient) -> None:
             "float_to": 0.01,
             "seeds": [],
         },
+        "screenshot_agent": None,
         "created_by": USERNAME,
         "updated_by": USERNAME,
         "published_at": None,
@@ -197,6 +198,7 @@ async def test_update(
         "description": "Updated.",
         "glove": {"float_from": 0.06, "float_to": 0.15, "seeds": [7]},
         "knife": {"float_from": 0, "float_to": 0.03},
+        "screenshot_agent": None,
         "status": "published",
         "type_slug": "bayonet",
         "finish_slug": "fade",
@@ -231,6 +233,7 @@ async def test_update_checks_conditions(admin_client: AsyncClient) -> None:
         "description": None,
         "glove": {},
         "knife": {"float_from": 0, "float_to": 0.5},
+        "screenshot_agent": None,
     }
     response = await admin_client.put(
         f"/admin/combos/{created['id']}", json=change, headers=headers
@@ -247,7 +250,13 @@ async def test_update_after_the_finish_retired(
     headers = await logged_in(admin_client)
     created = await create(admin_client, headers)
     await retire_finish(db_session, "knife", *KNIFE)
-    change: dict[str, Any] = {"version": 1, "rating": 7, "description": None, "glove": {}}
+    change: dict[str, Any] = {
+        "version": 1,
+        "rating": 7,
+        "description": None,
+        "glove": {},
+        "screenshot_agent": None,
+    }
     for knife, status in (({"float_from": 0, "float_to": 0.09}, 422), ({}, 200)):
         response = await admin_client.put(
             f"/admin/combos/{created['id']}", json={**change, "knife": knife}, headers=headers

@@ -1,0 +1,68 @@
+"""Admin endpoints for agents and the default screenshot agent. Every route depends on
+`require_admin`."""
+
+import logging
+
+from fastapi import APIRouter
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from combo_api.admins import clock
+from combo_api.admins.deps import ADMIN_RESPONSES, AdminDep, Session
+from combo_api.catalog.models import Agent
+from combo_api.combos import queries, rules
+from combo_api.combos.models import Combo
+from combo_api.combos.models import ScreenshotSettings as SettingsRow
+from combo_api.combos.schemas import Agent as AgentOut
+from combo_api.combos.schemas import ScreenshotSettings, ScreenshotSettingsIn
+
+logger = logging.getLogger("combo_api.combos")
+router = APIRouter(prefix="/admin", tags=["admin"], responses=ADMIN_RESPONSES)
+
+
+@router.get("/agents")
+async def list_agents(current: AdminDep, db: Session) -> list[AgentOut]:
+    """Agents still in the game: Counter-Terrorists first, then Terrorists, each by name."""
+    rows = await db.scalars(select(Agent).where(Agent.active))
+    ordered = sorted(rows, key=lambda a: (a.team != "ct", a.name.casefold(), a.def_index))
+    return [queries.agent_out(agent) for agent in ordered]
+
+
+async def settings_out(db: AsyncSession, row: SettingsRow) -> ScreenshotSettings:
+    agent = await db.scalar(select(Agent).where(Agent.def_index == row.default_agent_def_index))
+    if agent is None:
+        raise RuntimeError("the default screenshot agent is not in the catalog; run the import")
+    using = await db.scalar(
+        select(func.count()).select_from(Combo).where(Combo.screenshot_agent_id.is_(None))
+    )
+    return ScreenshotSettings(default_agent=queries.agent_out(agent), using_default=using or 0)
+
+
+@router.get("/screenshot-settings")
+async def get_screenshot_settings(current: AdminDep, db: Session) -> ScreenshotSettings:
+    """The default screenshot agent, used by every combo without its own."""
+    return await settings_out(db, await db.get_one(SettingsRow, 1))
+
+
+@router.put("/screenshot-settings")
+async def replace_screenshot_settings(
+    change: ScreenshotSettingsIn, current: AdminDep, db: Session
+) -> ScreenshotSettings:
+    """Change the default screenshot agent. No combo changes."""
+    problems = rules.Problems()
+    agent = await rules.resolve_agent(db, change.default_agent, ("body", "default_agent"), problems)
+    if agent is None or problems.errors:
+        raise problems.error()
+    row = await db.get_one(SettingsRow, 1, with_for_update=True)
+    row.default_agent_def_index = agent.def_index
+    row.updated_at = clock.now()
+    row.updated_by = current.id
+    await db.commit()
+    settings = await settings_out(db, row)
+    logger.info(
+        "default agent changed admin=%s def_index=%s using_default=%s",
+        current.username,
+        agent.def_index,
+        settings.using_default,
+    )
+    return settings
