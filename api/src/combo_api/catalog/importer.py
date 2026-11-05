@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from combo_api.catalog import models
 from combo_api.catalog.snapshot import (
     KINDS,
+    Agent,
     CatalogError,
     DisplayOrder,
     Finish,
@@ -30,7 +31,9 @@ class Counts:
     unchanged: int = 0
 
 
-def apply(row: models.ItemType | models.Finish, values: dict[str, Any], now: datetime) -> bool:
+def apply(
+    row: models.ItemType | models.Finish | models.Agent, values: dict[str, Any], now: datetime
+) -> bool:
     """Set the values that differ; touch `updated_at` only if something did."""
     changed = False
     for field, value in values.items():
@@ -94,6 +97,33 @@ def codename_problems(snapshot: Snapshot, types: dict[int, models.ItemType]) -> 
     return problems
 
 
+def agent_codename_problems(snapshot: Snapshot, agents: dict[int, models.Agent]) -> list[str]:
+    """A stored agent codename belongs to its definition index, even if that agent is inactive."""
+    by_codename = {row.codename: row for row in agents.values()}
+    problems = []
+    for agent in snapshot.agents:
+        owner = by_codename.get(agent.codename)
+        if owner is not None and owner.def_index != agent.def_index:
+            problems.append(
+                f"{agent.name} ({agent.def_index}): codename {agent.codename!r} is already used "
+                f"by {owner.name} ({owner.def_index})"
+            )
+    return problems
+
+
+def agent_values(agent: Agent) -> dict[str, Any]:
+    return {
+        "codename": agent.codename,
+        "name": agent.name,
+        "team": agent.team,
+        "rarity_code": agent.rarity.code,
+        "rarity_name": agent.rarity.name,
+        "rarity_color": agent.rarity.color,
+        "image_url": agent.image_url,
+        "active": not agent.retired,
+    }
+
+
 def in_import_order(
     snapshot: Snapshot, order: DisplayOrder, kind: Kind
 ) -> list[tuple[ItemType, list[Finish]]]:
@@ -115,14 +145,19 @@ async def import_snapshot(session: AsyncSession, snapshot: Snapshot, order: Disp
         (row.item_type_id, row.paint_index): row
         for row in await session.scalars(select(models.Finish))
     }
-    problems = slug_problems(snapshot, types, finishes) + codename_problems(snapshot, types)
+    agents = {row.def_index: row for row in await session.scalars(select(models.Agent))}
+    problems = (
+        slug_problems(snapshot, types, finishes)
+        + codename_problems(snapshot, types)
+        + agent_codename_problems(snapshot, agents)
+    )
     if problems:
         raise CatalogError("\n".join(problems))
 
     counts = Counts()
     now = datetime.now(UTC)
 
-    def upsert(row: models.ItemType | models.Finish, values: dict[str, Any]) -> None:
+    def upsert(row: models.ItemType | models.Finish | models.Agent, values: dict[str, Any]) -> None:
         was_active = row.active
         changed = apply(row, values, now)
         if was_active and not row.active:
@@ -193,6 +228,22 @@ async def import_snapshot(session: AsyncSession, snapshot: Snapshot, order: Disp
                     if finish.retired:
                         del values["position"]
                     upsert(stored, values)
+
+    for agent in snapshot.agents:
+        agent_row = agents.get(agent.def_index)
+        if agent_row is None:
+            session.add(
+                models.Agent(
+                    def_index=agent.def_index, created_at=now, updated_at=now, **agent_values(agent)
+                )
+            )
+            counts.inserted += 1
+        else:
+            upsert(agent_row, agent_values(agent))
+    in_snapshot = {agent.def_index for agent in snapshot.agents}
+    for def_index, agent_row in agents.items():
+        if def_index not in in_snapshot and agent_row.active:
+            upsert(agent_row, {"active": False})
 
     for type_row in types.values():
         if type_row.id not in seen_types and type_row.active:

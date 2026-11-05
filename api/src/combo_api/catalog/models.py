@@ -1,4 +1,4 @@
-"""Catalog tables. Rows are never deleted: combos will reference `finishes.id`."""
+"""Catalog tables. Rows are never deleted: combos reference `finishes.id` and `agents.id`."""
 
 from datetime import datetime
 
@@ -70,3 +70,23 @@ class Finish(Base):
     @property
     def display_name(self) -> str:
         return f"{self.name} ({self.phase})" if self.phase else self.name
+
+
+class Agent(Base):
+    """A game agent, drawn holding the knife and gloves in combo screenshots."""
+
+    __tablename__ = "agents"
+    __table_args__ = (CheckConstraint("team IN ('ct', 't')", name="team"),)
+
+    id: Mapped[int] = mapped_column(Identity(), primary_key=True)
+    def_index: Mapped[int] = mapped_column(unique=True)
+    codename: Mapped[str] = mapped_column(Text, unique=True)
+    name: Mapped[str] = mapped_column(Text)
+    team: Mapped[str] = mapped_column(Text)
+    rarity_code: Mapped[str] = mapped_column(Text)
+    rarity_name: Mapped[str] = mapped_column(Text)
+    rarity_color: Mapped[str] = mapped_column(Text)
+    image_url: Mapped[str] = mapped_column(Text)
+    active: Mapped[bool] = mapped_column(server_default=true())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
