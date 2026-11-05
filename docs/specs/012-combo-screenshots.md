@@ -1,6 +1,6 @@
 # 012: Screenshot agents
 
-**Status:** Approved
+**Status:** Implemented
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api, admin
@@ -212,7 +212,46 @@ None. On 2026-11-05 the owner approved the first draft with every recommendation
 
 ## Implementation notes
 
-Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+Built on `012-combo-screenshots`, from `main` at the merge of spec 014. The first draft of this spec and its split into this spec and spec 015 are the branch's first two commits.
+
+### Deviations
+
+None that change a requirement. Smaller details the spec left open:
+
+- **Snapshot conversion.** `source.agents_file` is required, so the committed snapshot was converted once by adding it and an empty `agents` list; `refresh --commit cbe5eec…` then wrote the 63 agents. The snapshot diff only adds lines: no knife or glove entry changed. A second `refresh` reproduces the file byte for byte.
+- **Snapshot model.** `Snapshot.agents` defaults to an empty tuple, so snapshots built in tests without agents still load; `refresh` always writes it. `Agent.team` is a plain string in the snapshot model and is checked by validation, so a bad team is reported naming the agent rather than as a parse error. `source.download` takes the file as a second argument, defaulting to `skins.json`.
+- **Layout.** The agent and default agent routes are in `api/src/combo_api/combos/agents.py`; `ScreenshotSettings` is in `combos/models.py` and `Agent` in `catalog/models.py`.
+- **Refresh report.** Agents retired or back since the previous snapshot are listed with the types and finishes; the summary line also counts agents.
+- **Edit page.** The version conflict view also lists the screenshot agent when it differs.
+- **Existing tests changed by the new required field:** update bodies in `api/tests/combos/` gained `"screenshot_agent": null`; the expected create and batch bodies in the admin tests gained `screenshot_agent`; the edit page's "no inputs for the pairing" check now allows the agent search as the only combobox; Home lists a Screenshots section; the edit page's pictures include the default agent's.
+- **Compose check (criterion 4).** The owner's own Compose stack was running with their data, so the check ran as a separate Compose project (`-p combo-skin-012`) with the published ports removed by an override file outside the repository: `migrate` and `catalog` exited 0 (`761 inserted`), a second `catalog` run reported `761 unchanged`, and inside the stack `GET /gloves/specialist/mogul/combos` returned `[]` and `GET /admin/agents` and `GET /admin/screenshot-settings` returned 401. The project was removed afterwards with its volume.
+- **Image.** Built as `combo-skin-api-012`, not `combo-skin-api`, so the owner's local image was not replaced: 228,571,793 bytes.
+
+### Follow-ups
+
+- `admin/src/combos/FinishSearch.tsx` now also searches agents; a more general name would fit it.
+- Spec 015 builds on this one: render inputs, re-rendering on a change of default, and the rest of the Screenshots page.
+
+### Criterion coverage
+
+Test ids are relative to `api/` or `admin/`.
+
+| Criterion | Covered by |
+| --- | --- |
+| 1 | `tests/catalog/test_snapshot.py::test_snapshot_records_its_source`, `::test_snapshot_agents`, `::test_snapshot_is_written_canonically`; `tests/catalog/test_source.py::test_agents_are_normalised`, `::test_refresh_downloads_agents_from_the_same_commit`; `refresh --commit cbe5eec…` twice, then `git diff --exit-code` on `snapshot.json`: no change |
+| 2 | `tests/catalog/test_validate.py::test_duplicate_agent_definition_index`, `::test_duplicate_agent_codename`, `::test_agent_team`, `::test_agent_image_host` (another host, plain `http`); `tests/catalog/test_source.py::test_missing_agent_is_kept_retired`, `::test_refresh_downloads_agents_from_the_same_commit` (the retired agent in the report) |
+| 3 | `tests/test_migrations.py::test_revision_history`, `::test_upgrade_downgrade_upgrade`, `::test_models_match_migrations`, `::test_head_has_only_known_tables`, `::test_default_agent_is_seeded`; `uv run alembic check`: no new operations; `alembic history`: `0001` to `0005` |
+| 4 | `tests/catalog/test_importer.py::test_import_into_empty_catalog` (29 CT, 34 T), `::test_second_import_changes_nothing`, `::test_every_agent_matches_its_row`, `::test_retired_agent_is_deactivated_in_place`, `::test_agent_missing_from_snapshot_is_deactivated`, `::test_reused_agent_codename_is_refused`; Compose, as in Deviations |
+| 5 | `tests/combos/test_agents.py::test_list_agents` |
+| 6 | `tests/combos/test_agents.py::test_create_with_and_without_an_agent`, `::test_update_sets_the_agent`, `::test_update_needs_the_agent_field`, `::test_unknown_and_retired_agents` |
+| 7 | `tests/combos/test_agents.py::test_batch_rows_carry_their_agents`, `::test_batch_refuses_an_unknown_agent` |
+| 8 | `tests/combos/test_agents.py::test_default_agent_setting`, `::test_default_agent_refusals`, `::test_public_responses_have_no_agent` |
+| 9 | `src/pages/AddComboPage.test.tsx` "the screenshot agent" (2 tests), `src/pages/EditComboPage.test.tsx` "the screenshot agent of a combo" (2 tests, including a retired agent the combo keeps), `src/pages/BatchPage.test.tsx` "screenshot agents in a batch" (2 tests) |
+| 10 | `src/pages/ScreenshotsPage.test.tsx` (2 tests) |
+| 11 | `tests/combos/test_schema.py::test_agent_operations_in_schema`; `uv run python -m combo_api.openapi --check` exit 0; `npm run api:types:check` exit 0 in `admin/` and `website/` |
+| 12 | `api/README.md` Catalog, Combos (screenshot agent, batches, default agent), Endpoints and Layout; `admin/README.md` Screens, screenshot agents and Project structure |
+| 13 | In `api/`: format check, lint, mypy (80 files), `pytest` (347 passed, none skipped), OpenAPI check and `export-website --check` exit 0; `docker build` exit 0. In `admin/`: `npm ci`, `api:types:check`, `lint`, `typecheck`, `npm test` (299 passed), `build` (no chunk-size warning) and `check:bundle` exit 0. In `website/`: `api:types:check`, `lint`, `npm test` (94 passed) and `build` exit 0 |
+| 14 | Pending: workflow runs after the owner pushes. `gitleaks git` over the branch and `gitleaks dir .`: no leaks. URLs added outside the generated snapshot and the agents fixture: the game's image host and an `example.com` placeholder in tests, and the dataset's raw-file URL template (now taking the file name) |
 
 ## Audit
 
