@@ -24,6 +24,13 @@ jobs:
       POSTGRES_USER: combo
       POSTGRES_PASSWORD: change-me
       POSTGRES_DB: combo
+      STORAGE_ENDPOINT_URL: http://localhost:9000
+      STORAGE_REGION: auto
+      STORAGE_ACCESS_KEY_ID: local-storage
+      STORAGE_SECRET_ACCESS_KEY: change-me-storage
+      STORAGE_ORIGINALS_BUCKET: local-originals
+      STORAGE_PUBLIC_BUCKET: local-images
+      IMAGE_BASE_URL: http://localhost:9000/local-images
     services:
       db:
         image: postgres:18@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
@@ -35,6 +42,19 @@ jobs:
           - 54320:5432
         options: >-
           --health-cmd "pg_isready -U combo -d combo"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+      # The local storage service, for tests/screenshots/test_s3.py. Throwaway credentials.
+      storage:
+        image: rustfs/rustfs:1.0.4@sha256:ed9210d6411d77ffceb70d94b964a3cb7d225983368bc25bebe01e995293dcc2
+        env:
+          RUSTFS_ACCESS_KEY: local-storage
+          RUSTFS_SECRET_KEY: change-me-storage
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd "curl -fsS -o /dev/null http://localhost:9000/health"
           --health-interval 2s
           --health-timeout 5s
           --health-retries 15
@@ -70,6 +90,11 @@ jobs:
       - run: test "$(curl -fsS http://localhost:8000/gloves/specialist/mogul/combos)" = "[]"
       - run: test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/admin/combos)" -eq 401
       - run: test "$(curl -fsS http://localhost:8000/combo-counts)" = '{"gloves":{},"knives":{}}'
+      - run: test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/admin/workers)" -eq 401
+      - run: test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:8000/worker/jobs/claim)" -eq 401
+      # Bucket setup is safe to re-run, and both buckets exist.
+      - run: docker compose run --rm storage-init
+      - run: docker compose run --rm storage-init python -m combo_api.screenshots init --check
       # Public routes are readable from any origin; admin routes send it no CORS headers.
       - run: |
           headers="$(curl -s -D - -o /dev/null -H 'Origin: http://localhost:5173' http://localhost:8000/gloves/specialist/mogul/combos)"
