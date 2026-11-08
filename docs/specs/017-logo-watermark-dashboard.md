@@ -1,6 +1,6 @@
 # 017: Logo watermark, dashboard fixes and image clicks
 
-**Status:** Approved
+**Status:** Implemented
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api, admin, website
@@ -248,7 +248,66 @@ None. The owner answered the first draft's questions on 2026-11-08:
 
 ## Implementation notes
 
-Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+Built in the order A, C, B. The branch was rebased on `main` after spec 016 merged (2026-11-08), with no conflicts.
+
+**Criterion to check**
+
+| Criterion | Covered by |
+| --- | --- |
+| 1 | `api/tests/screenshots/test_watermark.py:21` `test_logo_sits_in_its_box_in_the_bottom_right_corner` (1920, 1280, 640) |
+| 2 | `api/tests/screenshots/test_watermark.py:40` `test_logo_is_white_at_sixty_percent_opacity` |
+| 3 | `api/tests/screenshots/test_watermark.py:61` `test_logo_file_is_white_rgba` |
+| 4 | `api/tests/screenshots/test_watermark.py:70` `test_watermark_revision_is_raised_and_the_font_is_gone`; `rebuild` in `test_commands.py:73`; `THIRD_PARTY_NOTICES.md` and `api/README.md` read |
+| 5 | Manual, below |
+| 6 | `admin/src/combos/fill.test.ts:46` and `:52` (every row, three own values, with and without a top rating) |
+| 7 | `admin/src/pages/BatchPage.test.tsx:141` "moves no other knife when a typed knife gets its own rating", `:167` "keeps no rating among a knife own values"; spec 010's criterion 17, changed to the new button, at `:92` and `:126` |
+| 8 | `admin/src/pages/HomePage.test.tsx:57`; `admin/src/App.test.tsx:321` (four links) and `:53` (`aria-current` on `/screenshots`) |
+| 9 | `admin/src/pages/BatchPage.test.tsx:242`; shared controls still pass `admin/src/pages/KnifeOrderPage.test.tsx:13` |
+| 10 | `admin/src/pages/BatchPage.test.tsx:268` |
+| 11 | `admin/src/pages/BatchPage.test.tsx:312`, `:337` (0, 1.01, `abc`, 0.055), `:350` |
+| 12 | `admin/src/pages/BatchPage.test.tsx:293` (leaving and coming back); `admin/src/combos/drafts.test.tsx:47` (session end) |
+| 13 | `admin/src/pages/FinishPage.test.tsx:249` |
+| 14 | `admin/src/pages/FinishPage.test.tsx:277` (Back link and the browser's Back) |
+| 15 | `admin/src/pages/FinishPage.test.tsx:301`, `:340` |
+| 16 | `admin/src/pages/FinishPage.test.tsx:369` |
+| 17 | `admin/src/combos/order.test.ts` |
+| 18 | `admin/src/pages/FinishPage.test.tsx:425`, `:441`, `:463` |
+| 19 | Manual, below |
+| 20 | `website/src/pages/ImageClicks.test.tsx:30` (Home) and `:42` (every card of `/gloves` and `/knives`); both failed before the fix |
+| 21 | `website/src/pages/ImageClicks.test.tsx:68` (Home, both grids, a type page of each, a combo page) |
+| 22 | Owner's trackpad check outstanding; a synthetic check, below |
+| 23 | Commands below |
+| 24 | After the owner pushes |
+
+**Manual checks** (2026-11-08, against a separate local Compose project on its own ports, with a throwaway admin made by a script, since the admin tool reads passwords only from a terminal; the project was removed afterwards)
+
+- Criterion 5: a 1920 by 1080 stand-in PNG sent through a worker claim was answered 201. Measured against the stand-in in the bottom-right corner, the changed box of the 1920 version was x 1661 to 1880, y 974 to 1044 (expected 1660 to 1880, 971 to 1048; the logo's faint edge is under the threshold), of the 1280 version 1107 to 1253 by 650 to 697, of the 640 version 554 to 627 by 325 to 348. Solid parts of the logo lift each pixel 0.60 of the way to white (0.61 at 640). The crop matched the approved preview.
+- Criterion 19, in the built dashboard (`vite preview`) at 1024 wide: with 59 drafts listed, scrolled to the middle (6413 px), Edit then Back, and Edit then the browser's Back, both came back to `?status=draft` at 6413 px. Two ratings typed and saved with Enter in a row; both stayed in place with "Order changed." until Sort again. Mouse drag: a drop where no rating fits (9.70 and 9.69) was refused with the message; a drop between 9.69 and 9.65 saved 9.67. Keyboard drag (Space, Down, Down, Space) saved 9.65 between 9.69 and 9.62. At 375 wide with touch events (press 400 ms, then move), a drop saved 9.68 between 9.69 and 9.67, with no sideways scroll. In a batch, "Own rating" on a knife typed 9 kept the box focused at 9.00 and the knives below at 8.95 and 8.90, also after typing 7.25. No CSP violation in the console; the page's policy keeps `style-src 'self'`.
+- Criterion 22: in the built website, presses with a 1 px move sent as pointer events navigated 20 of 20 times on each hero card and on five glove cards. Not a trackpad: the owner's check stays open.
+
+**Deviation for the owner to decide (2026-11-08).** Design, Order after an edit, says Tab goes from a combo's rating to its Save button and then to the next combo's rating. Each row also has its drag handle, checkbox, name link, Edit, Publish or Unpublish and Delete, so Tab passes those (six stops) before the next rating. The rating and Save are the row's last controls, so nothing else comes between them. Reaching the next rating directly would need either the other controls out of the Tab order (not accessible) or Enter moving focus to the next combo's rating after a save.
+
+**Details settled while building**
+
+- Dragging is off while an edited combo waits for "Sort again": the list is then not in rating order, so neighbours would not bound a rating. The handles stay, marked unavailable.
+- A drop saves at once; on a conflict the dropped rating is put in the field, so "Keep mine" and Save send it.
+- With dnd-kit's keyboard support, each Down moves the combo one place; Space drops it over the combo it is on. Picking a combo up clears the list's last message.
+- The drag live region (dnd-kit's, `role="status"`) is a second status region on finish pages, so older tests find messages by text. The rating is now a field, so they read its value instead of the row's text. The 501-combo test finds its count by text: a role query over 501 rows takes minutes in jsdom (rendering itself takes about 0.1 s at 200 rows).
+- `@dnd-kit/utilities` 3.2.2 (MIT) is a direct dependency for its transform helper; `npm audit --omit=dev` finds nothing.
+- The hero images also got `select-none`, as the grid cards have.
+- The API image was built under its own tag, not `combo-skin-api`, so the local stack's image was not replaced: 278 MB (279 MB before).
+
+**Results**
+
+- `api/`: ruff format (119 files formatted), ruff check, mypy (111 files) pass; pytest 455 passed, none skipped; the OpenAPI snapshot is unchanged.
+- `admin/`: `npm ci`, `api:types:check`, lint, typecheck pass; 365 tests in 27 files pass; build and `check:bundle` pass.
+- `website/`: `npm ci`, `api:types:check`, lint pass; 209 tests in 11 files pass; build passes.
+- `gitleaks dir .` and `gitleaks git` over the branch: no leaks.
+
+**Follow-ups**
+
+- Criterion 22 on a Mac trackpad, and criterion 24 after the push.
+- The owner runs `rebuild` after the merge, so existing screenshots get the logo.
 
 ## Audit
 
