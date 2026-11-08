@@ -525,3 +525,27 @@ async def test_a_worker_revoked_mid_request_cannot_claim_or_answer(
     jobs = (await db_session.scalars(select(ScreenshotJob))).all()
     assert [(j.worker_id, j.lease_expires_at) for j in jobs] == [(worker["id"], None)]
     assert (await setup.state(combo["id"]))["attempts"] == 0
+
+
+async def test_a_request_during_a_render_asks_for_another(setup: Setup) -> None:
+    """A render claimed before the request does not answer it: the combo stays due."""
+    combo = await create(setup.client, setup.headers, glove=MOGUL, knife=FADE)
+    await setup.render(combo["id"])
+    setup.clock.advance(seconds=5)
+    response = await setup.client.post(
+        "/admin/screenshots/request", json={"ids": [combo["id"]]}, headers=setup.headers
+    )
+    assert response.status_code == 200
+    job = await setup.claim()
+    assert job is not None
+    setup.clock.advance(seconds=5)
+    again = await setup.client.post(
+        "/admin/screenshots/request", json={"ids": [combo["id"]]}, headers=setup.headers
+    )
+    assert again.status_code == 200
+    setup.clock.advance(seconds=5)
+    await setup.store(job)
+    state = await setup.state(combo["id"])
+    assert state["state"] == "waiting"
+    await setup.render(combo["id"])
+    assert (await setup.state(combo["id"]))["state"] == "done"

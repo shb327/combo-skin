@@ -120,7 +120,9 @@ async def store(db: AsyncSession, worker: CurrentWorker, job_id: str, request: R
     shot.watermark_revision = images.WATERMARK_REVISION
     shot.inputs = claimed or {}
     shot.worker_id = worker.id
-    shot.created_at = clock.now()
+    # Made when it was claimed: a request for a new screenshot after the claim stays open.
+    lease = job.lease_expires_at
+    shot.created_at = lease - queue.LEASE if lease else clock.now()
     queue.close(job)
     job.attempts = 0
     job.attempt_inputs = job.last_reason = job.next_attempt_at = None
