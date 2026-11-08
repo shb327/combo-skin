@@ -116,7 +116,11 @@ def versions(image: Image.Image) -> list[Version]:
     made = []
     for width in WIDTHS:
         height = round(image.height * width / image.width)
-        scaled = image if width == image.width else image.resize((width, height), Image.LANCZOS)
+        scaled = (
+            image
+            if width == image.width
+            else image.resize((width, height), Image.Resampling.LANCZOS)
+        )
         buffer = io.BytesIO()
         watermark(scaled).save(buffer, format="WEBP", quality=WEBP_QUALITY, method=4)
         made.append(Version(width, height, buffer.getvalue()))

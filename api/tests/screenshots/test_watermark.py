@@ -28,7 +28,10 @@ def test_mark_stays_in_the_bottom_right_corner(
 
 def test_mark_is_light_text_over_a_dark_shadow() -> None:
     plain = Image.new("RGB", (1920, 1080), GREY)
-    low, high = watermark(plain).crop((1600, 990, 1920, 1080)).getchannel("R").getextrema()
+    extrema = watermark(plain).crop((1600, 990, 1920, 1080)).getchannel("R").getextrema()
+    assert isinstance(extrema, tuple)
+    low, high = extrema
+    assert isinstance(low, int) and isinstance(high, int)
     assert high > 200
     assert low < 100
 
