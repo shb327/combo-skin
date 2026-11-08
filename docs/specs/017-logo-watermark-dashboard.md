@@ -275,7 +275,7 @@ Built in the order A, C, B. The branch was rebased on `main` after spec 016 merg
 | 19 | Manual, below |
 | 20 | `website/src/pages/ImageClicks.test.tsx:30` (Home) and `:42` (every card of `/gloves` and `/knives`); both failed before the fix |
 | 21 | `website/src/pages/ImageClicks.test.tsx:68` (Home, both grids, a type page of each, a combo page) |
-| 22 | Owner's trackpad check outstanding; a synthetic check, below |
+| 22 | Owner's trackpad check, passed (below); a synthetic check, below |
 | 23 | Commands below |
 | 24 | After the owner pushes |
 
@@ -283,7 +283,7 @@ Built in the order A, C, B. The branch was rebased on `main` after spec 016 merg
 
 - Criterion 5: a 1920 by 1080 stand-in PNG sent through a worker claim was answered 201. Measured against the stand-in in the bottom-right corner, the changed box of the 1920 version was x 1661 to 1880, y 974 to 1044 (expected 1660 to 1880, 971 to 1048; the logo's faint edge is under the threshold), of the 1280 version 1107 to 1253 by 650 to 697, of the 640 version 554 to 627 by 325 to 348. Solid parts of the logo lift each pixel 0.60 of the way to white (0.61 at 640). The crop matched the approved preview.
 - Criterion 19, in the built dashboard (`vite preview`) at 1024 wide: with 59 drafts listed, scrolled to the middle (6413 px), Edit then Back, and Edit then the browser's Back, both came back to `?status=draft` at 6413 px. Two ratings typed and saved with Enter in a row; both stayed in place with "Order changed." until Sort again. Mouse drag: a drop where no rating fits (9.70 and 9.69) was refused with the message; a drop between 9.69 and 9.65 saved 9.67. Keyboard drag (Space, Down, Down, Space) saved 9.65 between 9.69 and 9.62. At 375 wide with touch events (press 400 ms, then move), a drop saved 9.68 between 9.69 and 9.67, with no sideways scroll. In a batch, "Own rating" on a knife typed 9 kept the box focused at 9.00 and the knives below at 8.95 and 8.90, also after typing 7.25. No CSP violation in the console; the page's policy keeps `style-src 'self'`.
-- Criterion 22: in the built website, presses with a 1 px move sent as pointer events navigated 20 of 20 times on each hero card and on five glove cards. Not a trackpad: the owner's check stays open.
+- Criterion 22: in the built website, presses with a 1 px move sent as pointer events navigated 20 of 20 times on each hero card and on five glove cards. Not a trackpad. On 2026-11-08 the owner pressed both hero cards and the glove and knife cards on a Mac trackpad, against this branch's website and their own API, and every press navigated.
 
 **Agreed deviation (2026-11-08).** Design, Order after an edit, says Tab goes from a combo's rating to its Save button and then to the next combo's rating. Each row also has its drag handle, checkbox, name link, Edit, Publish or Unpublish and Delete, so Tab passes those (six stops) before the next rating. The rating and Save are the row's last controls, so nothing else comes between them. Reaching the next rating directly would need either the other controls out of the Tab order (not accessible) or Enter moving focus to the next combo's rating after a save. The owner accepted the Tab order as built: Tab passes the row's other controls, and Enter does not move focus.
 
@@ -306,7 +306,7 @@ Built in the order A, C, B. The branch was rebased on `main` after spec 016 merg
 
 **Follow-ups**
 
-- Criterion 22 on a Mac trackpad, and criterion 24 after the push.
+- Criterion 24 after the push.
 - The owner runs `rebuild` after the merge, so existing screenshots get the logo.
 
 ## Audit
