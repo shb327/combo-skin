@@ -14,7 +14,7 @@ In Counter-Strike 2, players equip cosmetic gloves and knives, each available in
 - **See combos for a glove or knife finish**: the knives that suit a glove finish, or the gloves that suit a knife finish, best rated first, each with a rating, both finish pictures, the pattern seeds and float ranges that suit it ("Any" where any will do), and sometimes a short description.
 - **Search** gloves and knives by name from the top bar.
 
-Combos come from the Combo Skin API ([`api/`](../api/README.md)): they are entered in the admin dashboard, and only published combos are shown. In-game screenshots of each combo are planned; until then a card shows the catalog pictures of its gloves and knife.
+Combos come from the Combo Skin API ([`api/`](../api/README.md)): they are entered in the admin dashboard, and only published combos are shown. Each card shows the combo's in-game screenshot, drawn by a screenshot worker and watermarked by the API; a combo without one yet, or whose screenshot fails to load, shows the catalog pictures of its gloves and knife instead.
 
 ## Screenshots
 
@@ -59,9 +59,10 @@ Optional settings live in `website/.env`, which is never committed (see [`.env.e
 | Variable | Example | Meaning |
 | --- | --- | --- |
 | `VITE_API_BASE_URL` | `https://api.example.com` | Optional. The API's origin; `http://localhost:8000` when unset. Exactly an origin: `http` or `https`, a host and an optional port, with no path, trailing slash, query or user info; plain `http` only for `localhost`. Any other value stops the dev server and the build with an error naming the variable. |
+| `VITE_IMAGE_ORIGIN` | `https://images.example.com` | Optional. Where combo screenshots load from: the API's public image bucket, `http://localhost:9000` (the local storage service of the Compose stack) when unset. The same rules as `VITE_API_BASE_URL`; an invalid value stops the dev server and the build with an error naming the variable. |
 | `DEV_ALLOWED_HOSTS` | `tunnel.example.com` | Optional. Comma-separated extra hosts the dev server accepts, for example a tunnel to your machine. Dev server only. |
 
-Finish images load from Steam's image servers, using the URLs in `src/data/catalog.json` (see Data); the browser sends them no referrer. Combo cards show the same catalog pictures, from the URLs in the API's answer, and only from Steam's image host. Glove and knife type images and the home page artwork are stored in the repository, imported in code and bundled by the build.
+Finish images load from Steam's image servers, using the URLs in `src/data/catalog.json` (see Data); the browser sends them no referrer. Combo cards show the combo's screenshot: an `img` with a `srcset` of its three WebP versions (640, 1280 and 1920 pixels wide), `sizes="(min-width: 1024px) 50vw, 100vw"` to match the one- and two-column layouts, a fixed width and height so nothing shifts while it loads, lazy loading and no referrer. Screenshots load only from `VITE_IMAGE_ORIGIN`; a URL on any other host, a combo without a screenshot, or an image that fails to load shows the catalog pictures, from the URLs in the API's answer and only from Steam's image host. Glove and knife type images and the home page artwork are stored in the repository, imported in code and bundled by the build.
 
 The API answers the site's requests from any origin (see Public CORS in [`api/README.md`](../api/README.md)); the site sends them without cookies.
 
@@ -81,7 +82,7 @@ Without it, Vite answers requests for any other host with 403. `DEV_ALLOWED_HOST
 | --- | --- |
 | `src/pages/` | One component per route: `Home`, `SearchGloves`, `GloveFinishes`, `SearchKnives`, `KnifeFinishes`, `Combos`. Routes are defined in `src/App.tsx`. |
 | `src/components/` | Shared UI: app bar with search, hero, item cards, footer. |
-| `src/api/` | The API client (`client.ts`, the only module that makes requests), its types generated from the OpenAPI snapshot (`schema.d.ts`), the combos and counts queries (`queries.ts`, with the count helpers in `counts.ts`), and the API origin and picture host rules. |
+| `src/api/` | The API client (`client.ts`, the only module that makes requests), its types generated from the OpenAPI snapshot (`schema.d.ts`), the combos and counts queries (`queries.ts`, with the count helpers in `counts.ts`), and the API origin, image origin, picture and screenshot host rules. |
 | `src/data/` | The generated knife and glove catalog (`catalog.json`, read by `gloves.ts` and `knives.ts`). |
 | `src/assets/` | Images bundled with the site: logos, glove and knife type images, the home page artwork (`hero/`). |
 | `src/test/` | Test helpers: the fake API and a renderer for the whole site. Tests sit next to the code as `*.test.ts(x)`. |
