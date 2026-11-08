@@ -1,6 +1,6 @@
 # 017: Logo watermark, dashboard fixes and image clicks
 
-**Status:** Implemented
+**Status:** Audited
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api, admin, website
@@ -312,8 +312,10 @@ Built in the order A, C, B. The branch was rebased on `main` after spec 016 merg
 
 ## Audit
 
-**Date:** 2026-11-08 · **Branch:** 017-logo-watermark-dashboard · **Commit:** 9559e5c
-**Verdict:** Fail
+**Date:** 2026-11-08 · **Branch:** 017-logo-watermark-dashboard · **Commit:** 83be484
+**Verdict:** Pass with follow-ups
+
+Re-audit. The first audit (at 9559e5c, recorded in `a966813`) failed on one blocking finding: a drop made after a rating was saved in place kept the dropped combo in its old place, with "Order changed. Sort again", although its new rating was saved. `3612bd0` releases the held order on a drop; `admin/src/pages/FinishPage.test.tsx:463` covers it and failed before the fix. Only `admin/src/combos/ComboList.tsx`, that test and the spec changed since the first audit, so the API and website results below are from the first audit's clean runs on the same code.
 
 | # | Criterion | Result | Evidence |
 | --- | --- | --- | --- |
@@ -334,29 +336,28 @@ Built in the order A, C, B. The branch was rebased on `main` after spec 016 merg
 | 15 | Inline rating | Pass | `FinishPage.test.tsx:301`, `:340` |
 | 16 | Inline rating conflict | Pass | `FinishPage.test.tsx:369` |
 | 17 | `ratingBetween` | Pass | `admin/src/combos/order.test.ts` |
-| 18 | Keyboard drag | Pass | `FinishPage.test.tsx:425`, `:441`, `:463`, from a freshly sorted list; see the blocking finding for a drop after an in-place save |
+| 18 | Keyboard drag | Pass | `FinishPage.test.tsx:425`, `:441`, `:463` (a drop after a rating saved in place), `:483` |
 | 19 | Manual dashboard checks | Pass | Implementation notes, Manual checks |
 | 20 | Click test | Pass | `website/src/pages/ImageClicks.test.tsx:30`, `:42`; failing before the fix recorded in Implementation notes, not re-run |
 | 21 | `draggable` test | Pass | `ImageClicks.test.tsx:67` |
 | 22 | Trackpad | Pass | Owner's check, Implementation notes |
 | 23 | Commands, README | Pass | Table below; `admin/README.md` describes batch order and step, inline rating, dragging and the navigation |
-| 24 | Workflow runs and secret scan | Pass | For 9559e5c: push runs `api` 42525640644, `admin` 42525640643, `website` 42525640637, and pull request runs `api` 42525644037, `admin` 42525644004, `website` 42525643997, all successful (8 of 8 checks on the pull request); gitleaks below |
+| 24 | Workflow runs and secret scan | Pass | For 83be484: push runs `api` 42526386540, `admin` 42526386542, `website` 42526386555, and pull request runs `api` 42526388882, `admin` 42526389042, `website` 42526389017, all successful (8 of 8 checks on the pull request). The first audit's commit 9559e5c also passed all six runs; gitleaks below |
 
 | Check | Command | Result |
 | --- | --- | --- |
-| Lint | `api/`: `uv sync --locked`, `ruff format --check .` (119 files), `ruff check .`, `mypy` (111 files); `admin/`: `npm ci`, `api:types:check`, `lint`, `typecheck`; `website/`: `npm ci`, `api:types:check`, `lint` | Pass |
-| Tests | `api/`: `uv run pytest` 455 passed, none skipped, OpenAPI check unchanged; `admin/`: `npm test` 365 passed in 27 files; `website/`: `npm test` 209 passed | Pass |
-| Build | `docker build` of `api/` (278 MB); `admin/`: `npm run build`, `check:bundle`; `website/`: `npm run build` | Pass |
-| Secret scan | `gitleaks dir .`, `gitleaks git` over `main..017-logo-watermark-dashboard` (15 commits) | Pass |
+| Lint | `admin/` at 83be484: `lint`, `typecheck` (after the first audit's `npm ci`; dependencies unchanged). First audit: `api/` `uv sync --locked`, `ruff format --check .` (119 files), `ruff check .`, `mypy` (111 files); `admin/` and `website/` `npm ci`, `api:types:check`, `lint` | Pass |
+| Tests | `admin/` at 83be484: `npm test` 366 passed in 27 files. First audit: `api/` `uv run pytest` 455 passed, none skipped, OpenAPI check unchanged; `website/` `npm test` 209 passed | Pass |
+| Build | `admin/` at 83be484: `npm run build`, `check:bundle`. First audit: `docker build` of `api/` (278 MB); `website/` `npm run build` | Pass |
+| Secret scan | `gitleaks dir .`, `gitleaks git` over `main..017-logo-watermark-dashboard` at 83be484 | Pass |
 | Public exposure | manual review of the diff and log: no secrets, hosts, paths or private names; commits by the owner, one line, no trailers; `.claude/` and `CLAUDE.md` ignored and untracked | Pass |
-| Design conformance | manual review | Fail |
+| Design conformance | manual review | Pass with follow-ups |
 
 **Findings**
 
-- (blocking) A drop after a rating was saved in place keeps the combo in its old place. An inline save freezes the shown order (`admin/src/combos/ComboList.tsx:206`), and only "Sort again" or a view change clears it. When that save did not change the order, dragging stays enabled (`:100` to `:102`). A drop then saves the right rating, but the list still follows the frozen order, so the combo stays where it was and "Order changed. Sort again" shows. Reproduced in a throwaway test, since deleted: with ratings 9.00, 8.79, 8.62 and 8.61, saving 8.50 on the last combo and then dragging the first down one place saved 8.70, and the list stayed in the old order with "Sort again". Design (Drag) says the combo "shows in its new place while saving", and R13 says it is dragged to a new place. No test covers a drop after an in-place save.
 - (follow-up) Criterion 15: "other values unchanged" is checked on a combo with no description, conditions or agent, so a request built from defaults would also pass; the Enter case checks only the count and the rating; the "Order changed." text is not asserted.
 - (follow-up) Criterion 16: the time is matched with `.*`, so an empty or invalid time would pass.
 - (follow-up) Criterion 17: 9.95 itself is not tested; 9.96 checks only the cap.
 - (follow-up) Criterion 14: the test does not show that `scrollTo` waits for the combos to render, only that it runs once they have.
-- (follow-up) Not recorded in Implementation notes: the end-of-list refusals say "No rating fits above X." or "below X." instead of the Design's "between" text; Save stays disabled while a conflict is shown until "Use theirs" or "Keep mine"; the list's rating label is visible to screen readers only; a missing or invalid step blocks Save only for ticked rows after the first that follow the fill (asserted at `BatchPage.test.tsx:350`).
-- (follow-up) Implementation notes point to `BatchPage.test.tsx:337`; that test starts at `:332`.
+- (follow-up) Not recorded in Implementation notes, none changing a requirement: the end-of-list refusals say "No rating fits above X." or "below X." instead of the Design's "between" text; Save stays disabled while a conflict is shown until "Use theirs" or "Keep mine"; the list's rating label is visible to screen readers only; a missing or invalid step blocks Save only for ticked rows after the first that follow the fill (asserted at `BatchPage.test.tsx:350`).
+- (follow-up) The drop fix was checked in the test only, not in a browser.
