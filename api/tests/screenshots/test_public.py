@@ -74,6 +74,13 @@ async def test_public_combos_carry_their_screenshot_only(
     ):
         assert word not in response.text, word
 
+    # The knife finish's list carries the same screenshot and nothing more.
+    knife_list = await public.get("/knives/karambit/fade/combos")
+    assert knife_list.status_code == 200
+    assert [c["screenshot"] for c in knife_list.json()] == [screenshot]
+    for word in (shot.original_key, ".png", "originals", "state", "agent", "worker"):
+        assert word not in knife_list.text, word
+
     # Changed render inputs: the old screenshot stays until a new one is stored.
     current = await admin_combo(admin_client, pictured["id"])
     await update(admin_client, headers, current, knife={"float_from": 0.01, "float_to": 0.02})

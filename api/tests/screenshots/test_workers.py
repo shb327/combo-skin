@@ -151,6 +151,7 @@ async def test_tokens_and_sessions_stay_on_their_own_routes(
 
     admin_routes: list[tuple[str, str, dict[str, Any], Any]] = [
         *ROUTES,
+        ("GET", "/admin/me", {}, None),
         ("GET", "/admin/workers", {}, None),
         ("POST", "/admin/workers", {}, {"name": "x"}),
         ("POST", "/admin/workers/1/revoke", {}, None),
