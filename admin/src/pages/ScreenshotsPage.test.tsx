@@ -72,7 +72,7 @@ describe('screenshots after a default agent change', () => {
     await user.type(within(current).getByRole('combobox', { name: 'Find an agent' }), 'darryl')
     await user.keyboard('{ArrowDown}{Enter}')
     const dialog = await screen.findByRole('dialog')
-    expect(dialog).toHaveTextContent('2 combos use the default agent. Their screenshots are drawn again.')
+    expect(dialog).toHaveTextContent('2 combos use the default agent. 2 of them get a new screenshot.')
     await user.click(within(dialog).getByRole('button', { name: 'Change default' }))
     expect(await screen.findByText('Saved the default agent. 2 combos get a new screenshot.')).toBeInTheDocument()
   })
@@ -186,5 +186,23 @@ describe('failed screenshots', () => {
       { ids: failed.map((c) => c.id) },
     ])
     expect(await within(section).findByText('No failed screenshots.')).toBeInTheDocument()
+  })
+})
+
+describe('asking again for many failed screenshots', () => {
+  it('sends at most 500 ids per request', async () => {
+    const fake = new FakeApi().withSession()
+    const ids = Array.from(
+      { length: 501 },
+      (_, i) => fake.store.add({ glove: 'specialist/crimson-kimono', knife: 'karambit/doppler-ruby', rating: 5, shot: 'failed', description: `n${i}` }).id,
+    )
+    const { user } = renderApp('/screenshots', fake)
+    const section = await screen.findByRole('region', { name: 'Failed screenshots' })
+    await user.click(await within(section).findByRole('button', { name: 'Ask again for all failed' }))
+    await waitFor(() => expect(fake.to('POST /admin/screenshots/request')).toHaveLength(2))
+    const sent = fake.to('POST /admin/screenshots/request').map((r) => (JSON.parse(r.body) as { ids: string[] }).ids)
+    expect(sent.map((batch) => batch.length)).toEqual([500, 1])
+    expect(sent.flat()).toEqual(ids)
+    expect(await within(section).findByText('Asked again for 501 screenshots.')).toBeInTheDocument()
   })
 })

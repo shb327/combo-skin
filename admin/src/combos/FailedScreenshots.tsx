@@ -7,6 +7,8 @@ import { REASONS } from './screenshotState'
 import { LINK, SECONDARY } from './styles'
 import { QueryState } from './ui'
 
+const REQUEST_MAX = 500
+
 /** Combos whose screenshot failed three times for their current render inputs. */
 export function FailedScreenshots() {
   const api = useApi()
@@ -22,10 +24,13 @@ export function FailedScreenshots() {
     setMessage(null)
     setFailure(null)
     try {
-      const { data } = await api.request('post', '/admin/screenshots/request', {
-        body: { ids: failed.map((combo) => combo.id) },
-      })
-      const changed = data?.changed ?? 0
+      let changed = 0
+      // The API takes at most REQUEST_MAX ids per request.
+      for (let start = 0; start < failed.length; start += REQUEST_MAX) {
+        const ids = failed.slice(start, start + REQUEST_MAX).map((combo) => combo.id)
+        const { data } = await api.request('post', '/admin/screenshots/request', { body: { ids } })
+        changed += data?.changed ?? 0
+      }
       setMessage(`Asked again for ${changed} ${changed === 1 ? 'screenshot' : 'screenshots'}.`)
       await writes()
     } catch (error) {

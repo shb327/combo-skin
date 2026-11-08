@@ -7,7 +7,7 @@ import { AgentPicker } from '../combos/AgentPicker'
 import { FailedScreenshots } from '../combos/FailedScreenshots'
 import { Workers } from '../combos/Workers'
 import { comboErrorMessage } from '../combos/messages'
-import { keys, useAgents, useScreenshotSettings, type Agent } from '../combos/queries'
+import { keys, useAgents, useCombos, useScreenshotSettings, type Agent } from '../combos/queries'
 import { LINK } from '../combos/styles'
 import { ConfirmDialog } from '../combos/ui'
 
@@ -23,6 +23,12 @@ export function ScreenshotsPage() {
   const queryClient = useQueryClient()
   const settings = useScreenshotSettings()
   const agents = useAgents()
+  // The combos already loaded for the failed list: those using the default whose screenshot is
+  // done get a new one when the default changes.
+  const combos = useCombos({})
+  const redrawn = combos.data?.filter(
+    (combo) => combo.screenshot_agent === null && combo.screenshot_state.state === 'done',
+  ).length
   const [pending, setPending] = useState<Agent | null>(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -92,7 +98,10 @@ export function ScreenshotsPage() {
           onCancel={() => setPending(null)}
           onConfirm={() => void save(pending)}
         >
-          {usingDefault(settings.data.using_default)} Their screenshots are drawn again.
+          {usingDefault(settings.data.using_default)}{' '}
+          {redrawn === undefined
+            ? 'Their screenshots are drawn again.'
+            : `${redrawn} of them ${redrawn === 1 ? 'gets' : 'get'} a new screenshot.`}
         </ConfirmDialog>
       )}
       <Workers />
