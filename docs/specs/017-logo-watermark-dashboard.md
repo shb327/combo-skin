@@ -1,6 +1,6 @@
 # 017: Logo watermark, dashboard fixes and image clicks
 
-**Status:** Draft
+**Status:** Approved
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api, admin, website
