@@ -7,7 +7,9 @@ requires-python = ">=3.14,<3.15"
 dependencies = [
     "alembic>=1.20",
     "argon2-cffi>=25.1",
+    "boto3>=1.43.126",
     "fastapi>=0.162",
+    "pillow>=13.0.0",
     "psycopg[binary]>=3.3",
     "pydantic-settings>=2.16",
     "sqlalchemy[asyncio]>=2.1.6",
