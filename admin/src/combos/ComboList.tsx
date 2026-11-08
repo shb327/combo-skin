@@ -255,6 +255,9 @@ export function ComboList({ side, filters }: { side: Kind; filters: ComboFilters
       return
     }
     const combo = moved[to]
+    // Dragging is only allowed while the shown order is the rating order, so a held order from
+    // an earlier in-place save is released: the dropped combo then shows in its new place.
+    setFrozen(null)
     setDropping({ id: combo.id, rating })
     void saveRating(combo, rating, { drop: true })
   }

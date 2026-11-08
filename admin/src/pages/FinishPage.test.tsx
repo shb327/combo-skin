@@ -460,6 +460,26 @@ describe('dragging a combo to a new place', () => {
     await user.keyboard('[Escape]')
   })
 
+  it('shows the combo in its new place after a rating saved in place kept the order', async () => {
+    layOutCombos()
+    const fake = withRatings()
+    const { user } = renderApp(GLOVES, fake)
+    await screen.findByRole('listitem', { name: BUTTERFLY })
+    const box = ratingBox('Karambit | Blue Steel')
+    await user.clear(box)
+    await user.type(box, '8.5{Enter}')
+    await waitFor(() => expect(fake.to('PUT /admin/combos/{id}')).toHaveLength(1))
+    screen.getByRole('button', { name: 'Drag Karambit | Doppler (Ruby)' }).focus()
+    await user.keyboard('[Space]')
+    await user.keyboard('[ArrowDown]')
+    await user.keyboard('[Space]')
+    await waitFor(() => expect(fake.to('PUT /admin/combos/{id}')).toHaveLength(2))
+    expect(JSON.parse(fake.to('PUT /admin/combos/{id}')[1].body)).toMatchObject({ rating: 8.7 })
+    await waitFor(() => expect(ratingBox('Karambit | Doppler (Ruby)')).toHaveValue('8.70'))
+    expect(listed()).toEqual([BUTTERFLY, 'Karambit | Doppler (Ruby)', 'M9 Bayonet | Doppler (Ruby)', 'Karambit | Blue Steel'])
+    expect(screen.queryByRole('button', { name: 'Sort again' })).toBeNull()
+  })
+
   it('shows no handle while sorted by last change', async () => {
     renderApp(`${GLOVES}?sort=updated`, withRatings())
     await screen.findByRole('listitem', { name: BUTTERFLY })
