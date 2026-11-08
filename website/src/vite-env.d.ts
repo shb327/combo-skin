@@ -13,4 +13,6 @@ interface ImportMetaEnv {
   readonly VITE_API_BASE_URL: string
   /** Where screenshots are loaded from, checked and defaulted by vite.config.ts. */
   readonly VITE_IMAGE_ORIGIN: string
+  /** The 3D viewer's origin, checked and defaulted by vite.config.ts. */
+  readonly VITE_VIEWER_ORIGIN: string
 }
