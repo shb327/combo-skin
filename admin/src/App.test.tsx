@@ -50,6 +50,13 @@ describe('loading', () => {
     expect(fake.to('GET /admin/me')).toHaveLength(1)
   })
 
+  it('marks Screenshots as the current section on its page', async () => {
+    renderApp('/screenshots', new FakeApi().withSession())
+    const nav = await screen.findByRole('navigation', { name: 'Sections' })
+    expect(within(nav).getByRole('link', { name: 'Screenshots' })).toHaveAttribute('aria-current', 'page')
+    expect(within(nav).getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current')
+  })
+
   it('shows the login page without one', async () => {
     const { fake } = renderApp('/')
     expect(await screen.findByLabelText('Username')).toBeInTheDocument()
@@ -322,8 +329,8 @@ describe('shell', () => {
 
     const nav = screen.getByRole('navigation')
     const links = within(nav).getAllByRole('link')
-    expect(links.map((l) => l.textContent)).toEqual(['Home', 'By gloves', 'By knife'])
-    expect(links.map((l) => l.getAttribute('href'))).toEqual(['/', '/gloves', '/knives'])
+    expect(links.map((l) => l.textContent)).toEqual(['Home', 'By gloves', 'By knife', 'Screenshots'])
+    expect(links.map((l) => l.getAttribute('href'))).toEqual(['/', '/gloves', '/knives', '/screenshots'])
     expect(within(nav).getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page')
 
     const main = screen.getByRole('main')
