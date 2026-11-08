@@ -305,7 +305,7 @@ API checks run in `api/` with pytest against the test database; admin checks in 
 11. Replacement test: storing a second screenshot points the combo at new keys with a new version id, then the first screenshot's original and versions are gone from both buckets; when the delete fails (storage fake raising), the combo still points at the new images and `sweep` later removes the old objects.
 12. Removing a combo deletes its original and versions. `sweep --dry-run` lists unreferenced objects older than a day and deletes nothing; `sweep` deletes them and leaves every referenced object and every object younger than a day.
 13. `rebuild` with a raised `WATERMARK_REVISION` gives every screenshot a new version id and versions made from its original, deletes the old versions, and leaves originals untouched.
-14. Watermark test, on the watermark function's output before WebP encoding: on a uniform grey 1920 by 1080 image, the changed pixels lie within the bottom-right 300 by 60 px and none within 20 px of the right or bottom edge; at 640 by 360, within the bottom-right 110 by 24 px. (The approved sample's marks measure 266 by 52 px at 1920 and 101 by 20 px at 640, shadow included.)
+14. Watermark test, on the watermark function's output before WebP encoding: on a uniform grey 1920 by 1080 image, the changed pixels lie within the bottom-right 300 by 80 px and none within 20 px of the right or bottom edge; at 640 by 360, within the bottom-right 110 by 30 px. (The approved sample's marks measure 266 by 52 px at 1920 and 101 by 20 px at 640, shadow included.)
 15. One storage test module runs the S3 implementation against the real local service (put, get, delete, list, cache headers) and is run by the `api` workflow with that service as a container; no test is skipped.
 
 **Part C: showing screenshots**
@@ -389,7 +389,15 @@ None. On 2026-11-05 the owner approved the first draft of spec 012 with every re
 
 ## Implementation notes
 
-Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+Built on `015-screenshot-storage`, from `main` at the merge of spec 012.
+
+### Deviations
+
+- **Criterion 14's boxes (agreed with the owner on 2026-11-08).** The spec said the mark lies within the bottom-right 300 by 60 px at 1920 (none within 20 px of the right or bottom edge) and 110 by 24 px at 640. A mark 52 px tall that stays 20 px clear of the bottom edge cannot fit in 60 px. The mark of Design, rendered with Montserrat SemiBold, measures 266 by 51 px at 1920 (29 px from the right, 26 from the bottom, so it needs 295 by 77 px) and 101 by 20 px at 640 (needs 110 by 28 px), matching the approved sample. The owner kept the mark as designed and changed the boxes to 300 by 80 px at 1920 and 110 by 30 px at 640.
+
+### Progress
+
+- Dependencies `boto3` and `pillow` added to `api/`; Montserrat SemiBold (`fonts/ttf/Montserrat-SemiBold.ttf` of JulietaUla/Montserrat at commit `555facf`, OFL-1.1) committed for the watermark.
 
 ## Audit
 
