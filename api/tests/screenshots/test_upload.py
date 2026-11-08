@@ -12,7 +12,7 @@ from PIL import Image
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from combo_api.screenshots import queue, upload
+from combo_api.screenshots import images, queue, upload
 from combo_api.screenshots.models import ComboScreenshot
 from combo_api.screenshots.storage import IMMUTABLE, MemoryStorage
 from combo_api.settings import Settings
@@ -199,7 +199,7 @@ async def test_inputs_changed_while_processing(
     setup: Setup, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The combo changes after the first check: the new objects are deleted again."""
-    real = upload.make_versions
+    real = images.make_versions
     combo = await admin_combo(setup.client, setup.combo["id"])
 
     async def changed_inputs(*args: Any) -> Any:

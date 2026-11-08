@@ -14,17 +14,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from combo_api.admins import clock
 from combo_api.admins.deps import refuse
-from combo_api.screenshots import queue
+from combo_api.screenshots import images, queue
 from combo_api.screenshots.images import (
     IMAGE_HEIGHT,
     IMAGE_WIDTH,
     MAX_BYTES,
-    WATERMARK_REVISION,
     Refused,
-    Version,
     check_png,
-    decode,
-    versions,
+    make_versions,
 )
 from combo_api.screenshots.keys import new_id, original_key, version_key
 from combo_api.screenshots.models import ComboScreenshot, ScreenshotJob
@@ -50,10 +47,6 @@ async def read_body(request: Request, limit: int) -> bytes:
             raise refuse(status.HTTP_413_CONTENT_TOO_LARGE, "too_large")
         chunks.append(chunk)
     return b"".join(chunks)
-
-
-def make_versions(data: bytes) -> list[Version]:
-    return versions(decode(data))
 
 
 async def check_inputs(
@@ -124,7 +117,7 @@ async def store(db: AsyncSession, worker: CurrentWorker, job_id: str, request: R
     shot.width, shot.height = IMAGE_WIDTH, IMAGE_HEIGHT
     shot.version_id = version_id
     shot.widths = [version.width for version in made]
-    shot.watermark_revision = WATERMARK_REVISION
+    shot.watermark_revision = images.WATERMARK_REVISION
     shot.inputs = claimed or {}
     shot.worker_id = worker.id
     shot.created_at = clock.now()

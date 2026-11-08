@@ -3,9 +3,11 @@
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 
+import httpx
 import pytest
 
 from combo_api.combos.ids import new_public_id as new_id
+from combo_api.screenshots import commands
 from combo_api.screenshots.storage import IMMUTABLE, Missing, S3Storage
 from combo_api.settings import Settings
 
@@ -74,3 +76,53 @@ async def test_buckets(s3: S3Storage) -> None:
     await s3.allow_public_read(public)
     policy = await s3.bucket_policy(public)
     assert policy == S3Storage.public_read_policy(public)
+
+
+async def test_init_creates_both_buckets_once(test_settings: Settings) -> None:
+    suffix = new_id()
+    settings = test_settings.model_copy(
+        update={
+            "storage_originals_bucket": f"test-originals-{suffix}",
+            "storage_public_bucket": f"test-images-{suffix}",
+        }
+    )
+    storage = S3Storage(settings)
+    said: list[str] = []
+    try:
+        assert await commands.init(storage, check=True, say=said.append) == 1
+        assert said == [
+            f"originals bucket test-originals-{suffix}: missing",
+            f"public bucket test-images-{suffix}: missing",
+        ]
+        said.clear()
+        assert await commands.init(storage, check=False, say=said.append) == 0
+        assert said == [
+            f"originals bucket test-originals-{suffix}: created",
+            f"public bucket test-images-{suffix}: created",
+            f"public bucket test-images-{suffix}: anyone may read objects",
+        ]
+        said.clear()
+        assert await commands.init(storage, check=False, say=said.append) == 0
+        assert said == [
+            f"originals bucket test-originals-{suffix}: present",
+            f"public bucket test-images-{suffix}: present",
+            f"public bucket test-images-{suffix}: anyone may read objects (unchanged)",
+        ]
+        said.clear()
+        assert await commands.init(storage, check=True, say=said.append) == 0
+        assert await storage.bucket_policy(f"test-originals-{suffix}") is None
+
+        await storage.put("public", "k.webp", b"x", "image/webp")
+        await storage.put("originals", "k.png", b"x", "image/png")
+        base = settings.storage_endpoint_url
+        async with httpx.AsyncClient() as anonymous:
+            public = await anonymous.get(f"{base}/test-images-{suffix}/k.webp")
+            private = await anonymous.get(f"{base}/test-originals-{suffix}/k.png")
+        assert (public.status_code, public.content) == (200, b"x")
+        assert private.status_code == 403
+    finally:
+        for bucket in ("originals", "public"):
+            if await storage.bucket_exists(storage.bucket_names[bucket]):
+                for listed in await storage.list(bucket):
+                    await storage.delete(bucket, listed.key)
+                await storage.remove_bucket(storage.bucket_names[bucket])

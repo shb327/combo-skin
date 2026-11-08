@@ -125,3 +125,8 @@ def versions(image: Image.Image) -> list[Version]:
         watermark(scaled).save(buffer, format="WEBP", quality=WEBP_QUALITY, method=4)
         made.append(Version(width, height, buffer.getvalue()))
     return made
+
+
+def make_versions(data: bytes) -> list[Version]:
+    """Decode an original and make its versions."""
+    return versions(decode(data))
