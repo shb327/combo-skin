@@ -22,6 +22,8 @@ logger = logging.getLogger("combo_api.screenshots")
 Print = Callable[[str], None]
 # Unreferenced objects younger than this may belong to an upload that has not committed yet.
 SWEEP_AFTER = timedelta(days=1)
+# Screenshot objects; anything else in the buckets is never swept.
+PREFIX = "combos/"
 
 
 async def init(storage: S3Storage, *, check: bool, say: Print = print) -> int:
@@ -74,19 +76,23 @@ async def rebuild(db: AsyncSession, storage: Storage, *, say: Print = print) -> 
             continue
         original_key = shot.original_key
         await db.rollback()
-        try:
-            data = (await storage.get("originals", original_key)).data
-        except Missing:
-            say(f"{combo_id}: original {original_key} is missing")
-            failed += 1
-            continue
-        made = await anyio.to_thread.run_sync(images.make_versions, data)
         version_id = new_id()
         written: list[Object] = []
-        for version in made:
-            key = version_key(combo_id, version_id, version.width)
-            await storage.put("public", key, version.data, "image/webp", IMMUTABLE)
-            written.append(("public", key))
+        try:
+            data = (await storage.get("originals", original_key)).data
+            made = await anyio.to_thread.run_sync(images.make_versions, data)
+            for version in made:
+                key = version_key(combo_id, version_id, version.width)
+                await storage.put("public", key, version.data, "image/webp", IMMUTABLE)
+                written.append(("public", key))
+        except Exception as error:
+            reason = (
+                "is missing" if isinstance(error, Missing) else f"failed: {type(error).__name__}"
+            )
+            say(f"{combo_id}: original {original_key} {reason}")
+            failed += 1
+            await delete_objects(storage, written)
+            continue
 
         shot = await db.get(ComboScreenshot, row_id, with_for_update=True)
         if shot is None or shot.original_key != original_key:
@@ -113,7 +119,7 @@ async def sweep(
     now: datetime | None = None,
     say: Print = print,
 ) -> int:
-    """Delete objects older than a day that no row refers to, in both buckets."""
+    """Delete screenshot objects older than a day that no row refers to, in both buckets."""
     cutoff = (now or clock.now()) - SWEEP_AFTER
     rows = (
         await db.execute(
@@ -136,7 +142,7 @@ async def sweep(
     }
     code = 0
     for bucket in BUCKETS:
-        listed = await storage.list(bucket)
+        listed = await storage.list(bucket, PREFIX)
         stale = [
             item.key
             for item in listed

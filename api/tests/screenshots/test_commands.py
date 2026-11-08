@@ -113,6 +113,8 @@ async def test_sweep_removes_old_unreferenced_objects_only(
     referenced = set(storage.objects)
     await storage.put("originals", "combos/old/orphan.png", b"x", "image/png")
     await storage.put("public", "combos/old/orphan/640.webp", b"x", "image/webp")
+    # Objects outside combos/ belong to something else and are never swept.
+    await storage.put("public", "finishes/other.webp", b"x", "image/webp")
     fake_clock.advance(days=1, seconds=1)
     await storage.put("public", "combos/young/orphan/640.webp", b"x", "image/webp")
     old = {("originals", "combos/old/orphan.png"), ("public", "combos/old/orphan/640.webp")}
@@ -133,7 +135,10 @@ async def test_sweep_removes_old_unreferenced_objects_only(
         "originals: 3 objects, 1 deleted, 0 failed",
         "public: 8 objects, 1 deleted, 0 failed",
     ]
-    assert set(storage.objects) == referenced | {("public", "combos/young/orphan/640.webp")}
+    assert set(storage.objects) == referenced | {
+        ("public", "combos/young/orphan/640.webp"),
+        ("public", "finishes/other.webp"),
+    }
 
 
 async def test_sweep_removes_what_a_failed_delete_left(
@@ -170,3 +175,22 @@ async def test_sweep_removes_what_a_failed_delete_left(
     for image in shown["images"]:
         key = image["url"].split("/", 4)[-1]
         assert any(key.endswith(k) for _, k in storage.objects)
+
+
+async def test_rebuild_goes_on_past_an_original_it_cannot_use(
+    two_screenshots: list[dict[str, Any]], db_session: AsyncSession, storage: MemoryStorage
+) -> None:
+    before = await shots(db_session)
+    broken = sorted(storage.keys("originals"))[0]
+    await storage.put("originals", broken, b"not a png", "image/png")
+    old_versions = storage.keys("public")
+    said = Lines()
+    assert await commands.rebuild(db_session, storage, say=said) == 1
+    assert said[-1] == "Rebuilt 1 screenshots, 1 failed"
+    assert any(broken in line for line in said)
+    after = await shots(db_session)
+    unchanged = [c for c, s in after.items() if s[0] == broken]
+    assert after[unchanged[0]] == before[unchanged[0]]
+    # The broken one keeps its old versions; the other has new ones only.
+    assert len(storage.keys("public")) == 6
+    assert len(old_versions & storage.keys("public")) == 3
