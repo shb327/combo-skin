@@ -6,11 +6,15 @@ import { IMAGE_ORIGIN } from '../src/api/images'
 import { contentSecurityPolicy } from '../vite.config'
 
 describe('the Content Security Policy', () => {
-  it('is the policy of spec 008, with the game image host added to img-src only', () => {
-    expect(contentSecurityPolicy('http://localhost:8000')).toBe(
+  it('is the policy of spec 008, with the game image host and our image host in img-src only', () => {
+    expect(contentSecurityPolicy('http://localhost:8000', 'http://localhost:9000')).toBe(
       "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; " +
-        "img-src 'self' https://community.akamai.steamstatic.com; " +
+        "img-src 'self' https://community.akamai.steamstatic.com http://localhost:9000; " +
         "connect-src 'self' http://localhost:8000; base-uri 'none'; form-action 'none'; object-src 'none'",
+    )
+    expect(contentSecurityPolicy('https://api.example.com', 'https://images.example.com')).toContain(
+      "img-src 'self' https://community.akamai.steamstatic.com https://images.example.com; " +
+        "connect-src 'self' https://api.example.com;",
     )
   })
 

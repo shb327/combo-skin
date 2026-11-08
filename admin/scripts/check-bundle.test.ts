@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 const ADMIN = join(import.meta.dirname, '..')
 const POLICY =
   "default-src &#39;none&#39;; script-src &#39;self&#39;; style-src &#39;self&#39;; font-src &#39;self&#39;; " +
-  "img-src &#39;self&#39; https://community.akamai.steamstatic.com; connect-src &#39;self&#39; http://localhost:8000; base-uri &#39;none&#39;; " +
+  "img-src &#39;self&#39; https://community.akamai.steamstatic.com http://localhost:9000; connect-src &#39;self&#39; http://localhost:8000; base-uri &#39;none&#39;; " +
   "form-action &#39;none&#39;; object-src &#39;none&#39;"
 
 function sample({ policy = POLICY, robots = true, head = '', css = '', js = '', extraHtml = '' } = {}) {
@@ -33,7 +33,7 @@ function check(dir: string) {
   return spawnSync(process.execPath, ['scripts/check-bundle.mjs', '--dir', dir], {
     cwd: ADMIN,
     encoding: 'utf8',
-    env: { ...process.env, VITE_API_BASE_URL: '' },
+    env: { ...process.env, VITE_API_BASE_URL: '', VITE_IMAGE_ORIGIN: '' },
   })
 }
 
@@ -46,6 +46,23 @@ describe('check:bundle', () => {
 
   it('allows the game image host in scripts, where pictures are built at run time', () => {
     const result = check(sample({ js: 'const host="https://community.akamai.steamstatic.com/economy/image/"' }))
+    expect(result.stderr).toBe('')
+    expect(result.status).toBe(0)
+  })
+
+  it('allows our image host in scripts, where it is the screenshot origin', () => {
+    const result = check(sample({ js: 'const images="http://localhost:9000"' }))
+    expect(result.stderr).toBe('')
+    expect(result.status).toBe(0)
+  })
+
+  it('checks the policy against VITE_IMAGE_ORIGIN', () => {
+    const policy = POLICY.replace('http://localhost:9000', 'https://images.example.com')
+    const result = spawnSync(process.execPath, ['scripts/check-bundle.mjs', '--dir', sample({ policy })], {
+      cwd: ADMIN,
+      encoding: 'utf8',
+      env: { ...process.env, VITE_API_BASE_URL: '', VITE_IMAGE_ORIGIN: 'https://images.example.com' },
+    })
     expect(result.stderr).toBe('')
     expect(result.status).toBe(0)
   })
@@ -69,6 +86,9 @@ describe('check:bundle', () => {
     ['an image host look-alike', { js: 'x="https://community.akamai.steamstatic.com.example.com/a"' }, 'steamstatic.com.example.com'],
     ['a CSP with unsafe-inline', { policy: POLICY.replace("script-src &#39;self&#39;", "script-src &#39;self&#39; &#39;unsafe-inline&#39;") }, 'unsafe-inline'],
     ['a CSP with another connect-src', { policy: POLICY.replace('http://localhost:8000', 'https://api.example.com') }, 'Content-Security-Policy'],
+    ['a policy without our image host', { policy: POLICY.replace(' http://localhost:9000', '') }, 'Content-Security-Policy'],
+    ['a policy allowing any https image', { policy: POLICY.replace(' http://localhost:9000', ' https:') }, 'Content-Security-Policy'],
+    ['a screenshot from our image host in the HTML', { head: '<img src="http://localhost:9000/a.webp">' }, 'localhost:9000'],
   ])('fails for %s', (_, options, words) => {
     const result = check(sample(options))
     expect(result.status).toBe(1)
