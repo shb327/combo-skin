@@ -6,6 +6,9 @@ export const CHECKS = {
   notANumber: 'Enter a number such as 8.88.',
   ratingRange: 'Rating must be from 0 to 10.',
   ratingDecimals: 'Use at most 2 decimals.',
+  stepMissing: 'Enter a step.',
+  stepNotANumber: 'Enter a number such as 0.05.',
+  stepRange: 'Step must be from 0.01 to 1.00.',
   floatNotANumber: 'Enter a number such as 0.15.',
   floatDecimals: 'Use at most 4 decimals.',
   bothOrNeither: 'Enter both From and To, or neither.',
@@ -72,6 +75,26 @@ export function stepRating(text: string, direction: 1 | -1): string {
   const current = parseRating(text)
   const from = current.ok ? current.value : 0
   return formatRating(Math.min(1000, Math.max(0, from + direction * 5)))
+}
+
+/** A batch's fill step (spec 017): written like a rating, from 0.01 to 1.00, in hundredths. */
+export const DEFAULT_STEP = '0.05'
+
+export function parseStep(text: string): Checked<number> {
+  if (!text.trim()) return { ok: false, error: CHECKS.stepMissing }
+  const parsed = parseDecimal(text, 2)
+  if (parsed === 'nan') return { ok: false, error: CHECKS.stepNotANumber }
+  if (parsed === 'places') return { ok: false, error: CHECKS.ratingDecimals }
+  if (!parsed.ok) return parsed
+  if (parsed.value < 1 || parsed.value > 100) return { ok: false, error: CHECKS.stepRange }
+  return parsed
+}
+
+/** The step 0.01 up or down from what is typed, kept within 0.01 and 1.00. */
+export function stepStep(text: string, direction: 1 | -1): string {
+  const current = parseStep(text)
+  const from = current.ok ? current.value : 5
+  return formatRating(Math.min(100, Math.max(1, from + direction)))
 }
 
 /** A float value from the API or the catalog in ten-thousandths, read from its shortest form. */

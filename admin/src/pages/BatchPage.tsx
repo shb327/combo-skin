@@ -18,7 +18,9 @@ import { ErrorSummary, QueryState, RestoredNotice, StatusBadge, type SummaryEntr
 import { detailLabel, isRetired, useFinishPage } from '../combos/useFinishPage'
 import { useDraft } from '../combos/useDrafts'
 import { search } from '../combos/search'
-import { NO_CONDITIONS, formatRating, parseRating } from '../combos/values'
+import { NO_CONDITIONS, formatRating, parseRating, parseStep, stepStep } from '../combos/values'
+import { OrderControls } from '../combos/OrderControls'
+import { moveSlug, movedText, useMoveFocus, type MoveAction } from '../combos/moves'
 
 type Saved = components['schemas']['BatchSaved']
 
@@ -132,6 +134,8 @@ function BatchRows({
   const [saved, setSaved] = useState<Saved | null>(null)
   const [published, setPublished] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [announcement, setAnnouncement] = useState('')
+  const focus = useMoveFocus()
 
   if (!candidates.data) return <QueryState error={candidates.error} onRetry={() => candidates.refetch()} />
   const knifeName = candidates.data.knife_finish.display_name ?? knifeFinish
@@ -182,6 +186,13 @@ function BatchRows({
   const changeRow = (row: Row, patch: Partial<RowText>) =>
     change((current) => ({ ...current, rows: { ...current.rows, [row.slug]: { ...row.text, ...patch } } }))
 
+  function move(row: Row, to: number, action?: MoveAction) {
+    const next = moveSlug(rows.map((r) => r.slug), row.slug, to)
+    change((current) => ({ ...current, order: next }))
+    setAnnouncement(movedText(row.candidate.knife.type_name, to))
+    focus.moved(row.slug, action)
+  }
+
   function toggleOpen(slug: string) {
     setOpen((current) => {
       const next = new Set(current)
@@ -195,8 +206,8 @@ function BatchRows({
     const names = new Map(rows.map((r) => [r.slug, r.candidate.knife.type_name]))
     return [
       ...Object.entries(batch).map(([key, message]) => ({
-        target: key === 'top' ? 'batch-top' : `batch-${key.replace('.', '-')}`,
-        text: `${key === 'top' ? 'Top rating' : `Every knife, ${label(key).toLowerCase()}`}: ${message}`,
+        target: key === 'top' || key === 'step' ? `batch-${key}` : `batch-${key.replace('.', '-')}`,
+        text: `${key === 'top' ? 'Top rating' : key === 'step' ? 'Step' : `Every knife, ${label(key).toLowerCase()}`}: ${message}`,
       })),
       ...Object.entries(perRow).flatMap(([slug, errors]) =>
         Object.entries(errors).map(([key, message]) => ({
@@ -289,12 +300,22 @@ function BatchRows({
             error={checked.batch.top}
             onChange={(top) => change((current) => ({ ...current, top }))}
           />
+          <RatingField
+            id="batch-step"
+            label="Step"
+            value={text.step}
+            error={checked.batch.step}
+            parse={parseStep}
+            step={stepStep}
+            onChange={(step) => change((current) => ({ ...current, step }))}
+          />
           <button
             type="button"
             className={`${SECONDARY} mb-0.5`}
             onClick={() =>
               change((current) => ({
                 ...current,
+                orderLocked: true,
                 rows: Object.fromEntries(rows.map((r) => [r.slug, { ...r.text, byHand: false, rating: '' }])),
               }))
             }
@@ -302,7 +323,7 @@ function BatchRows({
             Refill from top
           </button>
         </div>
-        <p className="mt-1 text-xs text-white/50">Each next knife gets 0.05 less, never below 0.</p>
+        <p className="mt-1 text-xs text-white/50">Each next knife gets the step less, never below 0.</p>
         <ConditionsFields
           id="batch-glove"
           legend="Gloves"
@@ -334,11 +355,38 @@ function BatchRows({
         />
       </fieldset>
 
+      <p role="status" aria-live="polite" className="sr-only">
+        {announcement}
+      </p>
+      {rows.length > 1 && text.orderLocked && (
+        <p className="mt-6 flex max-w-3xl flex-wrap items-center gap-3 text-sm text-white/70">
+          <span>The knife order of this batch is set.</span>
+          <button
+            type="button"
+            className={SECONDARY}
+            onClick={() => change((current) => ({ ...current, orderLocked: false }))}
+          >
+            Change order
+          </button>
+        </p>
+      )}
       {rows.length ? (
         <ol className="mt-6 max-w-3xl space-y-3" aria-label="Knives">
-          {rows.map((row) => (
+          {rows.map((row, index) => (
             <BatchRow
               key={row.slug}
+              order={
+                text.orderLocked || rows.length < 2 ? undefined : (
+                  <OrderControls
+                    slug={row.slug}
+                    name={row.candidate.knife.type_name}
+                    index={index}
+                    count={rows.length}
+                    focus={focus}
+                    onMove={(to, action) => move(row, to, action)}
+                  />
+                )
+              }
               row={row}
               batch={text}
               gloveRange={gloveRange}
@@ -366,6 +414,7 @@ function BatchRows({
 }
 
 function BatchRow({
+  order,
   row,
   batch,
   gloveRange,
@@ -374,6 +423,8 @@ function BatchRow({
   onToggleOpen,
   onChange,
 }: {
+  /** The row's order controls, while the batch order can change. */
+  order?: ReactNode
   row: Row
   batch: BatchText
   gloveRange: { min: number | null; max: number | null }
@@ -410,6 +461,7 @@ function BatchRow({
           {name}
         </label>
         <span className="text-xs text-white/50">{range}</span>
+        {order && <span className="ml-auto flex flex-wrap items-center gap-2">{order}</span>}
         {row.existing && (
           <span className="flex items-center gap-2 text-sm text-white/70">
             <span>Already exists</span>

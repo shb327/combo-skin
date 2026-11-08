@@ -10,6 +10,7 @@ import {
   parseSeeds,
   rangeHint,
   stepRating,
+  type Checked,
   type ConditionsErrors,
   type ConditionsText,
   type FinishRange,
@@ -32,6 +33,8 @@ export function RatingField({
   className = '',
   disabled = false,
   inputRef,
+  parse = parseRating,
+  step = stepRating,
 }: {
   id: string
   label: string
@@ -41,6 +44,9 @@ export function RatingField({
   className?: string
   disabled?: boolean
   inputRef?: Ref<HTMLInputElement>
+  /** How the value is read when the field is left, and stepped with Up and Down. */
+  parse?: (text: string) => Checked<number>
+  step?: (text: string, direction: 1 | -1) => string
 }) {
   return (
     <div className={className}>
@@ -63,10 +69,10 @@ export function RatingField({
         onKeyDown={(event) => {
           if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
           event.preventDefault()
-          onChange(stepRating(value, event.key === 'ArrowUp' ? 1 : -1))
+          onChange(step(value, event.key === 'ArrowUp' ? 1 : -1))
         }}
         onBlur={() => {
-          const parsed = parseRating(value)
+          const parsed = parse(value)
           if (parsed.ok && formatRating(parsed.value) !== value) onChange(formatRating(parsed.value))
         }}
       />
