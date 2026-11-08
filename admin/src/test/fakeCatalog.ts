@@ -110,9 +110,11 @@ const RARITY = {
 const displayName = (f: FakeFinish) => (f.phase ? `${f.name} (${f.phase})` : f.name)
 
 function find(kind: Kind, typeSlug: string, finishSlug: string) {
-  const type = CATALOG[kind].find((t) => t.slug === typeSlug)
-  const found = type?.finishes.find((f) => f.slug === finishSlug)
-  return type && found ? { type, finish: found } : null
+  const typeIndex = CATALOG[kind].findIndex((t) => t.slug === typeSlug)
+  const type = CATALOG[kind][typeIndex]
+  const finishIndex = type ? type.finishes.findIndex((f) => f.slug === finishSlug) : -1
+  const found = type?.finishes[finishIndex]
+  return type && found ? { type, finish: found, typeIndex, finishIndex } : null
 }
 
 /** Agents of the fake catalog, as the API lists them: Counter-Terrorists first, then by name.
@@ -193,6 +195,9 @@ function item(kind: Kind, typeSlug: string, finishSlug: string, conditions: Part
     type_name: found.type.name,
     finish_slug: finishSlug,
     display_name: displayName(found.finish),
+    // The same indexes the fake catalog routes give.
+    def_index: 500 + found.typeIndex,
+    paint_index: found.finishIndex,
     image_url: picture(typeSlug, finishSlug),
     rarity: RARITY[kind],
     active: found.finish.active,
