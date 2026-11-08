@@ -71,7 +71,8 @@ async def replace_screenshot_settings(
     row.updated_at = clock.now()
     row.updated_by = current.id
     await db.flush()
-    requeued = done_before - await queue.done_using_default(db)
+    # Done before the change and due after it; combos drawn with the new default are done again.
+    requeued = len(done_before - await queue.done_using_default(db))
     await db.commit()
     settings = await settings_out(db, row)
     logger.info(

@@ -139,39 +139,48 @@ async def test_a_new_seed_above_the_lowest_changes_nothing(setup: Setup) -> None
 
 async def test_default_agent_change_requeues_combos_using_it(setup: Setup) -> None:
     own = await create(setup.client, setup.headers, glove=MOGUL, knife=FADE)
-    await update(setup.client, setup.headers, own, screenshot_agent=4613)
+    own = await update(setup.client, setup.headers, own, screenshot_agent=4613)
     defaults = [
         await create(setup.client, setup.headers, glove=MOGUL, knife=("karambit", knife))
         for knife in ("doppler-ruby", "doppler-phase-2", "vanilla")
     ]
-    for _ in range(3):
-        job = await setup.claim()
-        assert job is not None
-        if job["combo_id"] != defaults[2]["id"]:
-            await setup.store(job)
-        else:
-            await setup.release(job)
-    # The fourth combo, without a screenshot, is still due.
-    for combo in (own, *defaults[:2]):
-        assert (await setup.state(combo["id"]))["state"] in {"done", "none"}
+    waiting = await create(setup.client, setup.headers, glove=MOGUL, knife=("karambit", "night"))
+    for combo in (own, *defaults):
+        await setup.render(combo["id"])
+    assert [(await setup.state(c["id"]))["state"] for c in (own, *defaults, waiting)] == [
+        "done",
+        "done",
+        "done",
+        "done",
+        "none",
+    ]
 
-    response = await setup.client.put(
-        "/admin/screenshot-settings", json={"default_agent": 4619}, headers=setup.headers
-    )
-    assert response.status_code == 200, response.text
-    done_with_default = [c for c in defaults if (await setup.state(c["id"]))["made_at"] is not None]
-    assert response.json()["requeued"] == len(done_with_default)
-    assert response.json()["using_default"] == 3
-    for combo in defaults:
-        state = await setup.state(combo["id"])
-        assert state["state"] == ("waiting" if state["made_at"] else "none")
-    if (await setup.state(own["id"]))["made_at"]:
-        assert (await setup.state(own["id"]))["state"] == "done"
+    async def change_default(def_index: int) -> dict[str, Any]:
+        response = await setup.client.put(
+            "/admin/screenshot-settings", json={"default_agent": def_index}, headers=setup.headers
+        )
+        assert response.status_code == 200, response.text
+        body: dict[str, Any] = response.json()
+        return body
 
-    again = await setup.client.put(
-        "/admin/screenshot-settings", json={"default_agent": 4619}, headers=setup.headers
-    )
-    assert again.json()["requeued"] == 0
+    # The three done combos using the default are due again; the one with its own agent and
+    # the one without a screenshot are not counted.
+    changed = await change_default(4619)
+    assert (changed["requeued"], changed["using_default"]) == (3, 4)
+    assert [(await setup.state(c["id"]))["state"] for c in (own, *defaults, waiting)] == [
+        "done",
+        "waiting",
+        "waiting",
+        "waiting",
+        "none",
+    ]
+    assert (await change_default(4619))["requeued"] == 0
+
+    # One is drawn with the new default; switching back requeues only that one.
+    await setup.render(defaults[0]["id"])
+    changed = await change_default(5404)
+    assert changed["requeued"] == 1
+    assert [(await setup.state(c["id"]))["state"] for c in defaults] == ["waiting", "done", "done"]
 
 
 async def test_raising_the_render_revision_makes_every_combo_due(

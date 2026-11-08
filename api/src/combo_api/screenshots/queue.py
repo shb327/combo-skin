@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from fastapi import status
-from sqlalchemy import case, func, select, true
+from sqlalchemy import case, select, true
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -260,15 +260,15 @@ async def request(db: AsyncSession, combo_ids: list[int], now: datetime) -> None
         )
 
 
-async def done_using_default(db: AsyncSession) -> int:
-    """Combos without their own agent whose screenshot is done."""
+async def done_using_default(db: AsyncSession) -> set[int]:
+    """The combos without their own agent whose screenshot is done."""
     current = inputs.current_inputs()
-    count = await db.scalar(
-        with_state(select(func.count()).select_from(Combo))
+    rows = await db.scalars(
+        with_state(select(Combo.id))
         .join(current, true())
         .where(Combo.screenshot_agent_id.is_(None), ~inputs.due(current.c.value))
     )
-    return count or 0
+    return set(rows)
 
 
 async def inputs_now(db: AsyncSession, combo_id: int) -> dict[str, Any] | None:
