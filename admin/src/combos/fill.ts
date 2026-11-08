@@ -1,7 +1,7 @@
 /** The batch rating fill (spec 010): every included row not set by hand is 0.05 below the
  * included row above it, never below 0; the first one takes the top rating. A row's own rating
- * is used for that row only: the fill passes through it with the value it would otherwise have.
- * In hundredths. */
+ * is used for that row only: the fill passes through it with the value it would otherwise have,
+ * its typed rating included (spec 017). In hundredths. */
 
 export interface FillRow {
   included: boolean
@@ -22,13 +22,14 @@ export function fillRatings(rows: FillRow[], topRating: number | null): (number 
     if (!row.included) return null
     const hasOwn = row.own !== undefined
     let rating: number | null
-    // An own rating replaces a typed one, so a row with one is filled as if never typed in.
-    if (row.byHand && !hasOwn) rating = row.value
+    // The fill treats a row with an own rating as it would without one, typed value included,
+    // so setting, changing or clearing it moves no other row.
+    if (row.byHand) rating = row.value
     else if (first) rating = topRating
     else rating = previous === null ? null : Math.max(0, previous - STEP)
     first = false
     // An invalid hand value is passed over: the rows below follow the last valid rating.
-    previous = rating ?? (row.byHand && !hasOwn ? previous : null)
+    previous = rating ?? (row.byHand ? previous : null)
     return hasOwn ? (row.own ?? null) : rating
   })
 }

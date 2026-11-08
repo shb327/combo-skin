@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
 import { ApiError } from '../api/errors'
 import { useApi } from '../api/useApi'
@@ -18,7 +18,7 @@ import { ErrorSummary, QueryState, RestoredNotice, StatusBadge, type SummaryEntr
 import { detailLabel, isRetired, useFinishPage } from '../combos/useFinishPage'
 import { useDraft } from '../combos/useDrafts'
 import { search } from '../combos/search'
-import { NO_CONDITIONS, formatRating } from '../combos/values'
+import { NO_CONDITIONS, formatRating, parseRating } from '../combos/values'
 
 type Saved = components['schemas']['BatchSaved']
 
@@ -200,10 +200,7 @@ function BatchRows({
       })),
       ...Object.entries(perRow).flatMap(([slug, errors]) =>
         Object.entries(errors).map(([key, message]) => ({
-          target:
-            key === 'rating'
-              ? `${rowId(slug)}-${rows.find((r) => r.slug === slug)?.text.ownRating !== undefined ? 'own-rating' : 'rating'}`
-              : rowId(slug),
+          target: key === 'rating' ? `${rowId(slug)}-rating` : rowId(slug),
           text: `${names.get(slug)}, ${label(key).toLowerCase()}: ${message}`,
         })),
       ),
@@ -388,10 +385,11 @@ function BatchRow({
   const id = rowId(row.slug)
   const name = row.candidate.knife.type_name
   const ownRating = row.text.ownRating !== undefined
+  const ratingBox = useRef<HTMLInputElement>(null)
   const range = row.vanilla ? 'No float range' : `Float ${row.range.min} – ${row.range.max}`
   // Errors shown next to their own fields; the rest are listed under the row.
   const inFields = (key: string) =>
-    (key === 'rating' && (!ownRating || open)) ||
+    key === 'rating' ||
     (key.startsWith('knife.') && row.text.knife !== undefined && open) ||
     (key.startsWith('glove.') && row.text.glove !== undefined && open) ||
     (key === 'description' && row.text.description !== undefined && open) ||
@@ -430,14 +428,31 @@ function BatchRow({
       )}
       {row.text.ticked && (
         <div className="mt-2 flex flex-wrap items-end gap-3">
+          {/* One box: the row's rating, or its own rating while that is on. */}
           <RatingField
             id={`${id}-rating`}
-            label={`Rating for ${name}`}
+            label={ownRating ? `Rating, ${name} only` : `Rating for ${name}`}
             value={row.rating}
-            error={ownRating ? undefined : errors.rating}
-            disabled={ownRating}
-            onChange={(rating) => onChange({ byHand: true, rating })}
+            error={errors.rating}
+            inputRef={ratingBox}
+            onChange={(rating) => onChange(ownRating ? { ownRating: rating } : { byHand: true, rating })}
           />
+          <button
+            type="button"
+            className={`${SECONDARY} mb-0.5`}
+            aria-pressed={ownRating}
+            onClick={() => {
+              if (ownRating) {
+                onChange({ ownRating: undefined })
+              } else {
+                const shown = parseRating(row.rating)
+                onChange({ ownRating: shown.ok ? formatRating(shown.value) : row.rating })
+              }
+              ratingBox.current?.focus()
+            }}
+          >
+            Own rating <span className="sr-only">for {name}</span>
+          </button>
           {ownRating && <span className="mb-3 text-xs text-white/60">Own rating, not passed on</span>}
           <button type="button" className={`${SECONDARY} mb-0.5`} aria-expanded={open} onClick={onToggleOpen}>
             Own values <span className="sr-only">for {name}</span>
@@ -447,20 +462,6 @@ function BatchRow({
       )}
       {row.text.ticked && open && (
         <div className="mt-2">
-          <Override
-            label={`own rating for ${name}`}
-            active={ownRating}
-            onSet={() => onChange({ ownRating: row.rating })}
-            onClear={() => onChange({ ownRating: undefined })}
-          >
-            <RatingField
-              id={`${id}-own-rating`}
-              label={`Rating, ${name} only`}
-              value={row.text.ownRating ?? ''}
-              error={errors.rating}
-              onChange={(value) => onChange({ ownRating: value })}
-            />
-          </Override>
           {!row.existing && (
             <>
               <Override
@@ -550,7 +551,6 @@ function BatchRow({
 
 function overrides(row: Row) {
   return [
-    row.text.ownRating !== undefined && 'rating',
     row.text.knife && 'knife',
     row.text.glove && 'gloves',
     row.text.agent !== undefined && 'agent',

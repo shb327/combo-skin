@@ -1,6 +1,6 @@
 /** Inputs for combo values. Each shows its message next to it and is linked to it for
  * assistive technology. */
-import { useState, type ReactNode } from 'react'
+import { useState, type ReactNode, type Ref } from 'react'
 import { ERROR_TEXT, INPUT } from './styles'
 import {
   CHECKS,
@@ -31,6 +31,7 @@ export function RatingField({
   onChange,
   className = '',
   disabled = false,
+  inputRef,
 }: {
   id: string
   label: string
@@ -39,6 +40,7 @@ export function RatingField({
   onChange(value: string): void
   className?: string
   disabled?: boolean
+  inputRef?: Ref<HTMLInputElement>
 }) {
   return (
     <div className={className}>
@@ -46,6 +48,7 @@ export function RatingField({
         {label}
       </label>
       <input
+        ref={inputRef}
         id={id}
         type="text"
         inputMode="decimal"

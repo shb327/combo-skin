@@ -97,11 +97,10 @@ export function batchRows(candidates: Candidate[], text: BatchText): Row[] {
       candidate,
       text: row,
       existing: candidate.existing,
+      // An own rating shows as typed: the row's one box edits it.
       rating:
         row.ownRating !== undefined
-          ? fill === null
-            ? row.ownRating
-            : formatRating(fill)
+          ? row.ownRating
           : row.byHand
             ? row.rating
             : fill === null
