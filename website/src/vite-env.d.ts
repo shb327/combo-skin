@@ -11,4 +11,6 @@ declare module 'swiper/css/controller' {}
 interface ImportMetaEnv {
   /** The API origin, checked and defaulted by vite.config.ts. */
   readonly VITE_API_BASE_URL: string
+  /** Where screenshots are loaded from, checked and defaulted by vite.config.ts. */
+  readonly VITE_IMAGE_ORIGIN: string
 }

@@ -5,8 +5,11 @@ import type { components } from '../api/schema'
 type Item = components['schemas']['Item']
 type PublicCombo = components['schemas']['PublicCombo']
 type ComboCounts = components['schemas']['ComboCounts']
+type Screenshot = components['schemas']['Screenshot']
 
 export const ORIGIN = 'http://localhost:8000'
+/** The storage service's origin, VITE_IMAGE_ORIGIN's default. */
+export const SCREENSHOT_ORIGIN = 'http://localhost:9000'
 export const COUNTS_PATH = '/combo-counts'
 const IMAGE = 'https://community.akamai.steamstatic.com/economy/image'
 
@@ -121,8 +124,23 @@ export function combo(
   glove: Item,
   knife: Item,
   description: string | null = null,
+  screenshot: Screenshot | null = null,
 ): PublicCombo {
-  return { id, rating, description, glove, knife }
+  return { id, rating, description, glove, knife, screenshot }
+}
+
+/** A screenshot's three public versions on `origin`. */
+export function screenshotOf(id: string, origin = SCREENSHOT_ORIGIN): Screenshot {
+  return {
+    width: 1920,
+    height: 1080,
+    images: [640, 1280, 1920].map((width) => ({
+      url: `${origin}/local-images/combos/${id}/v0000000000a/${width}.webp`,
+      width,
+      height: (width * 9) / 16,
+      type: 'image/webp' as const,
+    })),
+  }
 }
 
 /** `count` combos of one finish, for pages that only need their number. */

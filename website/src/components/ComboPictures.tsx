@@ -1,11 +1,36 @@
+import { useState } from 'react'
 import type { ComboItem, PublicCombo } from '@/api/client'
-import { pictureUrl } from '@/api/images'
+import { pictureUrl, screenshotSources } from '@/api/images'
 import { itemName } from './comboText'
 
-/** The top of a combo card, where its screenshot goes. Until combo screenshots arrive with
- * spec 012, it shows the glove and the knife finish pictures from the catalog side by side;
- * that spec shows the combo's screenshot here when it has one. */
+/** Cards are one column below 1024 px and two above. */
+const SIZES = '(min-width: 1024px) 50vw, 100vw'
+
+/** The top of a combo card: its screenshot, or, without one or when it fails to load, the glove
+ * and the knife finish pictures from the catalog side by side. */
 export function ComboPictures({ combo }: { combo: PublicCombo }) {
+  const [failed, setFailed] = useState(false)
+  const sources = failed ? null : screenshotSources(combo.screenshot)
+  if (sources) {
+    return (
+      <div className="w-full aspect-video bg-white/5">
+        <img
+          src={sources.src}
+          srcSet={sources.srcSet}
+          sizes={SIZES}
+          width={sources.width}
+          height={sources.height}
+          alt={`${itemName(combo.glove)} with ${itemName(combo.knife)}`}
+          className="w-full h-full object-cover select-none"
+          draggable={false}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onError={() => setFailed(true)}
+        />
+      </div>
+    )
+  }
   return (
     <div className="w-full aspect-video grid grid-cols-2 bg-white/5">
       <Picture item={combo.glove} />
