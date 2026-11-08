@@ -35,6 +35,7 @@ export function RatingField({
   inputRef,
   parse = parseRating,
   step = stepRating,
+  labelHidden = false,
 }: {
   id: string
   label: string
@@ -47,10 +48,12 @@ export function RatingField({
   /** How the value is read when the field is left, and stepped with Up and Down. */
   parse?: (text: string) => Checked<number>
   step?: (text: string, direction: 1 | -1) => string
+  /** For a field whose row already names it: the label is read out but not shown. */
+  labelHidden?: boolean
 }) {
   return (
     <div className={className}>
-      <label htmlFor={id} className="block text-sm">
+      <label htmlFor={id} className={labelHidden ? 'sr-only' : 'block text-sm'}>
         {label}
       </label>
       <input
