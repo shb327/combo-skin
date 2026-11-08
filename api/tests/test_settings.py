@@ -7,7 +7,19 @@ from combo_api.settings import Settings, SettingsError, load_settings
 from tests.support import API_DIR
 
 SAMPLE_VALUE = "placeholder-db-credential"
-REQUIRED = ["POSTGRES_HOST", "POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"]
+STORAGE_SECRET = "placeholder-storage-credential"
+REQUIRED = [
+    "POSTGRES_HOST",
+    "POSTGRES_USER",
+    "POSTGRES_PASSWORD",
+    "POSTGRES_DB",
+    "STORAGE_ENDPOINT_URL",
+    "STORAGE_ACCESS_KEY_ID",
+    "STORAGE_SECRET_ACCESS_KEY",
+    "STORAGE_ORIGINALS_BUCKET",
+    "STORAGE_PUBLIC_BUCKET",
+    "IMAGE_BASE_URL",
+]
 
 
 @pytest.fixture
@@ -17,6 +29,12 @@ def full_env(monkeypatch: pytest.MonkeyPatch) -> pytest.MonkeyPatch:
     monkeypatch.setenv("POSTGRES_USER", "combo")
     monkeypatch.setenv("POSTGRES_PASSWORD", SAMPLE_VALUE)
     monkeypatch.setenv("POSTGRES_DB", "combo")
+    monkeypatch.setenv("STORAGE_ENDPOINT_URL", "http://storage:9000")
+    monkeypatch.setenv("STORAGE_ACCESS_KEY_ID", "placeholder-key")
+    monkeypatch.setenv("STORAGE_SECRET_ACCESS_KEY", STORAGE_SECRET)
+    monkeypatch.setenv("STORAGE_ORIGINALS_BUCKET", "local-originals")
+    monkeypatch.setenv("STORAGE_PUBLIC_BUCKET", "local-images")
+    monkeypatch.setenv("IMAGE_BASE_URL", "http://localhost:9000/local-images")
     return monkeypatch
 
 
@@ -36,6 +54,7 @@ def test_missing_required_setting_names_it(full_env: pytest.MonkeyPatch, name: s
         load_settings(env_file=None)
     assert name in str(error.value)
     assert SAMPLE_VALUE not in str(error.value)
+    assert STORAGE_SECRET not in str(error.value)
 
 
 def test_invalid_setting_names_it_without_values(full_env: pytest.MonkeyPatch) -> None:
@@ -160,3 +179,60 @@ async def test_app_logs_reach_standard_error(full_env: pytest.MonkeyPatch) -> No
         assert [h for h in handlers if isinstance(h, logging.StreamHandler)]
     async with app.router.lifespan_context(app):
         assert logging.getLogger("combo_api").handlers == handlers
+
+
+def test_storage_settings(full_env: pytest.MonkeyPatch) -> None:
+    settings = load_settings(env_file=None)
+    assert settings.storage_endpoint_url == "http://storage:9000"
+    assert settings.storage_region == "auto"
+    assert settings.storage_secret_access_key.get_secret_value() == STORAGE_SECRET
+    assert STORAGE_SECRET not in repr(settings)
+    assert settings.image_base_url == "http://localhost:9000/local-images"
+
+
+@pytest.mark.parametrize(
+    ("value", "stored"),
+    [
+        ("https://images.example.com", "https://images.example.com"),
+        ("https://images.example.com/", "https://images.example.com"),
+        ("https://example.com/images/", "https://example.com/images"),
+        ("http://localhost:9000/local-images", "http://localhost:9000/local-images"),
+        ("http://127.0.0.1:9000", "http://127.0.0.1:9000"),
+    ],
+)
+def test_image_base_url(full_env: pytest.MonkeyPatch, value: str, stored: str) -> None:
+    full_env.setenv("IMAGE_BASE_URL", value)
+    assert load_settings(env_file=None).image_base_url == stored
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "http://images.example.com",
+        "ftp://images.example.com",
+        "images.example.com",
+        "https://images.example.com?x=1",
+        "https://images.example.com/#top",
+        "https://user@images.example.com",
+    ],
+)
+def test_invalid_image_base_url(full_env: pytest.MonkeyPatch, value: str) -> None:
+    full_env.setenv("IMAGE_BASE_URL", value)
+    with pytest.raises(SettingsError) as error:
+        load_settings(env_file=None)
+    assert "IMAGE_BASE_URL" in str(error.value)
+
+
+@pytest.mark.parametrize("value", ["storage:9000", "ftp://storage", "http://storage:9000/path"])
+def test_invalid_storage_endpoint(full_env: pytest.MonkeyPatch, value: str) -> None:
+    full_env.setenv("STORAGE_ENDPOINT_URL", value)
+    with pytest.raises(SettingsError) as error:
+        load_settings(env_file=None)
+    assert "STORAGE_ENDPOINT_URL" in str(error.value)
+
+
+def test_buckets_must_differ(full_env: pytest.MonkeyPatch) -> None:
+    full_env.setenv("STORAGE_PUBLIC_BUCKET", "local-originals")
+    with pytest.raises(SettingsError) as error:
+        load_settings(env_file=None)
+    assert "STORAGE_PUBLIC_BUCKET" in str(error.value)
