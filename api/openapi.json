@@ -997,6 +997,10 @@
             "title": "Active",
             "type": "boolean"
           },
+          "def_index": {
+            "title": "Def Index",
+            "type": "integer"
+          },
           "display_name": {
             "title": "Display Name",
             "type": "string"
@@ -1053,6 +1057,10 @@
             "title": "Image Url",
             "type": "string"
           },
+          "paint_index": {
+            "title": "Paint Index",
+            "type": "integer"
+          },
           "rarity": {
             "$ref": "#/components/schemas/Rarity"
           },
@@ -1077,6 +1085,8 @@
           "type_name",
           "finish_slug",
           "display_name",
+          "def_index",
+          "paint_index",
           "image_url",
           "rarity",
           "active",

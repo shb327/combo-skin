@@ -273,6 +273,10 @@ class Item(BaseModel):
     type_name: str
     finish_slug: str
     display_name: str
+    # The game's indexes, as the 3D viewer identifies items: the type's definition index and
+    # the finish's paint index (0 for Vanilla).
+    def_index: int
+    paint_index: int
     image_url: str
     rarity: Rarity
     active: bool

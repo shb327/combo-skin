@@ -17,6 +17,8 @@ ITEM_KEYS = {
     "type_name",
     "finish_slug",
     "display_name",
+    "def_index",
+    "paint_index",
     "image_url",
     "rarity",
     "active",
@@ -130,3 +132,33 @@ async def test_public_slugs_are_bounded(clients: Any) -> None:
         assert [e["loc"] for e in response.json()["detail"]] == [loc]
     ok = await anonymous.get(f"/knives/karambit/{'x' * 64}/combos")
     assert ok.status_code == 404
+
+
+async def test_items_carry_the_game_indexes(
+    clients: Any, admin_client: AsyncClient, catalog: AsyncSession
+) -> None:
+    """The viewer identifies items by definition and paint index; Vanilla's paint index is 0."""
+    headers = await logged_in(admin_client)
+    ruby = await make(admin_client, headers, CRIMSON, RUBY, 9.0, "published")
+    vanilla = await make(
+        admin_client, headers, ("specialist", "mogul"), ("karambit", "vanilla"), 8.0, "published"
+    )
+    anonymous = clients("127.0.0.9")
+    expected = {
+        ruby: ({"def_index": 5034, "paint_index": 10033}, {"def_index": 507, "paint_index": 415}),
+        vanilla: ({"def_index": 5034, "paint_index": 10064}, {"def_index": 507, "paint_index": 0}),
+    }
+    for path in (
+        "/gloves/specialist/crimson-kimono/combos",
+        "/gloves/specialist/mogul/combos",
+        "/knives/karambit/doppler-ruby/combos",
+        "/knives/karambit/vanilla/combos",
+    ):
+        for combo in await public(anonymous, path):
+            glove, knife = expected[combo["id"]]
+            assert {k: combo["glove"][k] for k in glove} == glove, path
+            assert {k: combo["knife"][k] for k in knife} == knife, path
+    for combo_id, (glove, knife) in expected.items():
+        admin = (await admin_client.get(f"/admin/combos/{combo_id}")).json()
+        assert {k: admin["glove"][k] for k in glove} == glove
+        assert {k: admin["knife"][k] for k in knife} == knife
