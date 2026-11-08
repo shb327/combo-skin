@@ -1,6 +1,6 @@
 # 016: View in 3D on the combo cards
 
-**Status:** Implemented
+**Status:** Audited
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** website, api
@@ -332,7 +332,7 @@ Run against a separate Compose project, `combo-skin-016` (database on `127.0.0.1
 
 - **The app's built-in browser (Chromium).** The buttons showed in the top-right corner at 60% white (computed colour alpha 0.6). Before a click the page had no iframe. Opening the Doppler (Ruby) card gave one iframe with the address of criterion 3 (`knife_seed=387`, no `gloves_seed`), the sandbox, no `referrerpolicy`, and the combo's title; the viewer answered `cs3d:ready`, `cs3d:state` (the handshake's id), `progress` and `loaded`, and drew the Mogul gloves with the red Karambit. Opening the Butterfly card removed the first iframe; its `cs3d:loaded` echoed `knife_seed` 0 and `gloves_seed` 269 and agent 5404 (the default). The vanilla card sent `knife_paint=0` with no knife float or seed, and was drawn as a vanilla Karambit. Close and Escape removed the iframe and returned focus to "View in 3D"; Enter on it opened the view again. The pane refuses element full screen ("Permissions check failed"), so full screen was checked in Chrome below. Twice, the first capture right after `loaded` showed the empty box and a capture a moment later the drawn combo (see Follow-ups).
 - **Headless Chrome 156**, own temporary profile, driven over the DevTools protocol: "Full screen" put the card's box (with the iframe) in full screen, and closing removed the iframe and returned focus. With `--disable-3d-apis` no card showed the button. At 375 px wide with touch emulation the first click showed "The 3D view downloads about 34 MB." and no iframe. With `VITE_VIEWER_ORIGIN=http://127.0.0.1:5399`, where nothing listens (a second build on port 4175), the card showed "The 3D view could not be loaded." with "Try again" and no iframe after 15 seconds.
-- **Firefox: not checked.** Headless Firefox 146 did not open its remote protocol port from this environment, so the Firefox part of criterion 18 is still to do by hand.
+- **Firefox, by hand.** Headless Firefox 146 did not open its remote protocol port from this environment, so the owner ran the Firefox steps by hand in desktop Firefox on macOS (2026-11-08), from `vite preview` on port 4173 with the hosted viewer: the same as in Chrome, with no differences.
 
 ### Criterion coverage
 
@@ -357,7 +357,7 @@ Test ids are relative to `api/` or `website/`.
 | 15 | `src/viewer/ComboViewer.test.tsx:466`; `grep -rn dangerouslySetInnerHTML src` prints nothing; `grep -rn postMessage src` outside tests matches only the handshake in `src/viewer/ComboViewer.tsx`, whose target is `VIEWER_ORIGIN` |
 | 16 | `website/README.md` (View in 3D, Configuration, Project structure); `website/.env.example`; `api/README.md` (public combo routes); the grep lists only `localhost` and `127.0.0.1` |
 | 17 | Fresh clone, no `.env`: in `website/`, `npm ci`, `api:types:check`, `lint`, `npm test` (199 passed), `build` (no chunk-size warning) exit 0; in `admin/`, `npm ci`, `api:types:check`, `lint`, `typecheck`, `npm test` (336 passed), `build`, `check:bundle` exit 0. In `api/`: format, lint, mypy (111 files), `pytest` (453 passed, none skipped), OpenAPI and `export-website` checks exit 0. Bundle sizes above |
-| 18 | Local checks above; Firefox not checked |
+| 18 | Local checks above; Firefox by hand |
 | 19 | Workflow runs on commit db5451d: `website` 42487703826, `admin` 42487703828 and `api` 42487703836 (jobs `check` and `docker`) succeeded on the pull request, as did the push runs for the same commit (42487700452, 42487700390, 42487700425). `gitleaks git` over the branch and `gitleaks dir .`: no leaks |
 
 ### After the audit (2026-11-08)
@@ -378,14 +378,13 @@ Re-run on the rebuilt site in headless Chrome against the hosted viewer: the vie
 
 - Right after `cs3d:loaded` the screenshot is removed at once; in two captures the box was empty for a moment before the viewer's frame showed. Keeping the screenshot a frame or two longer, or fading it out, would hide that if it shows in real browsers.
 - Escape inside the 3D view stays in the viewer's document; a viewer change could forward it (Design).
-- The Firefox part of criterion 18.
 
 ## Audit
 
 **Date:** 2026-11-08 · **Branch:** 016-view-in-3d · **Commit:** db5451d
-**Verdict:** Fail
+**Verdict:** Pass
 
-The first audit, on commit 44fe969, was **Fail**: the stall timer restarted after a combo was drawn, `about:blank` was set after the iframe was removed, and events other than `cs3d:ready` lifted the 15 s limit (criteria 8, 9 and 14), with Firefox and CI still to do and six follow-ups. The three blocking differences and the follow-ups were fixed with tests (Implementation notes, After the audit); this is the re-audit of the fixed branch. The only remaining failure is criterion 18's Firefox run, which could not be done from this environment.
+The first audit, on commit 44fe969, was **Fail**: the stall timer restarted after a combo was drawn, `about:blank` was set after the iframe was removed, and events other than `cs3d:ready` lifted the 15 s limit (criteria 8, 9 and 14), with Firefox and CI still to do and six follow-ups. The three blocking differences and the follow-ups were fixed with tests (Implementation notes, After the audit); this is the re-audit of the fixed branch. The only remaining failure was criterion 18's Firefox run, which could not be done from this environment; the owner then ran it by hand in desktop Firefox with the same result as Chrome, so the verdict is Pass.
 
 Website and admin checks ran on a fresh clone with no `.env`; API checks in `api/` against the separate local stack of Implementation notes. The code was read against Requirements, Design and Security, the first time independently of the Implementation notes.
 
@@ -408,7 +407,7 @@ Website and admin checks ran on a fresh clone with no `.env`; API checks in `api
 | 15 | No viewer text, `postMessage` only to the origin | Pass | `ComboViewer.test.tsx:466`; the greps |
 | 16 | READMEs and `.env.example` | Pass | `website/README.md`, `api/README.md`, `website/.env.example`; the grep shows only `localhost` and `127.0.0.1` |
 | 17 | Section checks and bundle size | Pass | Fresh clone: website 199 tests, admin 336 tests, API 453 tests, all checks exit 0; main chunk 130.71 kB gzipped, +4.13 kB |
-| 18 | Manual check in Chrome and Firefox | Fail | Chrome: the app's Chromium pane and headless Chrome 156 against the hosted viewer (Implementation notes, Local checks and After the audit). Firefox: not checked; headless Firefox 146 did not start its remote protocol here. The comparison with the card's screenshot used stand-in screenshots (no worker renders locally): the drawn finishes matched the card's names and the parameters the viewer echoed |
+| 18 | Manual check in Chrome and Firefox | Pass | Chrome: the app's Chromium pane and headless Chrome 156 against the hosted viewer (Implementation notes, Local checks and After the audit). Firefox: by the owner, by hand in desktop Firefox on macOS from `vite preview` on port 4173, the same as Chrome. The comparison with the card's screenshot used stand-in screenshots (no worker renders locally): the drawn finishes matched the card's names and the parameters the viewer echoed |
 | 19 | CI on GitHub; gitleaks | Pass | Workflow runs on commit db5451d: `website` 42487703826, `admin` 42487703828, `api` 42487703836 (jobs `check` and `docker`) on the pull request, and the push runs 42487700452, 42487700390, 42487700425, all succeeded; `gitleaks git` over the branch and `gitleaks dir .`: no leaks |
 
 | Check | Command | Result |
@@ -422,7 +421,6 @@ Website and admin checks ran on a fresh clone with no `.env`; API checks in `api
 
 **Findings**
 
-- (blocking) Criterion 18: the Firefox run is still to do by hand (the same steps as in Chrome, from `vite preview` on port 4173 with the hosted viewer).
 - (follow-up) In two captures the box was empty for a moment between `cs3d:loaded` and the viewer's first visible frame; worth watching in real browsers, and a short fade would hide it.
 - (follow-up) Escape inside the 3D view stays in the viewer; a viewer change could forward it.
 - (follow-up) Recorded deviation: the visit's state lives in `src/viewer/state.ts`, provided by `Providers.tsx`, not in `Combos.tsx`, so it survives moving between finishes.
