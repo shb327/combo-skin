@@ -320,7 +320,7 @@ A missing or invalid setting stops startup with an error that names the variable
 | `POST /admin/login` | Log in; sets the session cookie. 401, 403, 415, 422 or 429 otherwise. |
 | `GET /admin/me` | The logged-in admin and the session's CSRF token, or 401. |
 | `POST /admin/logout` | Ends the session and clears the cookie; 204. |
-| `GET /gloves/{type}/{finish}/combos`, `GET /knives/{type}/{finish}/combos` | The finish's published combos, highest rating first, each with its `screenshot` (`{width, height, images: [{url, width, height, type}]}`, narrowest first) or null. `[]` without combos, 404 for an unknown finish. |
+| `GET /gloves/{type}/{finish}/combos`, `GET /knives/{type}/{finish}/combos` | The finish's published combos, highest rating first, each with its `screenshot` (`{width, height, images: [{url, width, height, type}]}`, narrowest first) or null. Each item (`glove`, `knife`) carries its slugs, names, picture, float range and conditions, and the game's `def_index` (its type) and `paint_index` (its finish, 0 for Vanilla), which the website's 3D viewer uses; admin responses carry the same items. `[]` without combos, 404 for an unknown finish. |
 | `GET /combo-counts` | How many published combos each finish has, as `{"gloves": {type: {finish: n}}, "knives": {...}}`; finishes without any are left out. Counted exactly as the lists above. |
 | `GET /admin/combos` | Combos in any status. Filters: `glove_type`, `glove_finish`, `knife_type`, `knife_finish`, `status`; `sort` (`rating` or `updated`), `limit` (up to 500), `offset`. |
 | `POST /admin/combos` | Create a draft combo. 409 `combo_exists` if the pairing has one. |

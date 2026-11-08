@@ -161,6 +161,8 @@ def item(
         type_name=item_type.name,
         finish_slug=finish.slug,
         display_name=finish.display_name,
+        def_index=item_type.def_index,
+        paint_index=finish.paint_index,
         image_url=finish.image_url,
         rarity=Rarity(code=finish.rarity_code, name=finish.rarity_name, color=finish.rarity_color),
         active=finish.active and item_type.active,

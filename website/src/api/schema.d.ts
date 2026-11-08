@@ -1016,6 +1016,8 @@ export interface components {
         Item: {
             /** Active */
             active: boolean;
+            /** Def Index */
+            def_index: number;
             /** Display Name */
             display_name: string;
             /** Finish Slug */
@@ -1030,6 +1032,8 @@ export interface components {
             float_to: number | null;
             /** Image Url */
             image_url: string;
+            /** Paint Index */
+            paint_index: number;
             rarity: components["schemas"]["Rarity"];
             /** Seeds */
             seeds: number[];

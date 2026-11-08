@@ -3,7 +3,7 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from "@tailwindcss/vite";
 import * as path from "node:path";
-import { apiOrigin, imageOrigin } from "./src/api/origin";
+import { apiOrigin, imageOrigin, viewerOrigin } from "./src/api/origin";
 
 export default defineConfig(({ mode }) => {
   // DEV_ALLOWED_HOSTS has no VITE_ prefix, so it is never exposed to client code.
@@ -16,6 +16,8 @@ export default defineConfig(({ mode }) => {
   const origin = apiOrigin(process.env.VITE_API_BASE_URL ?? env.VITE_API_BASE_URL)
   // The same for VITE_IMAGE_ORIGIN, where screenshots are loaded from.
   const images = imageOrigin(process.env.VITE_IMAGE_ORIGIN ?? env.VITE_IMAGE_ORIGIN)
+  // And for VITE_VIEWER_ORIGIN, the 3D viewer shown by "View in 3D".
+  const viewer = viewerOrigin(process.env.VITE_VIEWER_ORIGIN ?? env.VITE_VIEWER_ORIGIN)
 
   return {
     plugins: [
@@ -25,6 +27,7 @@ export default defineConfig(({ mode }) => {
     define: {
       'import.meta.env.VITE_API_BASE_URL': JSON.stringify(origin),
       'import.meta.env.VITE_IMAGE_ORIGIN': JSON.stringify(images),
+      'import.meta.env.VITE_VIEWER_ORIGIN': JSON.stringify(viewer),
     },
     server: {
       allowedHosts,

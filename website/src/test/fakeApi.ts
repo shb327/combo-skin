@@ -89,6 +89,8 @@ export function item(overrides: Partial<Item> & Pick<Item, 'type_slug' | 'finish
   return {
     type_name: overrides.type_slug,
     display_name: overrides.finish_slug,
+    def_index: 500,
+    paint_index: 1,
     image_url: `${IMAGE}/${overrides.type_slug}-${overrides.finish_slug}`,
     rarity: { code: 'rarity_ancient_weapon', name: 'Covert', color: '#eb4b4b' },
     active: true,
