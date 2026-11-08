@@ -1,6 +1,6 @@
 # 016: View in 3D on the combo cards
 
-**Status:** Approved
+**Status:** Implemented
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** website, api
@@ -309,7 +309,62 @@ None. On 2026-11-08 the owner answered the draft's questions: the indexes come f
 
 ## Implementation notes
 
-Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+Built on `016-view-in-3d`, from `main` at the merge of spec 015.
+
+### Deviations
+
+- **Where the visit's state lives (2026-11-08, code layout only).** Design's Code layout puts "one page-level context in `Combos.tsx`" in charge of the open card and the visit's flags. A context inside the combos page is remade on every finish page, so the data warning, "no WebGL2" and "cannot be drawn" would be forgotten on the next finish, against R8, R10 and R11 ("for the rest of the visit"). The state is a reducer in `website/src/viewer/state.ts`, provided once for the app's life by `website/src/Providers.tsx`. The card's box (button, warning, progress, controls and messages) is `src/components/ComboPictures.tsx`; `src/viewer/ComboViewer.tsx` is only the iframe and its messages. The data-saving check sits beside the WebGL2 check in `src/viewer/webgl.ts`. No requirement or behaviour changes.
+
+### Decisions the spec left open
+
+- **Iframe address.** `src` is set by the view's effect, not in JSX, so a remount in React's development double run sets it again after the cleanup's `about:blank`.
+- **Handshake id.** `crypto.randomUUID()`, with a `getRandomValues` fallback for a page served over plain `http` on a host other than `localhost` (no secure context there).
+- **The hook.** `onLoaded` is called once per attempt, on its first `cs3d:loaded`; a `loaded` after `cs3d:recovering` updates the view but does not call it again.
+- **Full screen.** The control shows only where `document.fullscreenEnabled`. It decides between entering and leaving by `document.fullscreenElement` at the click, not by its label, because a browser may report the change late (headless Chrome sometimes sends no `fullscreenchange`; `ComboViewer.test.tsx:250`).
+- **Look.** The controls are white text and icons at 60% opacity over a soft shadow, fully white on hover and focus with a white focus ring; icons from `lucide-react`, already a dependency. The data warning dims the screenshot to 40%.
+- **Live region.** One `role="status"` `span` per card, always present, so a card without a description still has no `p` element (spec 011's test).
+- **Sandbox.** `allow-scripts allow-same-origin` was enough for the hosted viewer: nothing was added.
+- **Bundle.** Main chunk 413.10 kB (130.62 kB gzipped), up 4.04 kB gzipped from `main` (126.58 kB); the catalog chunk is unchanged; no chunk-size warning.
+
+### Local checks (criterion 18)
+
+Run against a separate Compose project, `combo-skin-016` (database on `127.0.0.1:54316`, storage on `127.0.0.1:9016`, API on `127.0.0.1:8016`, image `combo-skin-api-016`), through an override file outside the repository and an `api/.env` made from `api/.env.example` with those ports, so the owner's stack and dev servers were untouched. The admin command only takes a password at an interactive prompt, so a throwaway local admin was made with `accounts.create` from a script, with a random password kept in memory. Three published combos on Specialist Gloves | Mogul (Karambit | Doppler (Ruby) with knife range 0 to 0.01 and seeds 387 and 512; Butterfly Knife | Fade with glove range 0.15 to 0.3 and seed 269; Karambit | Vanilla) got stand-in screenshots through a worker token, a claim and a 1920 by 1080 PNG each. The site was built with `VITE_API_BASE_URL=http://localhost:8016`, `VITE_IMAGE_ORIGIN=http://localhost:9016` and the hosted viewer as `VITE_VIEWER_ORIGIN`, and served with `vite preview` on port 4173.
+
+- **The app's built-in browser (Chromium).** The buttons showed in the top-right corner at 60% white (computed colour alpha 0.6). Before a click the page had no iframe. Opening the Doppler (Ruby) card gave one iframe with the address of criterion 3 (`knife_seed=387`, no `gloves_seed`), the sandbox, no `referrerpolicy`, and the combo's title; the viewer answered `cs3d:ready`, `cs3d:state` (the handshake's id), `progress` and `loaded`, and drew the Mogul gloves with the red Karambit. Opening the Butterfly card removed the first iframe; its `cs3d:loaded` echoed `knife_seed` 0 and `gloves_seed` 269 and agent 5404 (the default). The vanilla card sent `knife_paint=0` with no knife float or seed, and was drawn as a vanilla Karambit. Close and Escape removed the iframe and returned focus to "View in 3D"; Enter on it opened the view again. The pane refuses element full screen ("Permissions check failed"), so full screen was checked in Chrome below. Twice, the first capture right after `loaded` showed the empty box and a capture a moment later the drawn combo (see Follow-ups).
+- **Headless Chrome 156**, own temporary profile, driven over the DevTools protocol: "Full screen" put the card's box (with the iframe) in full screen, and closing removed the iframe and returned focus. With `--disable-3d-apis` no card showed the button. At 375 px wide with touch emulation the first click showed "The 3D view downloads about 34 MB." and no iframe. With `VITE_VIEWER_ORIGIN=http://127.0.0.1:5399`, where nothing listens (a second build on port 4175), the card showed "The 3D view could not be loaded." with "Try again" and no iframe after 15 seconds.
+- **Firefox: not checked.** Headless Firefox 146 did not open its remote protocol port from this environment, so the Firefox part of criterion 18 is still to do by hand.
+
+### Criterion coverage
+
+Test ids are relative to `api/` or `website/`.
+
+| Criterion | Covered by |
+| --- | --- |
+| 1 | `tests/combos/test_public.py:137` `test_items_carry_the_game_indexes` (both public lists and the admin read; Doppler (Ruby) 507/415, Crimson Kimono 5034/10033, Mogul 5034/10064, Vanilla 507/0), `:70` (item keys); `tests/combos/test_admin_combos.py:25` (exact admin body) |
+| 2 | `uv run python -m combo_api.openapi --check` exit 0; `npm run api:types:check` exit 0 in `website/` and `admin/`; `git diff main --stat -- api/` lists only the schema, the item query, two test files, `openapi.json` and `README.md` |
+| 3 | `src/viewer/params.test.ts:42`, `:53`, `:63`, `:71`, `:79`, `:100` |
+| 4 | `src/api/origin.test.ts:76` (`checkViewerOrigin`, including plain `http` on `127.0.0.1` for the viewer only); `VITE_VIEWER_ORIGIN=https://viewer.example.com/x npm run build` exits 1 naming the variable |
+| 5 | `src/viewer/ComboViewer.test.tsx:65`, `:79`; `src/viewer/webgl.test.ts:10`, `:14`, `:20`, `:28` |
+| 6 | `src/viewer/ComboViewer.test.tsx:86` |
+| 7 | `src/viewer/ComboViewer.test.tsx:104`, `:127` |
+| 8 | `src/viewer/ComboViewer.test.tsx:145` (7 cases), `:164`; `src/viewer/messages.test.ts:35` |
+| 9 | `src/viewer/ComboViewer.test.tsx:176`, `:199`, `:208`, `:221` |
+| 10 | `src/viewer/ComboViewer.test.tsx:238`, `:250`, `:262` |
+| 11 | `src/viewer/ComboViewer.test.tsx:271`, `:293`, `:302`; `src/viewer/webgl.test.ts:37`, `:42`, `:48` |
+| 12 | `src/viewer/ComboViewer.test.tsx:312`, `:333`, `:348`; `src/viewer/messages.test.ts:52`, `:84` |
+| 13 | `src/viewer/ComboViewer.test.tsx:366` |
+| 14 | `src/viewer/ComboViewer.test.tsx:383`, `:407`, `:422`, `:433`; `src/viewer/messages.test.ts:93` |
+| 15 | `src/viewer/ComboViewer.test.tsx:357`; `grep -rn dangerouslySetInnerHTML src` prints nothing; `grep -rn postMessage src` outside tests matches only `src/viewer/ComboViewer.tsx:83`, whose target is `VIEWER_ORIGIN` |
+| 16 | `website/README.md` (View in 3D, Configuration, Project structure); `website/.env.example`; `api/README.md` (public combo routes); the grep lists only `localhost` and `127.0.0.1` |
+| 17 | Fresh clone, no `.env`: in `website/`, `npm ci`, `api:types:check`, `lint`, `npm test` (191 passed), `build` (no chunk-size warning) exit 0; in `admin/`, `npm ci`, `api:types:check`, `lint`, `typecheck`, `npm test` (336 passed), `build`, `check:bundle` exit 0. In `api/`: format, lint, mypy (111 files), `pytest` (453 passed, none skipped), OpenAPI and `export-website` checks exit 0. Bundle sizes above |
+| 18 | Local checks above; Firefox not checked |
+| 19 | After the branch is pushed |
+
+### Follow-ups
+
+- Right after `cs3d:loaded` the screenshot is removed at once; in two captures the box was empty for a moment before the viewer's frame showed. Keeping the screenshot a frame or two longer, or fading it out, would hide that if it shows in real browsers.
+- Escape inside the 3D view stays in the viewer's document; a viewer change could forward it (Design).
+- The Firefox part of criterion 18.
 
 ## Audit
 
