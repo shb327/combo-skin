@@ -395,9 +395,14 @@ Built on `015-screenshot-storage`, from `main` at the merge of spec 012.
 
 - **Criterion 14's boxes (agreed with the owner on 2026-11-08).** The spec said the mark lies within the bottom-right 300 by 60 px at 1920 (none within 20 px of the right or bottom edge) and 110 by 24 px at 640. A mark 52 px tall that stays 20 px clear of the bottom edge cannot fit in 60 px. The mark of Design, rendered with Montserrat SemiBold, measures 266 by 51 px at 1920 (29 px from the right, 26 from the bottom, so it needs 295 by 77 px) and 101 by 20 px at 640 (needs 110 by 28 px), matching the approved sample. The owner kept the mark as designed and changed the boxes to 300 by 80 px at 1920 and 110 by 30 px at 640.
 
+- **Route guard (found on `main`, fixed here).** With FastAPI 0.162, `app.routes` holds one wrapper per included router, so the structural guard in `tests/admins/test_require_admin.py` and the operation id check in `tests/test_openapi.py` only ever saw `/openapi.json` and `/docs`. Both now walk `fastapi.routing.iter_route_contexts(app.routes)`, which expands included routers; the guard also asserts that it sees the combo, worker and login routes. Every existing route passed the stricter check unchanged.
+
 ### Progress
 
-- Dependencies `boto3` and `pillow` added to `api/`; Montserrat SemiBold (`fonts/ttf/Montserrat-SemiBold.ttf` of JulietaUla/Montserrat at commit `555facf`, OFL-1.1) committed for the watermark.
+Local checks run against a separate Compose project, `combo-skin-015` (database on `127.0.0.1:54325`, storage on `127.0.0.1:9015`, API on `127.0.0.1:8015`, image `combo-skin-api-015`), with an override file outside the repository and an `api/.env` made from `api/.env.example` with those ports.
+
+- Done: dependencies `boto3` and `pillow`; Montserrat SemiBold (`fonts/ttf/Montserrat-SemiBold.ttf` of JulietaUla/Montserrat at commit `555facf`, OFL-1.1); storage settings; the `Storage` seam (S3 and in memory); migration `0006`; PNG checks, watermark and versions; workers and `require_worker`; the queue; the worker and request routes; screenshots in combo responses; the extended guard test.
+- Next: queue, claim and lease tests; upload tests; removal, `init`, `rebuild`, `sweep`; `requeued`; OpenAPI and types; website; admin; CI; READMEs and notices.
 
 ## Audit
 
