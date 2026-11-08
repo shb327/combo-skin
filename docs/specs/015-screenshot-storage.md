@@ -466,7 +466,7 @@ Test ids are relative to `api/`, `admin/` or `website/`.
 | 23 | `tests/test_settings.py::test_env_example_lists_every_setting`, `::test_missing_required_setting_names_it`, `::test_startup_fails_without_settings` (storage settings included), `::test_storage_settings`, `::test_image_base_url`, `::test_invalid_image_base_url`, `::test_invalid_storage_endpoint`, `::test_buckets_must_differ`; `THIRD_PARTY_NOTICES.md` Montserrat; `api/README.md` Getting started (Compose services), Screenshots, Configuration, Endpoints, Layout; `admin/README.md` Screens, Configuration; `website/README.md` What the site does, Configuration |
 | 24 | In `api/`: format check, lint, mypy (111 files), `pytest` (452 passed, none skipped), OpenAPI and `export-website` checks exit 0; `docker build` exit 0, 278,660,472 bytes. In `admin/`: `npm ci`, `api:types:check`, `lint`, `typecheck`, `npm test` (336 passed), `build` (no chunk-size warning), `check:bundle` exit 0. In `website/`: `npm ci`, `api:types:check`, `lint`, `npm test` (109 passed), `build` (no chunk-size warning) exit 0 |
 | 25 | Manual, as in Local checks |
-| 26 | Pending: recorded after the branch is pushed |
+| 26 | Workflow runs on commit 01f0de8: `api` run 42472789604 (jobs `check` and `docker`), `admin` run 42472789504 and `website` run 42472789594 succeeded on the pull request, as did the push runs for the same commit (42472779728, 42472779700, 42472779713). `gitleaks git` over the branch and `gitleaks dir .`: no leaks. URLs added: localhost, `example.com` and `.test` placeholders, the game's image host, project and licence pages, the lockfile's package URLs |
 
 ## Audit
 
@@ -502,7 +502,7 @@ The first audit, on commit aa915d4, was **Fail**: `requeued` was a net differenc
 | 23 | Settings, env example, notices, READMEs | Pass | `tests/test_settings.py`; `THIRD_PARTY_NOTICES.md`; READMEs read |
 | 24 | Section checks | Pass | Checks table |
 | 25 | Manual run-through | Pass | Implementation notes, Local checks |
-| 26 | CI and gitleaks | Pending | gitleaks clean (below); workflow runs to be recorded after the push |
+| 26 | CI and gitleaks | Pass | gitleaks clean (below); workflow runs on commit 01f0de8: `api` run 42472789604 (jobs `check` and `docker`), `admin` run 42472789504 and `website` run 42472789594 succeeded on the pull request, as did the push runs for the same commit (42472779728, 42472779700, 42472779713) |
 
 | Check | Command | Result |
 | --- | --- | --- |
@@ -517,6 +517,5 @@ The first audit, on commit aa915d4, was **Fail**: `requeued` was a net differenc
 
 **Findings**
 
-- (follow-up) Criterion 26 waits on the push: the `api`, `admin` and `website` runs for the branch's latest commit.
 - (follow-up) Not limited or not exact, as recorded in Implementation notes, After the audit: live claims per worker, upload bodies in memory, the claim order's "waiting since", a removal racing an upload, and the `storage` service's environment.
 - (follow-up) A worker request with a well-formed but unknown token and a malformed body gets 422 rather than 401 (nothing is executed).
