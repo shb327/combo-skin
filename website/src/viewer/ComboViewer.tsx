@@ -9,7 +9,8 @@ import { READY_MS, STALL_MS, VIEWER_ORIGIN, failureFor, newId, readEvent, type F
 
 export interface ViewerHandlers {
   onProgress(loaded: number, total: number): void
-  onLoaded(ms: number | null): void
+  /** `first`: the first time this attempt's combo is drawn (later ones follow a recovery). */
+  onLoaded(ms: number | null, first: boolean): void
   onRecovering(): void
   onFail(failure: Failure): void
 }
@@ -35,6 +36,7 @@ export function ComboViewer({
     if (!frame) return
     const id = newId()
     let finished = false
+    let drawn = false
     let timer: ReturnType<typeof setTimeout> | undefined
 
     const wait = (ms: number) => {
@@ -67,7 +69,9 @@ export function ComboViewer({
         case 'cs3d:loaded':
           // Drawn: the viewer reports its own later failures; no time limit while it shows.
           clearTimeout(timer)
-          return latest.current.onLoaded(message.ms)
+          latest.current.onLoaded(message.ms, !drawn)
+          drawn = true
+          return
         case 'cs3d:error':
           return fail(failureFor(message.code, message.retryable))
       }

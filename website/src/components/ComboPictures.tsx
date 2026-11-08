@@ -52,9 +52,9 @@ export function ComboPictures({ combo, onLoaded }: { combo: PublicCombo; onLoade
   const attempt = active?.attempt ?? 0
   const handlers: ViewerHandlers = {
     onProgress: (loaded, total) => dispatch({ type: 'progress', comboId: combo.id, attempt, loaded, total }),
-    onLoaded: (ms) => {
+    onLoaded: (ms, first) => {
       dispatch({ type: 'loaded', comboId: combo.id, attempt })
-      onLoaded?.({ comboId: combo.id, ms })
+      if (first) onLoaded?.({ comboId: combo.id, ms })
     },
     onRecovering: () => dispatch({ type: 'recovering', comboId: combo.id, attempt }),
     onFail: (failure) => dispatch({ type: 'fail', comboId: combo.id, attempt, failure }),
