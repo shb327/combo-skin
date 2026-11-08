@@ -3,8 +3,12 @@
  * Events are accepted only from VITE_VIEWER_ORIGIN, only from this iframe, and only with the id
  * of the URL's combo (null) or of this attempt's handshake. Commands go to that origin only. On
  * unmount the listener and timers go and the iframe is pointed at `about:blank` before React
- * removes it, so the viewer's WebGL context and memory are released. */
-import { useEffect, useRef } from 'react'
+ * removes it (a layout effect's cleanup runs while the iframe is still in the page), so the
+ * viewer's WebGL context and memory are released.
+ *
+ * Time limits: `cs3d:ready` within 15 s of opening; then, while the combo loads (or reloads
+ * after a lost GPU context), an event at least every 60 s; none once it is drawn. */
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { READY_MS, STALL_MS, VIEWER_ORIGIN, failureFor, newId, readEvent, type Failure } from './messages'
 
 export interface ViewerHandlers {
@@ -25,29 +29,38 @@ export function ComboViewer({
   handlers: ViewerHandlers
 }) {
   const ref = useRef<HTMLIFrameElement>(null)
+  // One attempt shows one combo: a refetch that changes it does not reload the open viewer.
+  const [address] = useState(src)
   // The latest handlers, without restarting the effect when the parent renders.
   const latest = useRef(handlers)
   useEffect(() => {
     latest.current = handlers
   })
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const frame = ref.current
     if (!frame) return
     const id = newId()
     let finished = false
+    let answered = false
+    let loading = true
     let drawn = false
-    let timer: ReturnType<typeof setTimeout> | undefined
+    let stallTimer: ReturnType<typeof setTimeout> | undefined
 
-    const wait = (ms: number) => {
-      clearTimeout(timer)
-      timer = setTimeout(() => fail(failureFor('timeout', true)), ms)
-    }
     const fail = (failure: Failure) => {
       if (finished) return
       finished = true
-      clearTimeout(timer)
+      clearTimeout(readyTimer)
+      clearTimeout(stallTimer)
       latest.current.onFail(failure)
+    }
+    const timeout = () => fail(failureFor('timeout', true))
+    const readyTimer = setTimeout(timeout, READY_MS)
+    // Restarts the 60 s limit, only once the viewer has answered and while the combo loads.
+    const alive = () => {
+      if (!answered || !loading) return
+      clearTimeout(stallTimer)
+      stallTimer = setTimeout(timeout, STALL_MS)
     }
 
     const onMessage = (event: MessageEvent) => {
@@ -57,18 +70,22 @@ export function ComboViewer({
       switch (message.type) {
         case 'cs3d:ready':
           if (!message.webgl2) return fail(failureFor('no-webgl2', false))
-          return wait(STALL_MS)
+          answered = true
+          clearTimeout(readyTimer)
+          return alive()
         case 'cs3d:state':
-          return wait(STALL_MS)
+          return alive()
         case 'cs3d:progress':
-          wait(STALL_MS)
+          alive()
           return latest.current.onProgress(message.loaded, message.total)
         case 'cs3d:recovering':
-          wait(STALL_MS)
+          loading = true
+          alive()
           return latest.current.onRecovering()
         case 'cs3d:loaded':
           // Drawn: the viewer reports its own later failures; no time limit while it shows.
-          clearTimeout(timer)
+          loading = false
+          clearTimeout(stallTimer)
           latest.current.onLoaded(message.ms, !drawn)
           drawn = true
           return
@@ -85,16 +102,16 @@ export function ComboViewer({
 
     window.addEventListener('message', onMessage)
     frame.addEventListener('load', onLoad)
-    frame.src = src
-    wait(READY_MS)
+    frame.src = address
     return () => {
       finished = true
-      clearTimeout(timer)
+      clearTimeout(readyTimer)
+      clearTimeout(stallTimer)
       window.removeEventListener('message', onMessage)
       frame.removeEventListener('load', onLoad)
       frame.src = 'about:blank'
     }
-  }, [src])
+  }, [address])
 
   return (
     <iframe

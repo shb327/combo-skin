@@ -196,6 +196,50 @@ describe('closing', () => {
     expect(screen.queryByText(/graphics card/)).toBeNull()
   })
 
+  it('points the iframe at about:blank while it is still in the page', async () => {
+    stubWebGL2()
+    await site()
+    await open('a')
+    const iframe = frame()
+    const connectedWhenBlanked: boolean[] = []
+    const setter = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'src')!.set!
+    Object.defineProperty(iframe, 'src', {
+      configurable: true,
+      get: () => iframe.getAttribute('src') ?? '',
+      set(value: string) {
+        if (value === 'about:blank') connectedWhenBlanked.push(iframe.isConnected)
+        setter.call(iframe, value)
+      },
+    })
+    await userEvent.click(inCard('a').getByRole('button', { name: 'Close 3D view' }))
+    expect(connectedWhenBlanked).toEqual([true])
+    expect(iframe.isConnected).toBe(false)
+  })
+
+  it('keeps the same viewer when the combo is fetched again while open', async () => {
+    stubWebGL2()
+    const api = fakeApi()
+    const queryClient = createQueryClient()
+    const props = { api: createApi({ baseUrl: ORIGIN, fetch: api.fetch }), queryClient }
+    const { rerender } = render(
+      <Providers {...props}>
+        <ComboPictures combo={A} />
+      </Providers>,
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'View in 3D' }))
+    const iframe = frame()
+    const src = iframe.getAttribute('src')
+    viewer.loaded()
+    const changed = combo('a', 9.5, { ...GLOVES, seeds: [700] }, RUBY, null, screenshotOf('a'))
+    rerender(
+      <Providers {...props}>
+        <ComboPictures combo={changed} />
+      </Providers>,
+    )
+    expect(frame()).toBe(iframe)
+    expect(iframe.getAttribute('src')).toBe(src)
+  })
+
   it('closes on Escape from its controls', async () => {
     stubWebGL2()
     await site()
@@ -259,6 +303,18 @@ describe('closing', () => {
     expect(request).toHaveBeenCalledTimes(1)
   })
 
+  it('stays as it is when the browser refuses full screen', async () => {
+    stubWebGL2()
+    const { request } = stubFullscreen()
+    request.mockImplementation(() => Promise.reject(new TypeError('Permissions check failed')))
+    await site()
+    await open('a')
+    await userEvent.click(inCard('a').getByRole('button', { name: 'Full screen' }))
+    await act(() => Promise.resolve())
+    expect(inCard('a').getByRole('button', { name: 'Full screen' })).toBeInTheDocument()
+    expect(frames()).toHaveLength(1)
+  })
+
   it('has no full-screen control where the browser has none', async () => {
     stubWebGL2()
     await site()
@@ -297,6 +353,56 @@ describe('phones and small screens', () => {
     await site()
     await open('a')
     expect(inCard('a').getByText('The 3D view downloads about 34 MB.')).toBeInTheDocument()
+    expect(frames()).toHaveLength(0)
+    await userEvent.click(inCard('a').getByRole('button', { name: 'Cancel' }))
+    expect(frames()).toHaveLength(0)
+    await open('a')
+    await userEvent.click(inCard('a').getByRole('button', { name: 'Load 3D view' }))
+    expect(frames()).toHaveLength(1)
+    await open('b')
+    expect(screen.queryByText('The 3D view downloads about 34 MB.')).toBeNull()
+    expect(card('b')).toContainElement(frame())
+  })
+
+  it('remembers the visit on other finish pages: the warning, no WebGL2, combos it cannot draw', async () => {
+    stubWebGL2()
+    stubMatchMedia(true)
+    const C = combo('c', 7, { ...KARAMBIT_RUBY, type_slug: 'specialist', type_name: 'Specialist Gloves', finish_slug: 'crimson-kimono', display_name: 'Crimson Kimono', def_index: 5034, paint_index: 10033 }, RUBY, null, screenshotOf('c'))
+    const api = fakeApi()
+    api.combos(PATH, [A, B])
+    api.combos(OTHER_PATH, [C])
+    const { navigate } = renderSite(PATH, { api })
+    await screen.findAllByRole('article')
+    // Accept the download once, and learn that combo b cannot be drawn.
+    await open('a')
+    await userEvent.click(inCard('a').getByRole('button', { name: 'Load 3D view' }))
+    await open('b')
+    viewer.error('unknown-knife-finish', false)
+    act(() => navigate(OTHER_PATH))
+    await screen.findByRole('button', { name: 'View in 3D' })
+    await userEvent.click(screen.getByRole('button', { name: 'View in 3D' }))
+    expect(screen.queryByText('The 3D view downloads about 34 MB.')).toBeNull()
+    expect(frames()).toHaveLength(1)
+    viewer.error('no-webgl2', false)
+    act(() => navigate(PATH))
+    await screen.findAllByRole('article')
+    expect(viewButtons()).toHaveLength(0)
+  })
+
+  it('remembers on other pages which combos cannot be drawn', async () => {
+    stubWebGL2()
+    const api = fakeApi()
+    api.combos(PATH, [A, B])
+    api.combos(OTHER_PATH, [])
+    const { navigate } = renderSite(PATH, { api })
+    await screen.findAllByRole('article')
+    await open('b')
+    viewer.error('bad-params', false)
+    act(() => navigate(OTHER_PATH))
+    act(() => navigate(PATH))
+    await screen.findAllByRole('article')
+    expect(inCard('a').getByRole('button', { name: 'View in 3D' })).toBeInTheDocument()
+    expect(inCard('b').queryByRole('button', { name: 'View in 3D' })).toBeNull()
   })
 
   it('does not warn on a wide screen with a mouse', async () => {
@@ -342,6 +448,9 @@ describe('errors', () => {
       await userEvent.click(inCard('a').getByRole('button', { name: 'Dismiss' }))
       expect(inCard('a').queryByRole('button', { name: 'View in 3D' })).toBeNull()
       expect(inCard('b').getByRole('button', { name: 'View in 3D' })).toBeInTheDocument()
+      // The button is gone: focus stays in the card's box instead of falling to the page.
+      expect(document.activeElement).not.toBe(document.body)
+      expect(card('a')).toContainElement(document.activeElement as HTMLElement)
     },
   )
 
@@ -404,6 +513,21 @@ describe('time limits', () => {
     expect(inCard('a').getByText('The 3D view could not be loaded.', VISIBLE)).toBeInTheDocument()
   })
 
+  it.each([
+    ['a handshake reply', () => send({ type: 'cs3d:state', id: null, status: 'loading' })],
+    ['a progress event', () => viewer.progress(1, 10)],
+  ])('still fails at 15 s without cs3d:ready, after %s', async (_, event) => {
+    stubWebGL2()
+    await site()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    fireEvent.click(inCard('a').getByRole('button', { name: 'View in 3D' }))
+    act(() => vi.advanceTimersByTime(5_000))
+    event()
+    act(() => vi.advanceTimersByTime(READY_MS - 5_000))
+    expect(frames()).toHaveLength(0)
+    expect(inCard('a').getByText('The 3D view could not be loaded.', VISIBLE)).toBeInTheDocument()
+  })
+
   it('fails when loading stalls after the viewer answered', async () => {
     stubWebGL2()
     await site()
@@ -419,15 +543,32 @@ describe('time limits', () => {
     expect(inCard('a').getByText('The 3D view could not be loaded.', VISIBLE)).toBeInTheDocument()
   })
 
-  it('has no time limit once the combo is drawn', async () => {
+  it('has no time limit once the combo is drawn, even after late events', async () => {
     stubWebGL2()
     await site()
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     fireEvent.click(inCard('a').getByRole('button', { name: 'View in 3D' }))
     viewer.ready()
     viewer.loaded()
+    viewer.progress(10, 10)
+    send({ type: 'cs3d:state', id: null, status: 'loaded' })
+    viewer.ready()
     act(() => vi.advanceTimersByTime(STALL_MS * 10))
     expect(frames()).toHaveLength(1)
+    expect(screen.queryByText('The 3D view could not be loaded.', VISIBLE)).toBeNull()
+  })
+
+  it('times a recovery like a load', async () => {
+    stubWebGL2()
+    await site()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    fireEvent.click(inCard('a').getByRole('button', { name: 'View in 3D' }))
+    viewer.ready()
+    viewer.loaded()
+    viewer.recovering()
+    act(() => vi.advanceTimersByTime(STALL_MS))
+    expect(frames()).toHaveLength(0)
+    expect(inCard('a').getByText('The 3D view could not be loaded.', VISIBLE)).toBeInTheDocument()
   })
 
   it('puts the screenshot back while the viewer recovers a lost GPU context', async () => {
