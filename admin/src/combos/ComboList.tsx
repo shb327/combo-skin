@@ -377,6 +377,10 @@ export function ComboList({ side, filters }: { side: Kind; filters: ComboFilters
           sensors={sensors}
           collisionDetection={closestCenter}
           accessibility={{ announcements, screenReaderInstructions: { draggable: SCREEN_READER_INSTRUCTIONS } }}
+          onDragStart={() => {
+            setMessage(null)
+            setFailure(null)
+          }}
           onDragEnd={onDragEnd}
         >
           <SortableContext items={shown.map((c) => c.id)} strategy={verticalListSortingStrategy} disabled={!canDrag}>

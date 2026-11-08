@@ -453,6 +453,11 @@ describe('dragging a combo to a new place', () => {
     expect(fake.to('PUT /admin/combos/{id}')).toHaveLength(0)
     expect(listed()).toEqual(before)
     expect(ratingBox(BUTTERFLY)).toHaveValue('8.79')
+
+    // Picking a combo up again clears the message.
+    await user.keyboard('[Space]')
+    expect(screen.queryByText(/^No rating fits/)).toBeNull()
+    await user.keyboard('[Escape]')
   })
 
   it('shows no handle while sorted by last change', async () => {
