@@ -324,7 +324,7 @@ Built on `016-view-in-3d`, from `main` at the merge of spec 015.
 - **Look.** The controls are white text and icons at 60% opacity over a soft shadow, fully white on hover and focus with a white focus ring; icons from `lucide-react`, already a dependency. The data warning dims the screenshot to 40%.
 - **Live region.** One `role="status"` `span` per card, always present, so a card without a description still has no `p` element (spec 011's test).
 - **Sandbox.** `allow-scripts allow-same-origin` was enough for the hosted viewer: nothing was added.
-- **Bundle.** Main chunk 413.10 kB (130.62 kB gzipped), up 4.04 kB gzipped from `main` (126.58 kB); the catalog chunk is unchanged; no chunk-size warning.
+- **Bundle.** Main chunk 413.31 kB (130.71 kB gzipped), up 4.13 kB gzipped from `main` (126.58 kB); the catalog chunk is unchanged; no chunk-size warning.
 
 ### Local checks (criterion 18)
 
@@ -340,25 +340,39 @@ Test ids are relative to `api/` or `website/`.
 
 | Criterion | Covered by |
 | --- | --- |
-| 1 | `tests/combos/test_public.py:137` `test_items_carry_the_game_indexes` (both public lists and the admin read; Doppler (Ruby) 507/415, Crimson Kimono 5034/10033, Mogul 5034/10064, Vanilla 507/0), `:70` (item keys); `tests/combos/test_admin_combos.py:25` (exact admin body) |
+| 1 | `tests/combos/test_public.py:137` `test_items_carry_the_game_indexes` (both public lists of each finish, non-empty, `GET /admin/combos` and the admin read; Doppler (Ruby) 507/415, Crimson Kimono 5034/10033, Mogul 5034/10064, Vanilla 507/0), `:70` (item keys); `tests/combos/test_admin_combos.py:25` (exact admin body) |
 | 2 | `uv run python -m combo_api.openapi --check` exit 0; `npm run api:types:check` exit 0 in `website/` and `admin/`; `git diff main --stat -- api/` lists only the schema, the item query, two test files, `openapi.json` and `README.md` |
 | 3 | `src/viewer/params.test.ts:42`, `:53`, `:63`, `:71`, `:79`, `:100` |
 | 4 | `src/api/origin.test.ts:76` (`checkViewerOrigin`, including plain `http` on `127.0.0.1` for the viewer only); `VITE_VIEWER_ORIGIN=https://viewer.example.com/x npm run build` exits 1 naming the variable |
 | 5 | `src/viewer/ComboViewer.test.tsx:65`, `:79`; `src/viewer/webgl.test.ts:10`, `:14`, `:20`, `:28` |
 | 6 | `src/viewer/ComboViewer.test.tsx:86` |
 | 7 | `src/viewer/ComboViewer.test.tsx:104`, `:127` |
-| 8 | `src/viewer/ComboViewer.test.tsx:145` (7 cases), `:164`; `src/viewer/messages.test.ts:35` |
-| 9 | `src/viewer/ComboViewer.test.tsx:176`, `:199`, `:208`, `:221` |
-| 10 | `src/viewer/ComboViewer.test.tsx:238`, `:250`, `:262` |
-| 11 | `src/viewer/ComboViewer.test.tsx:271`, `:293`, `:302`; `src/viewer/webgl.test.ts:37`, `:42`, `:48` |
-| 12 | `src/viewer/ComboViewer.test.tsx:312`, `:333`, `:348`; `src/viewer/messages.test.ts:52`, `:84` |
-| 13 | `src/viewer/ComboViewer.test.tsx:366` |
-| 14 | `src/viewer/ComboViewer.test.tsx:383`, `:407`, `:422`, `:433`; `src/viewer/messages.test.ts:93` |
-| 15 | `src/viewer/ComboViewer.test.tsx:357`; `grep -rn dangerouslySetInnerHTML src` prints nothing; `grep -rn postMessage src` outside tests matches only `src/viewer/ComboViewer.tsx:83`, whose target is `VIEWER_ORIGIN` |
+| 8 | `src/viewer/ComboViewer.test.tsx:145` (7 cases), `:164`, `:546` (late `progress`, `state` and `ready` after `loaded`, with the clock moved); `src/viewer/messages.test.ts:35` |
+| 9 | `src/viewer/ComboViewer.test.tsx:176`, `:199` (`about:blank` while the iframe is still in the page), `:219` (a refetch keeps the open viewer), `:243`, `:252`, `:265` |
+| 10 | `src/viewer/ComboViewer.test.tsx:282`, `:294`, `:306` (a refused request changes nothing and leaves no unhandled rejection), `:318` |
+| 11 | `src/viewer/ComboViewer.test.tsx:327`, `:349` (data saver: no iframe, Cancel, Load, then no warning), `:367` and `:392` (the warning, no WebGL2 and cannot-draw kept on other finish pages), `:408`; `src/viewer/webgl.test.ts:37`, `:42`, `:48` |
+| 12 | `src/viewer/ComboViewer.test.tsx:418`, `:439` (focus stays in the card when its button is gone), `:457`; `src/viewer/messages.test.ts:52`, `:84` |
+| 13 | `src/viewer/ComboViewer.test.tsx:475` |
+| 14 | `src/viewer/ComboViewer.test.tsx:492`, `:516` (a `state` or `progress` before `ready` does not lift the 15 s limit), `:531`, `:546`, `:561` (a recovery is timed like a load), `:574`; `src/viewer/messages.test.ts:93` |
+| 15 | `src/viewer/ComboViewer.test.tsx:466`; `grep -rn dangerouslySetInnerHTML src` prints nothing; `grep -rn postMessage src` outside tests matches only the handshake in `src/viewer/ComboViewer.tsx`, whose target is `VIEWER_ORIGIN` |
 | 16 | `website/README.md` (View in 3D, Configuration, Project structure); `website/.env.example`; `api/README.md` (public combo routes); the grep lists only `localhost` and `127.0.0.1` |
-| 17 | Fresh clone, no `.env`: in `website/`, `npm ci`, `api:types:check`, `lint`, `npm test` (191 passed), `build` (no chunk-size warning) exit 0; in `admin/`, `npm ci`, `api:types:check`, `lint`, `typecheck`, `npm test` (336 passed), `build`, `check:bundle` exit 0. In `api/`: format, lint, mypy (111 files), `pytest` (453 passed, none skipped), OpenAPI and `export-website` checks exit 0. Bundle sizes above |
+| 17 | Fresh clone, no `.env`: in `website/`, `npm ci`, `api:types:check`, `lint`, `npm test` (199 passed), `build` (no chunk-size warning) exit 0; in `admin/`, `npm ci`, `api:types:check`, `lint`, `typecheck`, `npm test` (336 passed), `build`, `check:bundle` exit 0. In `api/`: format, lint, mypy (111 files), `pytest` (453 passed, none skipped), OpenAPI and `export-website` checks exit 0. Bundle sizes above |
 | 18 | Local checks above; Firefox not checked |
 | 19 | After the branch is pushed |
+
+### After the audit (2026-11-08)
+
+The first audit (Fail, commit 44fe969) found three blocking differences and some follow-ups, all fixed on the branch with tests:
+
+- **Time limits.** A `progress`, `state` or repeated `ready` after `loaded` restarted the 60 s timer, so a drawn view could be removed a minute later; and any event before `cs3d:ready` replaced the 15 s limit with the 60 s one. `ComboViewer.tsx` now keeps two timers: 15 s from opening, cleared only by `cs3d:ready`; and 60 s between events, only after `ready` and while the combo loads or reloads after `cs3d:recovering`, never once it is drawn (`ComboViewer.test.tsx:516`, `:546`, `:561`).
+- **`about:blank` first.** The cleanup ran in a passive effect, after React had removed the iframe. The setup and cleanup are now a layout effect, whose cleanup runs while the iframe is still in the page (`:199`).
+- **A refetch while open.** The viewer's address is fixed for the attempt, so a refetched combo with other conditions no longer reloads the open viewer in place (`:219`).
+- **Focus when the button is gone.** After "cannot be drawn" or no WebGL2, closing the card's message moves focus to the card's box (`tabIndex={-1}`) instead of the page body (`:439`).
+- **Refused full screen.** A refused `requestFullscreen` or `exitFullscreen` is caught and leaves the control as it was (`:306`).
+- **Tests.** Criterion 1's test asserts non-empty lists and covers `GET /admin/combos`; criterion 11 covers the data saver fully and the visit's flags on other finish pages (`:349`, `:367`, `:392`).
+- **Focus targets recorded.** During the data warning focus is on "Load 3D view" (there is no "Close 3D view" yet); on an error, on "Try again", else "Dismiss".
+
+Re-run on the rebuilt site in headless Chrome against the hosted viewer: the view loads, full screen engages on the card's box and its control reads "Exit full screen", and closing removes the iframe and returns focus. Clicking "Exit full screen" with real input did not register in headless Chrome, whose full-screen viewport (800 by 600) does not match the window it maps input to, so no click reached the page at all; leaving full screen is covered by `:282` and `:294`.
 
 ### Follow-ups
 
