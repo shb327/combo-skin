@@ -33,7 +33,7 @@ export function ComboPictures({ combo, onLoaded }: { combo: PublicCombo; onLoade
   const close = () => {
     returnFocus.current = true
     if (document.fullscreenElement && document.fullscreenElement === box.current) {
-      void document.exitFullscreen()
+      document.exitFullscreen().catch(() => {})
     }
     dispatch({ type: 'close', comboId: combo.id })
   }
@@ -41,11 +41,12 @@ export function ComboPictures({ combo, onLoaded }: { combo: PublicCombo; onLoade
   // Leaving the page, or this finish, closes this card's view.
   useEffect(() => () => dispatch({ type: 'close', comboId: combo.id }), [dispatch, combo.id])
 
-  // Back to "View in 3D" after closing this card's view (not when another card took over).
+  // Back to "View in 3D" after closing this card's view (not when another card took over), or
+  // to the box when the card no longer offers 3D.
   useEffect(() => {
     if (!active && returnFocus.current) {
       returnFocus.current = false
-      viewButton.current?.focus()
+      ;(viewButton.current ?? box.current)?.focus()
     }
   }, [active])
 
@@ -81,7 +82,12 @@ export function ComboPictures({ combo, onLoaded }: { combo: PublicCombo; onLoade
           : ''
 
   return (
-    <div ref={box} className="relative w-full aspect-video bg-white/5 overflow-hidden" onKeyDown={onKeyDown}>
+    <div
+      ref={box}
+      tabIndex={-1}
+      className="relative w-full aspect-video bg-white/5 overflow-hidden focus:outline-none"
+      onKeyDown={onKeyDown}
+    >
       {viewing && (
         <ComboViewer
           key={attempt}
@@ -223,10 +229,12 @@ function ViewControls({ box, onClose }: { box: RefObject<HTMLDivElement | null>;
 
   // Decided by the document, not the label, in case a `fullscreenchange` is still to come.
   const toggle = () => {
+    // A browser may refuse either (no permission, or no longer in full screen): nothing changes.
+    const settle = () => setFullscreen(!!document.fullscreenElement && document.fullscreenElement === box.current)
     if (document.fullscreenElement && document.fullscreenElement === box.current) {
-      void document.exitFullscreen().finally(() => setFullscreen(false))
+      document.exitFullscreen().then(settle, settle)
     } else {
-      void box.current?.requestFullscreen().then(() => setFullscreen(document.fullscreenElement === box.current))
+      box.current?.requestFullscreen().then(settle, settle)
     }
   }
 
