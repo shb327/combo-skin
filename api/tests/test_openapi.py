@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 import pytest
-from fastapi.routing import APIRoute
+from fastapi.routing import iter_route_contexts
 from httpx import AsyncClient
 
 from combo_api import openapi
@@ -47,11 +47,15 @@ def test_operation_ids_are_unique_function_names() -> None:
         operation["operationId"] for path in schema["paths"].values() for operation in path.values()
     ]
     assert len(operation_ids) == len(set(operation_ids))
-    for route in app.routes:
-        if isinstance(route, APIRoute) and route.include_in_schema:
+    checked = 0
+    # Included routers expanded, as the app serves them.
+    for route in iter_route_contexts(app.routes):
+        if route.path is not None and route.include_in_schema:
             for method in route.methods or ():
                 operation = schema["paths"][route.path][method.lower()]
                 assert operation["operationId"] == route.name
+                checked += 1
+    assert checked == len(operation_ids)
 
 
 def test_snapshot_is_up_to_date() -> None:
