@@ -5,10 +5,15 @@ from dataclasses import dataclass
 from typing import Any
 
 import pytest
+from fastapi import FastAPI
 from httpx import AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from combo_api.screenshots import inputs, upload
 from combo_api.screenshots.images import Version
+from combo_api.screenshots.models import ScreenshotJob
+from combo_api.screenshots.workers import CurrentWorker, require_worker
 from tests.admins.support import ClientFactory, Clock
 from tests.combos.support import create, logged_in
 from tests.screenshots.support import png
@@ -484,3 +489,39 @@ async def test_revoking_a_worker_releases_its_claims(setup: Setup) -> None:
     assert (state["rendering"], state["attempts"]) == (False, 0)
     again = await setup.claim()
     assert again is not None and again["combo_id"] == combo["id"]
+
+
+async def test_a_worker_revoked_mid_request_cannot_claim_or_answer(
+    setup: Setup, app: FastAPI, db_session: AsyncSession
+) -> None:
+    """A request authenticated just before a revoke commits: the claim and the answers check
+    the worker again, under a lock that a revoke waits for."""
+    combo = await create(setup.client, setup.headers, glove=MOGUL, knife=FADE)
+    worker, token = await make_worker(setup.client, setup.headers, "render-box-4")
+    job = await claim(setup.box, token)
+    assert job is not None
+    stale = CurrentWorker(id=worker["id"], name=worker["name"])
+    app.dependency_overrides[require_worker] = lambda: stale
+    try:
+        revoked = await setup.client.post(
+            f"/admin/workers/{worker['id']}/revoke", headers=setup.headers
+        )
+        assert revoked.status_code == 200
+        response = await setup.box.post("/worker/jobs/claim", headers=bearer(token))
+        assert response.status_code == 401
+        assert response.json() == {"detail": "not_authenticated"}
+        for path, body in (
+            ("fail", {"reason": "timeout"}),
+            ("release", {"reason": "shutting_down"}),
+        ):
+            answer = await setup.box.post(
+                f"/worker/jobs/{job['job_id']}/{path}", json=body, headers=bearer(token)
+            )
+            assert answer.status_code == 401, path
+        sent = await send_png(setup.box, token, job["job_id"], PNG)
+        assert sent.status_code == 401
+    finally:
+        del app.dependency_overrides[require_worker]
+    jobs = (await db_session.scalars(select(ScreenshotJob))).all()
+    assert [(j.worker_id, j.lease_expires_at) for j in jobs] == [(worker["id"], None)]
+    assert (await setup.state(combo["id"]))["attempts"] == 0

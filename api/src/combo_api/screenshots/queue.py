@@ -35,6 +35,21 @@ WAITS = (timedelta(minutes=1), timedelta(minutes=10))
 CLAIM_TRIES = 5
 
 
+async def still_active(db: AsyncSession, worker: CurrentWorker) -> None:
+    """401 if the worker was revoked since its token was checked. The row stays share-locked
+    until the transaction ends, so a revoke waits for this claim or answer and then releases
+    it, or wins and this one is refused."""
+    found = await db.scalar(
+        select(Worker.id)
+        .where(Worker.id == worker.id, Worker.revoked_at.is_(None))
+        .with_for_update(read=True)
+    )
+    if found is None:
+        raise refuse(
+            status.HTTP_401_UNAUTHORIZED, "not_authenticated", {"WWW-Authenticate": "Bearer"}
+        )
+
+
 def with_state(query: Any) -> Any:
     """Join a query on `Combo` with its screenshot, job and current render inputs."""
     return query.outerjoin(ComboScreenshot, ComboScreenshot.combo_id == Combo.id).outerjoin(
@@ -80,6 +95,7 @@ async def claim(db: AsyncSession, worker: CurrentWorker, now: datetime) -> Job |
     """Give the worker the due combo that has waited longest, published combos first, with a
     lease; None when nothing is due."""
     await expire(db, now)
+    await still_active(db, worker)
     current = inputs.current_inputs()
     effective = Agent.__table__.alias("effective_agent")
     tried: list[int] = []
@@ -182,6 +198,7 @@ async def live_job(
 ) -> tuple[ScreenshotJob, str]:
     """The worker's job with this id, locked, and its combo's public id; 404 for an unknown
     job or another worker's, 409 when the claim has expired or was closed."""
+    await still_active(db, worker)
     found = (
         await db.execute(
             select(ScreenshotJob, Combo.public_id)
