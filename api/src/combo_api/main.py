@@ -30,6 +30,7 @@ from combo_api.db import create_engine, head_revision
 from combo_api.screenshots import admin_routes as screenshots_admin
 from combo_api.screenshots import worker_routes as screenshots_worker
 from combo_api.screenshots.storage import S3Storage, Storage
+from combo_api.screenshots.workers import check_request, is_worker_path
 from combo_api.settings import Settings, load_settings
 
 # LOG_LEVEL applies to the API's own logs and to uvicorn's error and access logs.
@@ -64,7 +65,7 @@ class AdminCors:
         self.cors: dict[tuple[str, ...], ASGIApp] = {}
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] == "http" and not scope["path"].startswith("/worker/"):
+        if scope["type"] == "http" and not is_worker_path(scope["path"]):
             origins = tuple(scope["app"].state.settings.admin_origins)
             origin = dict(scope["headers"]).get(b"origin", b"").decode("latin-1")
             if origin in origins:
@@ -127,18 +128,23 @@ async def validation_error(request: Request, error: Exception) -> JSONResponse:
     """422 without the submitted values, which on login can be a password.
 
     FastAPI decodes a JSON body before running route dependencies, so login's Origin and
-    content type checks run here too: a malformed body never skips them.
+    content type checks, and a worker route's Origin and token form checks, run here too: a
+    malformed body never skips them.
     """
     if not isinstance(error, RequestValidationError):
         raise error
     headers = dict(NO_STORE)
-    if request.scope.get("route") is admin_login_route():
-        try:
+    try:
+        if request.scope.get("route") is admin_login_route():
             admins.check_login_request(request)
-        except HTTPException as refused:
-            return JSONResponse(
-                {"detail": refused.detail}, status_code=refused.status_code, headers=headers
-            )
+        elif is_worker_path(request.url.path):
+            check_request(request)
+    except HTTPException as refused:
+        return JSONResponse(
+            {"detail": refused.detail},
+            status_code=refused.status_code,
+            headers={**headers, **(refused.headers or {})},
+        )
     errors = [{"loc": e["loc"], "msg": e["msg"], "type": e["type"]} for e in error.errors()]
     return JSONResponse({"detail": jsonable_encoder(errors)}, status_code=422, headers=headers)
 

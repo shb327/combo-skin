@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Annotated, Any
 
-from fastapi import Depends, Request, Response, status
+from fastapi import Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 
 from combo_api.admins import clock, limits
@@ -47,6 +47,10 @@ def digest(token: str) -> bytes:
     return hashlib.sha256(token.encode()).digest()
 
 
+def is_worker_path(path: str) -> bool:
+    return path == "/worker" or path.startswith("/worker/")
+
+
 def bearer_token(request: Request) -> str | None:
     scheme, _, token = request.headers.get("authorization", "").partition(" ")
     if scheme.lower() != "bearer" or not TOKEN.fullmatch(token):
@@ -54,26 +58,35 @@ def bearer_token(request: Request) -> str | None:
     return token
 
 
-async def require_worker(request: Request, response: Response, db: Session) -> CurrentWorker:
-    """The worker whose valid, unrevoked token the request carries, or a refusal: 403 for any
-    request with an Origin header, so no browser page can use worker routes; 401 otherwise."""
-    response.headers.update(NO_STORE)
+def refused_token(request: Request) -> HTTPException:
+    logger.warning(
+        "screenshot token refused ip=%s", limits.client_ip(request, request.app.state.settings)
+    )
+    return refuse(status.HTTP_401_UNAUTHORIZED, "not_authenticated", {"WWW-Authenticate": "Bearer"})
+
+
+def check_request(request: Request) -> str:
+    """The well-formed token of a worker request: 403 for any request with an Origin header,
+    so no browser page can use worker routes; 401 without a bearer token of the right form.
+    Also run for requests whose body FastAPI refused before the dependencies ran."""
     if "origin" in request.headers:
         raise refuse(status.HTTP_403_FORBIDDEN, "origin_not_allowed")
     token = bearer_token(request)
-    worker = None
-    if token is not None:
-        worker = await db.scalar(
-            select(Worker).where(Worker.token_digest == digest(token), Worker.revoked_at.is_(None))
-        )
+    if token is None:
+        raise refused_token(request)
+    return token
+
+
+async def require_worker(request: Request, response: Response, db: Session) -> CurrentWorker:
+    """The worker whose valid, unrevoked token the request carries, or a refusal (see
+    `check_request`; 401 for an unknown or revoked token)."""
+    response.headers.update(NO_STORE)
+    token = check_request(request)
+    worker = await db.scalar(
+        select(Worker).where(Worker.token_digest == digest(token), Worker.revoked_at.is_(None))
+    )
     if worker is None:
-        logger.warning(
-            "screenshot token refused ip=%s",
-            limits.client_ip(request, request.app.state.settings),
-        )
-        raise refuse(
-            status.HTTP_401_UNAUTHORIZED, "not_authenticated", {"WWW-Authenticate": "Bearer"}
-        )
+        raise refused_token(request)
     now = clock.now()
     if worker.last_seen_at is None or now - worker.last_seen_at >= SEEN_EVERY:
         worker.last_seen_at = now

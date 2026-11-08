@@ -11,7 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from combo_api.admins.deps import ADMIN_RESPONSES, AdminDep, require_admin
 from combo_api.admins.models import Admin
 from combo_api.main import create_app
-from combo_api.screenshots.workers import WORKER_RESPONSES, WorkerDep, require_worker
+from combo_api.screenshots.workers import (
+    WORKER_RESPONSES,
+    WorkerDep,
+    is_worker_path,
+    require_worker,
+)
 from tests.admins.conftest import API_URL
 from tests.admins.support import (
     USERNAME,
@@ -80,7 +85,7 @@ def misguarded_worker_routes(app: FastAPI) -> list[str]:
     found = []
     for route in api_routes(app):
         worker = depends_on(route, require_worker)
-        if (route.path or "").startswith("/worker/"):
+        if is_worker_path(route.path or ""):
             if not worker or depends_on_require_admin(route):
                 found.append(str(route.name))
         elif worker:
@@ -250,6 +255,10 @@ def test_the_guard_finds_misused_worker_routes() -> None:
     async def open_worker_read() -> None:
         return None
 
+    @app.get("/worker")
+    async def bare_worker_path() -> None:
+        return None
+
     @app.post("/worker/admin", responses={**ADMIN_RESPONSES, **WORKER_RESPONSES})
     async def worker_route_for_admins(current: AdminDep, worker: WorkerDep) -> None:
         return None
@@ -264,6 +273,7 @@ def test_the_guard_finds_misused_worker_routes() -> None:
 
     assert misguarded_worker_routes(app) == [
         "open_worker_read",
+        "bare_worker_path",
         "worker_route_for_admins",
         "worker_token_elsewhere",
     ]

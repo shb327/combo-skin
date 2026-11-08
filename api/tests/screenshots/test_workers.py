@@ -186,3 +186,35 @@ async def test_tokens_and_sessions_stay_on_their_own_routes(
     for response in responses:
         assert response.headers["cache-control"] == "no-store", response.request.url
         assert "access-control-allow-origin" not in response.headers
+
+
+async def test_a_malformed_body_does_not_skip_the_worker_checks(
+    admin_client: AsyncClient, clients: ClientFactory, caplog: pytest.LogCaptureFixture
+) -> None:
+    """FastAPI decodes the body before the dependencies run: the Origin and token checks run
+    for a body it refuses too."""
+    headers = await logged_in(admin_client)
+    _, token = await make_worker(admin_client, headers)
+    box = clients("10.0.0.9")
+    for path in (f"/worker/jobs/{JOB}/fail", f"/worker/jobs/{JOB}/release"):
+        for sent, status, code in (
+            ({**bearer(token), "Origin": ADMIN_ORIGIN}, 403, "origin_not_allowed"),
+            ({}, 401, "not_authenticated"),
+            (bearer("csw_short"), 401, "not_authenticated"),
+        ):
+            caplog.clear()
+            with caplog.at_level(logging.INFO, logger="combo_api.screenshots"):
+                response = await box.post(
+                    path, content=b"{not json", headers={**sent, "Content-Type": "application/json"}
+                )
+            assert response.status_code == status, (path, sent)
+            assert response.json() == {"detail": code}
+            assert response.headers["cache-control"] == "no-store"
+            assert "access-control-allow-origin" not in response.headers
+            if status == 401:
+                assert [r.getMessage() for r in caplog.records] == [
+                    "screenshot token refused ip=10.0.0.9"
+                ]
+        # A valid token with a bad body gets the validation error.
+        response = await box.post(path, json={"reason": "nope"}, headers=bearer(token))
+        assert response.status_code == 422
