@@ -368,4 +368,50 @@ Test ids are relative to `api/` or `website/`.
 
 ## Audit
 
-Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
+**Date:** 2026-11-08 · **Branch:** 016-view-in-3d · **Commit:** 44fe969
+**Verdict:** Fail
+
+Website and admin checks ran on a fresh clone with no `.env`; API checks in `api/` against the separate local stack of Implementation notes. The code was also read against Requirements, Design and Security independently of the Implementation notes.
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | Indexes on public and admin items | Pass | `api/tests/combos/test_public.py:137`, `api/tests/combos/test_admin_combos.py:25`, `uv run pytest` (the index test does not assert its lists are non-empty: follow-up) |
+| 2 | OpenAPI and both apps' types; API diff scope | Pass | `combo_api.openapi --check` exit 0; `api:types:check` exit 0 in both apps; `git diff main --stat -- api/` |
+| 3 | Viewer address | Pass | `website/src/viewer/params.test.ts` |
+| 4 | `VITE_VIEWER_ORIGIN` rules; bad value fails the build | Pass | `website/src/api/origin.test.ts:76`; the build exits 1 naming the variable |
+| 5 | Button with WebGL2 only; nothing before a click | Pass | `website/src/viewer/ComboViewer.test.tsx:65`, `:79` |
+| 6 | The iframe and focus on open | Pass | `ComboViewer.test.tsx:86` |
+| 7 | Progress, loaded, hook, handshake | Pass | `ComboViewer.test.tsx:104`, `:127` |
+| 8 | Ignored events | Fail | `website/src/viewer/ComboViewer.tsx:61-65`: a `cs3d:progress` or `cs3d:state` after `cs3d:loaded` restarts the 60 s timer, and 60 s later the drawn view is removed with "The 3D view could not be loaded."; the test at `ComboViewer.test.tsx:164` never moves the clock |
+| 9 | Closing | Fail | `ComboViewer.tsx:90-96`: the cleanup is a passive effect, which React runs after removing the iframe, so `about:blank` is set on a detached element, not "first"; the test at `:183` reads the attribute after removal and cannot tell the order |
+| 10 | Full screen | Pass | `ComboViewer.test.tsx:238`, `:250`, `:262` (a refused request leaves an unhandled rejection: follow-up) |
+| 11 | Data warning | Pass | `ComboViewer.test.tsx:271`, `:293`, `:302` (the data-saver case checks only the text, and no test moves between finishes: follow-up) |
+| 12 | Error texts, Try again, cannot-draw | Pass | `ComboViewer.test.tsx:312`, `:333`, `:348` |
+| 13 | No WebGL2 reported by the viewer | Pass | `ComboViewer.test.tsx:366` |
+| 14 | Time limits and recovering | Fail | `ComboViewer.tsx:61-65`: any accepted event before `cs3d:ready` (a `state` reply or a `progress`) replaces the 15 s limit with the 60 s one, against Design's "no `cs3d:ready` within 15 s"; and the stall timer of criterion 8 also runs after `loaded`, where Design has no limit. `:383` sends no events before the 15 s pass |
+| 15 | No viewer text, `postMessage` only to the origin | Pass | `ComboViewer.test.tsx:357`; the greps print nothing, and `postMessage` only at `ComboViewer.tsx:83` with `VIEWER_ORIGIN` |
+| 16 | READMEs and `.env.example` | Pass | `website/README.md`, `api/README.md`, `website/.env.example`; the grep shows only `localhost` and `127.0.0.1` |
+| 17 | Section checks and bundle size | Pass | Fresh clone: website 191 tests, admin 336 tests, API 453 tests, all checks exit 0; main chunk +4.04 kB gzipped |
+| 18 | Manual check in Chrome and Firefox | Fail | Chrome done (the app's Chromium pane and headless Chrome 156, Implementation notes); Firefox not checked |
+| 19 | CI on GitHub after the push | Fail | Not pushed yet |
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Lint | `npm run lint` in `website/` and `admin/`; `uv run ruff format --check .`, `uv run ruff check .`, `uv run mypy` | Pass |
+| Tests | `npm test` in `website/` (191) and `admin/` (336); `uv run pytest` (453, none skipped) | Pass |
+| Build | `npm run build` in both apps (no chunk-size warning), `check:bundle` | Pass |
+| Secret scan | `gitleaks git --log-opts="main..016-view-in-3d"`, `gitleaks dir .` | Pass |
+| Public exposure | Diff and log: URLs are `localhost`, `127.0.0.1`, `example.com` placeholders, test addresses in origin refusal tests and the viewer repository's public docs; no hosted address, local path, secret or email; 12 commits by the owner, one line each, no trailers; `.claude/` and `CLAUDE.md` ignored, nothing private tracked | Pass |
+| Design conformance | Code read against Design, API / data model and Security | Fail: the timer and `about:blank` differences above are unrecorded and change Design's behaviour |
+
+**Findings**
+
+- (blocking) The stall timer restarts after `loaded` (criteria 8 and 14), so a drawn view can be removed 60 s after a late event.
+- (blocking) `about:blank` is set after the iframe is removed (criterion 9; also stated in `website/README.md`).
+- (blocking) The 15 s limit is cancelled by events other than `cs3d:ready` (criterion 14).
+- (blocking) Firefox not checked (criterion 18); CI not run yet (criterion 19).
+- (follow-up) Closing a card whose button is gone (after "cannot be drawn" or no WebGL2) leaves focus on the page body.
+- (follow-up) A refetch that changes an open combo's conditions reloads its viewer in place, without the screenshot or progress.
+- (follow-up) A refused full-screen request leaves an unhandled promise rejection.
+- (follow-up) Tests weaker than their criteria: criterion 1 does not assert non-empty lists or cover `GET /admin/combos`; criterion 11's data-saver case checks only the text, and no test checks that the warning, no-WebGL2 and cannot-draw flags survive a move to another finish; criterion 14 sends nothing before the 15 s pass.
+- (follow-up) Unrecorded but reasonable: focus goes to "Load 3D view" during the warning and to "Try again" or "Dismiss" on errors.
