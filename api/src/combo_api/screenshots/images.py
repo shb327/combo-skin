@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image
 
 # Every screenshot is this size; the job tells the worker.
 IMAGE_WIDTH = 1920
@@ -17,12 +17,15 @@ MAX_BYTES = 16 * 1024 * 1024
 WIDTHS = (640, 1280, 1920)
 WEBP_QUALITY = 82
 # Raised when the watermark changes; `rebuild` then remakes every version.
-WATERMARK_REVISION = 1
+WATERMARK_REVISION = 2
 
-MARK = "combo.skin"
-FONT = Path(__file__).with_name("fonts") / "Montserrat-SemiBold.ttf"
-TEXT_FILL = (255, 255, 255, 180)
-SHADOW_ALPHA = 110
+# The site's logo, all white (website/src/assets/logo.svg at twice its size). At 1920 wide it
+# is drawn 220 px wide, 40 px from the right and 32 px from the bottom; other widths scale.
+LOGO = Path(__file__).with_name("logo-white.png")
+LOGO_OPACITY = 0.6
+LOGO_WIDTH = 220
+LOGO_RIGHT = 40
+LOGO_BOTTOM = 32
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 # 8 bits per channel: 2 is RGB, 6 is RGBA.
@@ -83,31 +86,34 @@ def decode(data: bytes) -> Image.Image:
 
 
 @cache
-def font(size: int) -> ImageFont.FreeTypeFont:
-    return ImageFont.truetype(FONT, size)
+def logo_alpha() -> Image.Image:
+    """The logo's alpha channel; its colour is white everywhere it shows."""
+    with Image.open(LOGO) as logo:
+        return logo.getchannel("A")
+
+
+@cache
+def mark(width: int) -> Image.Image:
+    """The mark's alpha for an image this wide: only the alpha is resized, so transparent
+    pixels' colour cannot bleed into the edges."""
+    alpha = logo_alpha()
+    mark_width = round(LOGO_WIDTH * width / IMAGE_WIDTH)
+    mark_height = round(alpha.height * mark_width / alpha.width)
+    scaled = alpha.resize((mark_width, mark_height), Image.Resampling.LANCZOS)
+    return scaled.point(lambda value: round(value * LOGO_OPACITY))
 
 
 def watermark(image: Image.Image) -> Image.Image:
-    """`combo.skin` in the bottom-right corner: white at alpha 180 over a soft black shadow,
-    sized and placed in proportion to the width."""
+    """The white logo at 60% opacity in the bottom-right corner, sized and placed in
+    proportion to the width, with no shadow or outline."""
     width, height = image.size
-    size = max(16, round(0.022 * width))
-    margin = round(0.02 * width)
-    face = font(size)
-    _, _, right, bottom = face.getbbox(MARK)
-    x, y = width - margin - right, height - margin - bottom
-    offset = size / 20
-
-    shadow = Image.new("L", image.size, 0)
-    ImageDraw.Draw(shadow).text((x + offset, y + offset), MARK, font=face, fill=SHADOW_ALPHA)
-    shadow = shadow.filter(ImageFilter.GaussianBlur(size / 10))
-    marked = image.convert("RGBA")
-    dark = Image.new("RGBA", image.size, (0, 0, 0, 0))
-    dark.putalpha(shadow)
-    marked = Image.alpha_composite(marked, dark)
-    text = Image.new("RGBA", image.size, (255, 255, 255, 0))
-    ImageDraw.Draw(text).text((x, y), MARK, font=face, fill=TEXT_FILL)
-    return Image.alpha_composite(marked, text).convert("RGB")
+    alpha = mark(width)
+    x = width - round(LOGO_RIGHT * width / IMAGE_WIDTH) - alpha.width
+    y = height - round(LOGO_BOTTOM * width / IMAGE_WIDTH) - alpha.height
+    marked = image.convert("RGB")
+    white = Image.new("RGB", alpha.size, (255, 255, 255))
+    marked.paste(white, (x, y), alpha)
+    return marked
 
 
 def versions(image: Image.Image) -> list[Version]:

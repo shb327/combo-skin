@@ -256,7 +256,7 @@ States in admin responses (`screenshot_state`): `none` (no screenshot yet), `wai
 
 **Storing.** The upload is read up to 16 MiB, checked, decoded fully (Pillow's decompression-bomb guard stays on), flattened onto black, and made into WebP versions 640, 1280 and 1920 wide at quality 82, from pixels only, so no metadata or colour profile is copied. One image is processed at a time. The original and versions are written first; one transaction then points the combo at them; the old objects are deleted last. Removing a combo deletes its objects. A failed delete is logged (`object delete failed`) and left for `sweep`.
 
-**Watermark.** `combo.skin` in Montserrat SemiBold (`screenshots/fonts/`, OFL), white at alpha 180 over a black shadow at alpha 110 blurred by a tenth of the font size and offset by a twentieth, bottom-right. The font size is `max(16, round(0.022 × width))`, the margin `round(0.02 × width)` from the right and bottom. Changing it means raising `WATERMARK_REVISION` (`screenshots/images.py`) and running `rebuild`.
+**Watermark.** The Combo Skin logo, all white at 60% opacity with no shadow or outline, bottom-right. At 1920 wide it is 220 px wide, 40 px from the right and 32 px from the bottom (measured to the logo image's box); the 1280 and 640 versions scale all three with the width. Only the logo's alpha channel is resized (Lanczos) and a white layer is drawn through it, so transparent pixels' colour cannot darken the edges. The logo file, `screenshots/logo-white.png` (1044 by 364, RGBA), is `website/src/assets/logo.svg` with both its colours set to `#FFFFFF`, rendered at twice its size. Changing the mark means raising `WATERMARK_REVISION` (`screenshots/images.py`) and running `rebuild`; revision 2 is the logo, revision 1 was a text mark.
 
 **Commands**, from `api/` or in the image (`docker compose run --rm storage-init python -m combo_api.screenshots ...`):
 
@@ -348,7 +348,7 @@ A missing or invalid setting stops startup with an error that names the variable
 | `src/combo_api/catalog/` | Catalog data (knives, gloves, agents), commands, tables, import and endpoints |
 | `src/combo_api/combos/` | Combo, knife order and screenshot settings tables, admin and public endpoints, catalog checks, batches, agents |
 | `src/combo_api/admins/` | Admin tables, accounts command, passwords, sessions, rate limits, `require_admin` and login endpoints |
-| `src/combo_api/screenshots/` | Storage (S3 and in memory), screenshot tables, workers and `require_worker`, render inputs and the queue, uploads, images and the watermark font, admin and worker endpoints, commands |
+| `src/combo_api/screenshots/` | Storage (S3 and in memory), screenshot tables, workers and `require_worker`, render inputs and the queue, uploads, images and the watermark logo, admin and worker endpoints, commands |
 | `migrations/` | Alembic environment and revisions |
 | `tests/` | pytest suite |
 | `Dockerfile` | Production image: non-root, runtime dependencies only |
