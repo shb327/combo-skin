@@ -46,6 +46,11 @@ strict = true
 files = ["src", "tests"]
 plugins = ["pydantic.mypy"]
 
+# boto3 ships no type information; the storage module wraps it behind a typed protocol.
+[[tool.mypy.overrides]]
+module = ["boto3", "botocore.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"
