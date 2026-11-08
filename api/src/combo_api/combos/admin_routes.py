@@ -3,7 +3,7 @@
 import logging
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -42,6 +42,8 @@ from combo_api.combos.schemas import (
     UnpublishRequest,
     decimal,
 )
+from combo_api.screenshots.models import ComboScreenshot
+from combo_api.screenshots.objects import delete_objects, objects_of
 from combo_api.screenshots.shapes import ImageBase
 
 logger = logging.getLogger("combo_api.combos")
@@ -272,18 +274,22 @@ async def remove_combo(
     current: AdminDep,
     db: Session,
     images: ImageBase,
+    request: Request,
 ) -> None:
-    """Delete a draft or unpublished combo, at the version it was read at. A published combo
-    must be unpublished first."""
+    """Delete a draft or unpublished combo, at the version it was read at, and its
+    screenshot. A published combo must be unpublished first."""
     row = await locked(db, combo_id)
     if row.version != version:
         raise refuse(status.HTTP_409_CONFLICT, "version_conflict")
     if row.status == "published":
         raise refuse(status.HTTP_409_CONFLICT, "combo_published")
     removed = await load(db, combo_id, images)
+    shot = await db.get(ComboScreenshot, row.id)
+    objects = objects_of(combo_id, shot) if shot else []
     await db.delete(row)
     await db.commit()
     logger.info("combo removed admin=%s id=%s %s", current.username, combo_id, described(removed))
+    await delete_objects(request.app.state.storage, objects)
 
 
 async def locked_ids(db: AsyncSession, ids: list[str]) -> list[Combo]:
