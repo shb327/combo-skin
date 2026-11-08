@@ -264,14 +264,14 @@ Built in the order A, C, B. The branch was rebased on `main` after spec 016 merg
 | 8 | `admin/src/pages/HomePage.test.tsx:57`; `admin/src/App.test.tsx:321` (four links) and `:53` (`aria-current` on `/screenshots`) |
 | 9 | `admin/src/pages/BatchPage.test.tsx:242`; shared controls still pass `admin/src/pages/KnifeOrderPage.test.tsx:13` |
 | 10 | `admin/src/pages/BatchPage.test.tsx:268` |
-| 11 | `admin/src/pages/BatchPage.test.tsx:312`, `:337` (0, 1.01, `abc`, 0.055), `:350` |
+| 11 | `admin/src/pages/BatchPage.test.tsx:312`, `:332` (0, 1.01, `abc`, 0.055), `:350` |
 | 12 | `admin/src/pages/BatchPage.test.tsx:293` (leaving and coming back); `admin/src/combos/drafts.test.tsx:47` (session end) |
 | 13 | `admin/src/pages/FinishPage.test.tsx:249` |
 | 14 | `admin/src/pages/FinishPage.test.tsx:277` (Back link and the browser's Back) |
 | 15 | `admin/src/pages/FinishPage.test.tsx:301`, `:340` |
 | 16 | `admin/src/pages/FinishPage.test.tsx:369` |
 | 17 | `admin/src/combos/order.test.ts` |
-| 18 | `admin/src/pages/FinishPage.test.tsx:425`, `:441`, `:463` |
+| 18 | `admin/src/pages/FinishPage.test.tsx:425`, `:441`, `:463` (a drop after a rating saved in place), `:483` |
 | 19 | Manual, below |
 | 20 | `website/src/pages/ImageClicks.test.tsx:30` (Home) and `:42` (every card of `/gloves` and `/knives`); both failed before the fix |
 | 21 | `website/src/pages/ImageClicks.test.tsx:68` (Home, both grids, a type page of each, a combo page) |
@@ -292,6 +292,7 @@ Built in the order A, C, B. The branch was rebased on `main` after spec 016 merg
 - Dragging is off while an edited combo waits for "Sort again": the list is then not in rating order, so neighbours would not bound a rating. The handles stay, marked unavailable.
 - A drop saves at once; on a conflict the dropped rating is put in the field, so "Keep mine" and Save send it.
 - With dnd-kit's keyboard support, each Down moves the combo one place; Space drops it over the combo it is on. Picking a combo up clears the list's last message.
+- Fixed after the first audit (2026-11-08): an in-place save holds the shown order until "Sort again", and a drop made while that held order still matched the rating order kept the dropped combo in its old place. A drop now releases the held order, so the combo shows in its new place; `FinishPage.test.tsx:463` failed before the fix.
 - The drag live region (dnd-kit's, `role="status"`) is a second status region on finish pages, so older tests find messages by text. The rating is now a field, so they read its value instead of the row's text. The 501-combo test finds its count by text: a role query over 501 rows takes minutes in jsdom (rendering itself takes about 0.1 s at 200 rows).
 - `@dnd-kit/utilities` 3.2.2 (MIT) is a direct dependency for its transform helper; `npm audit --omit=dev` finds nothing.
 - The hero images also got `select-none`, as the grid cards have.
