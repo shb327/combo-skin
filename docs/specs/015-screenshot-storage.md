@@ -1,6 +1,6 @@
 # 015: Combo screenshots and image storage
 
-**Status:** Implemented
+**Status:** Audited
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api, admin, website
@@ -406,7 +406,7 @@ Built on `015-screenshot-storage`, from `main` at the merge of spec 012.
 - **`init`** exits 1 if the originals bucket has a bucket policy, rather than removing it.
 - **Shapes.** The response of `PUT /admin/screenshot-settings` is `ScreenshotSettingsChanged` (`ScreenshotSettings` plus `requeued`); `GET` is unchanged. The `default agent changed` log line also carries `requeued`.
 - **Typing.** `boto3` has no type information; `pyproject.toml` tells mypy to ignore its missing types, and only `screenshots/storage.py` calls it, behind the typed `Storage` protocol. No stub package was added.
-- **Dashboard.** Home's counts per state are in its Screenshots box, under the link to the Screenshots page. Asking for a new screenshot also refreshes the combo. After a default agent change the page says "Saved the default agent. N combos get a new screenshot."; the confirmation says the combos using the default have their screenshots drawn again. The edit page shows the version nearest 1280 wide when all versions are on `VITE_IMAGE_ORIGIN`.
+- **Dashboard.** Home's counts per state are in its Screenshots box, under the link to the Screenshots page. Asking for a new screenshot also refreshes the combo. The default agent confirmation says how many combos use the default and how many of them get a new screenshot; once saved, the page repeats the API's `requeued`. The edit page shows the version nearest 1280 wide when all versions are on `VITE_IMAGE_ORIGIN`.
 - **Website.** The card's `src` is the 1280 version; `srcset` lists all three.
 - **Admin code layout.** `src/api/screenshots.ts` holds the screenshot origin check, apart from `images.ts`, because `vite.config.ts` imports `images.ts` before `import.meta.env` exists.
 
@@ -418,6 +418,23 @@ Run against a separate Compose project, `combo-skin-015`, so the owner's stack w
 - **Criterion 25.** An admin made with `python -m combo_api.admins create` in the stack's API container; a published combo; on the dashboard (`npm run dev`), Screenshots: Create worker showed a token of the right form once, read-only, with nothing in browser storage. With `curl` and the token: `GET /worker/me` answered the name, `POST /worker/jobs/claim` the job, and `PUT .../screenshot` with a 1920 by 1080 stand-in PNG answered 201; the three versions answered 200 anonymously with `image/webp` and the immutable cache header. The edit page showed the 1280 version with the mark and "Done"; the website's card (`npm run dev`) showed the screenshot with its `srcset`, `sizes`, size and alt text. The dashboard's `npm run preview` build had `img-src 'self' https://community.akamai.steamstatic.com http://localhost:9015` and loaded the screenshot with no CSP violation in the console.
 - **Image size.** `docker build -t combo-skin-api-015 api`: 278,647,547 bytes, under 300 MB (228,571,793 at spec 012; boto3 and Pillow add about 50 MB).
 
+### After the audit (2026-11-08)
+
+The first audit (Fail, commit aa915d4) found one blocking bug and follow-ups. Fixed on the branch, each with a test:
+
+- **`requeued`** (blocking) counted `done before − done after`, so switching the default and back answered a negative number, and combos drawn under two agents were undercounted. It now counts the combos that were done before the change and are due after it. `tests/screenshots/test_queue.py::test_default_agent_change_requeues_combos_using_it` now uses literal counts, switches back, and covers combos drawn with either agent.
+- **Revoke race.** A claim or an answer checks the worker again under a share lock on its row, which a revoke waits for, so a request authenticated just before a revoke commits is refused (401). `::test_a_worker_revoked_mid_request_cannot_claim_or_answer`.
+- **Malformed bodies.** On `fail` and `release`, a body FastAPI refuses no longer skips the Origin and token form checks: the validation error handler runs them for worker routes, as it does for login (403 `origin_not_allowed`, or 401 for a missing or malformed token). A well-formed but unknown token with a bad body still gets 422, since the handler does not query the database. `tests/screenshots/test_workers.py::test_a_malformed_body_does_not_skip_the_worker_checks`.
+- **A request during a render.** A stored screenshot is dated by its claim (`made_at`), so a request for a new screenshot made while a worker is rendering stays open. `tests/screenshots/test_queue.py::test_a_request_during_a_render_asks_for_another`.
+- **`sweep`** looks only at keys under `combos/`; **`rebuild`** reports an original it cannot read or decode and goes on (exit 1). `tests/screenshots/test_commands.py::test_sweep_removes_old_unreferenced_objects_only` (an old object outside `combos/` is kept), `::test_rebuild_goes_on_past_an_original_it_cannot_use`.
+- **Bare `/worker`.** `AdminCors`, the validation handler and the guard treat `/worker` itself as a worker path too. `tests/admins/test_require_admin.py::test_the_guard_finds_misused_worker_routes`.
+- **Dashboard.** The default agent confirmation says how many of the combos using the default get a new screenshot (those whose screenshot is done), from the combos the page already loads; "Ask again for all failed" sends at most 500 ids per request. `src/pages/ScreenshotsPage.test.tsx` "says how many combos get a new screenshot", "sends at most 500 ids per request". `admin/.env.example` shows the local default.
+- **Tests.** Criterion 16's test also checks the knife finish list; criterion 3's admin routes include `GET /admin/me`.
+
+Left as follow-ups, not required by this spec: live claims per worker are not limited (Design describes one job per request; a worker that claims repeatedly holds several, until their leases expire as failed attempts); concurrent upload bodies are each held in memory, up to 16 MiB, before the one-at-a-time processing; the claim order's "waiting since" uses the later of the combo's last change and its screenshot, and rating edits and publishing also change the combo; a removal racing an upload leaves the new objects for `sweep`; the Compose `storage` service receives all of `api/.env`, though it uses only the two storage credentials.
+
+Checks after the fixes, on commit 06590a8 in a fresh clone: in `api/`, format, lint, mypy (111 files), `pytest` (452 passed, none skipped), OpenAPI and export checks, `docker build` (278,660,472 bytes); in `admin/`, `api:types:check`, `lint`, `typecheck`, `npm test` (336 passed), `build` and `check:bundle`; in `website/`, `api:types:check`, `lint`, `npm test` (109 passed) and `build`: all exit 0. `gitleaks git` over the branch and `gitleaks dir .`: no leaks.
+
 ### Criterion coverage
 
 Test ids are relative to `api/`, `admin/` or `website/`.
@@ -426,89 +443,80 @@ Test ids are relative to `api/`, `admin/` or `website/`.
 | --- | --- |
 | 1 | `tests/screenshots/test_workers.py::test_token_is_shown_once_and_stored_as_a_digest`, `::test_worker_names_are_checked`, `::test_names_are_trimmed` |
 | 2 | `tests/screenshots/test_workers.py::test_worker_reads_its_name_until_revoked`, `::test_bad_tokens_are_refused_and_logged_without_the_token` |
-| 3 | `tests/screenshots/test_workers.py::test_tokens_and_sessions_stay_on_their_own_routes` |
+| 3 | `tests/screenshots/test_workers.py::test_tokens_and_sessions_stay_on_their_own_routes`, `::test_a_malformed_body_does_not_skip_the_worker_checks` |
 | 4 | `tests/admins/test_require_admin.py::test_every_write_route_requires_an_admin`, `::test_the_guard_finds_misused_worker_routes`, `::test_the_guard_finds_an_unprotected_write` |
-| 5 | `tests/screenshots/test_queue.py::test_due_until_stored_and_again_after_render_inputs_change`, `::test_a_new_seed_above_the_lowest_changes_nothing`, `::test_default_agent_change_requeues_combos_using_it`, `::test_raising_the_render_revision_makes_every_combo_due`, `::test_asking_for_a_new_screenshot`; `tests/combos/test_agents.py::test_default_agent_setting` (`requeued` 0) |
+| 5 | `tests/screenshots/test_queue.py::test_due_until_stored_and_again_after_render_inputs_change`, `::test_a_new_seed_above_the_lowest_changes_nothing`, `::test_default_agent_change_requeues_combos_using_it`, `::test_raising_the_render_revision_makes_every_combo_due`, `::test_asking_for_a_new_screenshot`, `::test_a_request_during_a_render_asks_for_another`; `tests/combos/test_agents.py::test_default_agent_setting` (`requeued` 0) |
 | 6 | `tests/screenshots/test_queue.py::test_job_carries_what_the_viewer_needs`, `::test_vanilla_is_drawn_without_a_float`, `::test_published_combos_come_first_then_the_longest_waiting`; `tests/screenshots/test_concurrency.py::test_concurrent_claims_never_share_a_combo` (fails with the row lock and the conditional upsert removed) |
-| 7 | `tests/screenshots/test_queue.py::test_an_expired_lease_counts_as_a_failed_attempt`, `::test_failures_wait_then_fail_the_combo`, `::test_release_frees_the_combo_without_counting`, `::test_answers_after_the_lease_or_from_another_worker`, `::test_failure_reasons_and_details_are_checked`, `::test_revoking_a_worker_releases_its_claims` |
+| 7 | `tests/screenshots/test_queue.py::test_an_expired_lease_counts_as_a_failed_attempt`, `::test_failures_wait_then_fail_the_combo`, `::test_release_frees_the_combo_without_counting`, `::test_answers_after_the_lease_or_from_another_worker`, `::test_failure_reasons_and_details_are_checked`, `::test_revoking_a_worker_releases_its_claims`, `::test_a_worker_revoked_mid_request_cannot_claim_or_answer` |
 | 8 | Compose, as in Local checks; `tests/screenshots/test_s3.py::test_init_creates_both_buckets_once` (missing, created, unchanged, anonymous 200 and 403); the `api` workflow's `docker` job runs `storage-init` again and `init --check` |
 | 9 | `tests/screenshots/test_upload.py::test_a_screenshot_is_stored_with_its_versions`; `tests/screenshots/test_images.py::test_versions_are_webp_without_metadata` |
 | 10 | `tests/screenshots/test_upload.py::test_refusals_before_decoding` (7 cases, decoding refused by the test), `::test_a_false_content_length_does_not_pass_the_limit`, `::test_bodies_that_only_look_like_png`, `::test_too_late_or_for_changed_inputs`, `::test_inputs_changed_while_processing`; `tests/screenshots/test_images.py::test_refused_before_decoding`, `::test_truncated_png_is_not_png`, `::test_a_header_lying_about_the_body_is_not_png` |
 | 11 | `tests/screenshots/test_upload.py::test_a_new_screenshot_replaces_the_old_one`, `::test_a_failed_delete_leaves_the_new_screenshot_in_place`; `tests/screenshots/test_commands.py::test_sweep_removes_what_a_failed_delete_left` |
 | 12 | `tests/screenshots/test_upload.py::test_removing_a_combo_deletes_its_objects`; `tests/screenshots/test_commands.py::test_sweep_removes_old_unreferenced_objects_only` |
-| 13 | `tests/screenshots/test_commands.py::test_rebuild_remakes_versions_from_the_originals`, `::test_rebuild_reports_a_missing_original` |
+| 13 | `tests/screenshots/test_commands.py::test_rebuild_remakes_versions_from_the_originals`, `::test_rebuild_reports_a_missing_original`, `::test_rebuild_goes_on_past_an_original_it_cannot_use` |
 | 14 | `tests/screenshots/test_watermark.py::test_mark_stays_in_the_bottom_right_corner` (both sizes), `::test_mark_is_light_text_over_a_dark_shadow`, `::test_mark_scales_with_the_width` |
 | 15 | `tests/screenshots/test_s3.py` (4 tests); `.github/workflows/api.yml` job `check` runs RustFS as the `storage` service with throwaway credentials |
 | 16 | `tests/screenshots/test_public.py::test_public_combos_carry_their_screenshot_only` |
 | 17 | `src/pages/Combos.test.tsx` "shows the screenshot in place of the pictures when the combo has one", "shows the finish pictures without a usable screenshot"; `src/api/images.test.ts` "screenshotUrl" (website) |
 | 18 | `src/api/origin.test.ts` "checkImageOrigin" in `website/` and `admin/`; `VITE_IMAGE_ORIGIN=http://images.example.com npm run build` exits 1 naming the variable, in both apps |
 | 19 | `src/pages/ComboScreenshots.test.tsx` (8 tests: list badges, Home counts, edit page image, request and each reason's text) |
-| 20 | `src/pages/ScreenshotsPage.test.tsx` "says how many combos get a new screenshot", "lists workers and creates one, showing its token once", "says a name is taken", "revokes a worker after a confirmation naming it", "are listed with links and asked again in one request" |
+| 20 | `src/pages/ScreenshotsPage.test.tsx` "says how many combos get a new screenshot", "lists workers and creates one, showing its token once", "says a name is taken", "revokes a worker after a confirmation naming it", "are listed with links and asked again in one request", "sends at most 500 ids per request" |
 | 21 | `scripts/csp.test.ts`, `scripts/check-bundle.test.ts` (our image host allowed in scripts and `img-src`; fails without it, with `https:`, or in an HTML `<img>`); `npm run build && npm run check:bundle` |
 | 22 | `tests/screenshots/test_schema.py` (2 tests); `uv run python -m combo_api.openapi --check` exit 0; `npm run api:types:check` exit 0 in `admin/` and `website/` |
 | 23 | `tests/test_settings.py::test_env_example_lists_every_setting`, `::test_missing_required_setting_names_it`, `::test_startup_fails_without_settings` (storage settings included), `::test_storage_settings`, `::test_image_base_url`, `::test_invalid_image_base_url`, `::test_invalid_storage_endpoint`, `::test_buckets_must_differ`; `THIRD_PARTY_NOTICES.md` Montserrat; `api/README.md` Getting started (Compose services), Screenshots, Configuration, Endpoints, Layout; `admin/README.md` Screens, Configuration; `website/README.md` What the site does, Configuration |
-| 24 | In `api/`: format check, lint, mypy (111 files), `pytest` (448 passed, none skipped), OpenAPI and `export-website` checks exit 0; `docker build` exit 0, 278,647,547 bytes. In `admin/`: `npm ci`, `api:types:check`, `lint`, `typecheck`, `npm test` (335 passed), `build` (no chunk-size warning), `check:bundle` exit 0. In `website/`: `npm ci`, `api:types:check`, `lint`, `npm test` (109 passed), `build` (no chunk-size warning) exit 0 |
+| 24 | In `api/`: format check, lint, mypy (111 files), `pytest` (452 passed, none skipped), OpenAPI and `export-website` checks exit 0; `docker build` exit 0, 278,660,472 bytes. In `admin/`: `npm ci`, `api:types:check`, `lint`, `typecheck`, `npm test` (336 passed), `build` (no chunk-size warning), `check:bundle` exit 0. In `website/`: `npm ci`, `api:types:check`, `lint`, `npm test` (109 passed), `build` (no chunk-size warning) exit 0 |
 | 25 | Manual, as in Local checks |
 | 26 | Pending: recorded after the branch is pushed |
 
 ## Audit
 
-**Date:** 2026-11-08 · **Branch:** 015-screenshot-storage · **Commit:** 56a4fb2
-**Verdict:** Fail
+**Date:** 2026-11-08 · **Branch:** 015-screenshot-storage · **Commit:** 06590a8
+**Verdict:** Pass with follow-ups
 
-All checks ran on a fresh clone of the branch, with `api/.env` made from `api/.env.example` pointed at a separate local stack and test database, and no `admin/.env` or `website/.env`. The code was also read against Design, API / data model and Security independently of the Implementation notes. Test ids are relative to `api/`, `admin/` or `website/`.
+The first audit, on commit aa915d4, was **Fail**: `requeued` was a net difference that could be negative or too small (criterion 5), with ten follow-ups. The blocking bug and seven follow-ups were fixed (Implementation notes, After the audit); this is the re-audit of the fixed branch. All checks ran on a fresh clone, with `api/.env` made from `api/.env.example` pointed at a separate local stack and test database, and no `admin/.env` or `website/.env`. The code was read against Design, API / data model and Security independently of the Implementation notes. Test ids are relative to `api/`, `admin/` or `website/`.
 
 | # | Criterion | Result | Evidence |
 | --- | --- | --- | --- |
 | 1 | Token once, digest only, `worker_exists` | Pass | `tests/screenshots/test_workers.py::test_token_is_shown_once_and_stored_as_a_digest` |
 | 2 | `/worker/me`; revoked and bad tokens 401 and logged | Pass | `tests/screenshots/test_workers.py::test_worker_reads_its_name_until_revoked`, `::test_bad_tokens_are_refused_and_logged_without_the_token` |
-| 3 | Tokens and sessions on their own routes; Origin 403; no-store, no CORS | Pass | `tests/screenshots/test_workers.py::test_tokens_and_sessions_stay_on_their_own_routes`; see findings on test strength |
-| 4 | Extended guard | Pass | `tests/admins/test_require_admin.py::test_the_guard_finds_misused_worker_routes`, `::test_every_write_route_requires_an_admin` |
-| 5 | Queue rules and `requeued` | Fail | `requeued` is `done before − done after` (`api/src/combo_api/combos/agents.py:69`): switching the default from A to B and straight back before any render answers a negative number, and with combos drawn under both agents it undercounts. `tests/screenshots/test_queue.py::test_default_agent_change_requeues_combos_using_it` only re-sets the same agent and computes its expectation from the response |
+| 3 | Tokens and sessions on their own routes; Origin 403; no-store, no CORS | Pass | `tests/screenshots/test_workers.py::test_tokens_and_sessions_stay_on_their_own_routes`, `::test_a_malformed_body_does_not_skip_the_worker_checks` |
+| 4 | Extended guard | Pass | `tests/admins/test_require_admin.py::test_the_guard_finds_misused_worker_routes`, `::test_every_write_route_requires_an_admin` (now sees every included route) |
+| 5 | Queue rules and `requeued` | Pass | `tests/screenshots/test_queue.py::test_due_until_stored_and_again_after_render_inputs_change`, `::test_default_agent_change_requeues_combos_using_it` (3, then 0, then 1 after switching back), `::test_raising_the_render_revision_makes_every_combo_due`, `::test_asking_for_a_new_screenshot` |
 | 6 | Job shape, float and seed, order, concurrency | Pass | `tests/screenshots/test_queue.py::test_job_carries_what_the_viewer_needs`, `::test_vanilla_is_drawn_without_a_float`, `::test_published_combos_come_first_then_the_longest_waiting`; `tests/screenshots/test_concurrency.py` |
-| 7 | Leases, failures, releases | Pass | `tests/screenshots/test_queue.py` (7 tests) |
+| 7 | Leases, failures, releases | Pass | `tests/screenshots/test_queue.py` (8 tests) |
 | 8 | Compose storage, buckets, anonymous reads, `init` | Pass | Implementation notes, Local checks; `tests/screenshots/test_s3.py::test_init_creates_both_buckets_once` |
 | 9 | Upload stores original and versions | Pass | `tests/screenshots/test_upload.py::test_a_screenshot_is_stored_with_its_versions` |
 | 10 | Upload refusals | Pass | `tests/screenshots/test_upload.py` (5 tests), `tests/screenshots/test_images.py` |
 | 11 | Replacement and failed delete | Pass | `tests/screenshots/test_upload.py::test_a_new_screenshot_replaces_the_old_one`, `::test_a_failed_delete_leaves_the_new_screenshot_in_place`; `tests/screenshots/test_commands.py::test_sweep_removes_what_a_failed_delete_left` |
 | 12 | Removal and `sweep` | Pass | `tests/screenshots/test_upload.py::test_removing_a_combo_deletes_its_objects`, `tests/screenshots/test_commands.py::test_sweep_removes_old_unreferenced_objects_only` |
-| 13 | `rebuild` | Pass | `tests/screenshots/test_commands.py::test_rebuild_remakes_versions_from_the_originals` |
-| 14 | Watermark boxes | Pass | `tests/screenshots/test_watermark.py::test_mark_stays_in_the_bottom_right_corner` |
+| 13 | `rebuild` | Pass | `tests/screenshots/test_commands.py::test_rebuild_remakes_versions_from_the_originals`, `::test_rebuild_goes_on_past_an_original_it_cannot_use` |
+| 14 | Watermark boxes (as agreed) | Pass | `tests/screenshots/test_watermark.py::test_mark_stays_in_the_bottom_right_corner` |
 | 15 | S3 tests against the real service, in CI | Pass | `tests/screenshots/test_s3.py`; `.github/workflows/api.yml` service `storage` |
-| 16 | Public screenshot field | Pass | `tests/screenshots/test_public.py`; glove list only (findings) |
+| 16 | Public screenshot field | Pass | `tests/screenshots/test_public.py` (glove and knife lists) |
 | 17 | Website card | Pass | `src/pages/Combos.test.tsx` (2 tests) |
-| 18 | `VITE_IMAGE_ORIGIN` checks | Pass | `src/api/origin.test.ts` in both apps; bad value fails `npm run build` (exit 1) in both |
+| 18 | `VITE_IMAGE_ORIGIN` checks | Pass | `src/api/origin.test.ts` in both apps; a bad value fails `npm run build` (exit 1) in both |
 | 19 | Dashboard states | Pass | `src/pages/ComboScreenshots.test.tsx` |
-| 20 | Screenshots page | Pass | `src/pages/ScreenshotsPage.test.tsx`; the confirmation gives the number using the default, not the number that gets a new screenshot (findings) |
+| 20 | Screenshots page | Pass | `src/pages/ScreenshotsPage.test.tsx` (confirmation with the number that gets a new screenshot, workers, token in no store, revoke, failed combos) |
 | 21 | Admin CSP and bundle check | Pass | `scripts/csp.test.ts`, `scripts/check-bundle.test.ts`; `check:bundle` passes on a build and exits 1 on a build whose policy was edited |
 | 22 | OpenAPI and types | Pass | `tests/screenshots/test_schema.py`; `openapi --check` and `api:types:check` exit 0 |
 | 23 | Settings, env example, notices, READMEs | Pass | `tests/test_settings.py`; `THIRD_PARTY_NOTICES.md`; READMEs read |
 | 24 | Section checks | Pass | Checks table |
 | 25 | Manual run-through | Pass | Implementation notes, Local checks |
-| 26 | CI and gitleaks | Pending | gitleaks clean (below); the branch is not pushed yet |
+| 26 | CI and gitleaks | Pending | gitleaks clean (below); workflow runs to be recorded after the push |
 
 | Check | Command | Result |
 | --- | --- | --- |
 | Lint | `uv run ruff format --check .`, `uv run ruff check .`; `npm run lint` in `admin/` and `website/` | Pass |
 | Type check | `uv run mypy` (111 files); `npm run typecheck` in `admin/` | Pass |
-| Tests | `uv run pytest` (448 passed, none skipped); `npm test` in `admin/` (335) and `website/` (109) | Pass |
+| Tests | `uv run pytest` (452 passed, none skipped); `npm test` in `admin/` (336) and `website/` (109) | Pass |
 | Snapshot checks | `openapi --check`, `export-website --check`, `api:types:check` in both apps | Pass |
-| Build | `npm ci && npm run build` and `check:bundle` in `admin/`; `npm ci && npm run build` in `website/` (no chunk-size warning); `docker build` of `api/` (278,658,029 bytes) | Pass |
+| Build | `npm ci && npm run build` and `check:bundle` in `admin/`; `npm ci && npm run build` in `website/` (no chunk-size warning); `docker build` of `api/` (278,660,472 bytes) | Pass |
 | Secret scan | `gitleaks git` over the branch, `gitleaks dir .` on the clone | Pass |
-| Public exposure | Diff and log: URLs added are localhost, `example.com` and `.test` placeholders, the game's image host, the RustFS and Montserrat project pages, the font licence's site and the lockfile's package URLs; bucket names are local placeholders; 22 commits by the owner, one line, no trailers; `.claude/` and `CLAUDE.md` ignored, nothing private tracked | Pass |
-| Design conformance | Code read against Design, API / data model and Security | Fail: `requeued` (criterion 5) |
+| Public exposure | Diff and log: URLs added are localhost, `example.com` and `.test` placeholders, the game's image host, the RustFS and Montserrat project pages, the font licence's site and the lockfile's package URLs; bucket names are local placeholders; every commit by the owner, one line, no trailers; `.claude/` and `CLAUDE.md` ignored, nothing private tracked | Pass |
+| Design conformance | Code read against Design, API / data model and Security | Pass; differences recorded in Implementation notes |
 
 **Findings**
 
-- (blocking) `requeued` is a net difference, not the combos that were done and are now due (`api/src/combo_api/combos/agents.py:69`); it can be negative or too small, and the Screenshots page shows it as is.
-- (follow-up) A claim that races a revoke can be made by a revoked worker after its claims were released (`require_worker` reads the worker without a lock).
-- (follow-up) On `fail` and `release`, a malformed JSON body gets 422 before the Origin and token checks, because FastAPI decodes the body before running dependencies.
-- (follow-up) A request for a new screenshot made while a worker is rendering is satisfied by that render, since the screenshot's time is its store time, not its claim time.
-- (follow-up) `sweep` lists whole buckets rather than `combos/`, so objects of a later feature in the same buckets would be swept.
-- (follow-up) `rebuild` stops at the first original that cannot be decoded or a failed write, rather than counting it and going on.
-- (follow-up) The Screenshots page's confirmation gives the number of combos using the default agent; criterion 20 asks how many get a new screenshot.
-- (follow-up) "Ask again for all failed" sends every id at once; above 500 the API refuses it.
-- (follow-up) `admin/.env.example` shows an `example.com` value for `VITE_IMAGE_ORIGIN`, not the local default R20 asks for.
-- (follow-up) The guard and `AdminCors` match `/worker/` with a trailing slash, so a bare `/worker` route would not count as a worker route.
-- (follow-up) Tests weaker than their criteria: criterion 5's default agent test (above); criterion 16 checks the glove list only; criterion 3's admin route list leaves out `GET /admin/me`.
-- (follow-up) Not limited, by design or not specified: live claims per worker (Design says a worker claims again after finishing); concurrent upload bodies in memory (up to 16 MiB each); `waiting_since` uses the combo's last change, which rating edits and publishing also move; a removal racing an upload leaves the new objects for `sweep`; the `storage` Compose service receives all of `api/.env`.
+- (follow-up) Criterion 26 waits on the push: the `api`, `admin` and `website` runs for the branch's latest commit.
+- (follow-up) Not limited or not exact, as recorded in Implementation notes, After the audit: live claims per worker, upload bodies in memory, the claim order's "waiting since", a removal racing an upload, and the `storage` service's environment.
+- (follow-up) A worker request with a well-formed but unknown token and a malformed body gets 422 rather than 401 (nothing is executed).
