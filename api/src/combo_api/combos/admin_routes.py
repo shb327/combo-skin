@@ -3,7 +3,7 @@
 import logging
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -42,6 +42,9 @@ from combo_api.combos.schemas import (
     UnpublishRequest,
     decimal,
 )
+from combo_api.screenshots.models import ComboScreenshot
+from combo_api.screenshots.objects import delete_objects, objects_of
+from combo_api.screenshots.shapes import ImageBase
 
 logger = logging.getLogger("combo_api.combos")
 router = APIRouter(prefix="/admin", tags=["admin"], responses=ADMIN_RESPONSES)
@@ -70,8 +73,8 @@ async def locked(db: AsyncSession, public_id: str) -> Combo:
     return row
 
 
-async def load(db: AsyncSession, public_id: str) -> AdminCombo:
-    found = await queries.find(db, public_id)
+async def load(db: AsyncSession, public_id: str, base_url: str) -> AdminCombo:
+    found = await queries.find(db, public_id, base_url)
     if found is None:
         raise refuse(status.HTTP_404_NOT_FOUND, "combo_not_found")
     return found
@@ -92,7 +95,9 @@ def described(combo: AdminCombo) -> str:
     status_code=status.HTTP_201_CREATED,
     responses=conflict("`combo_exists`"),
 )
-async def create_combo(combo: ComboIn, current: AdminDep, db: Session) -> AdminCombo:
+async def create_combo(
+    combo: ComboIn, current: AdminDep, db: Session, images: ImageBase
+) -> AdminCombo:
     """Create a draft combo of one glove finish and one knife finish."""
     problems = rules.Problems()
     glove = await rules.resolve(db, "glove", combo.glove, ("body", "glove"), problems, new=True)
@@ -128,7 +133,7 @@ async def create_combo(combo: ComboIn, current: AdminDep, db: Session) -> AdminC
         combo.knife.type_slug,
         combo.knife.finish_slug,
     )
-    return await load(db, row.public_id)
+    return await load(db, row.public_id, images)
 
 
 SlugQuery = Annotated[Slug | None, Query()]
@@ -140,6 +145,7 @@ OFFSET_MAX = 1_000_000
 async def list_combos(
     current: AdminDep,
     db: Session,
+    images: ImageBase,
     glove_type: SlugQuery = None,
     glove_finish: SlugQuery = None,
     knife_type: SlugQuery = None,
@@ -151,7 +157,7 @@ async def list_combos(
 ) -> ComboPage:
     """Combos in any status, filtered by glove and knife type and finish (a finish needs its
     type) and status. Sorted by rating, highest first, or by last change, newest first."""
-    query = queries.combos()
+    query = queries.admin_combos()
     problems = rules.Problems()
     sides: list[tuple[Kind, str | None, str | None, Any, Any]] = [
         ("glove", glove_type, glove_finish, queries.GloveType.id, queries.GloveFinish.id),
@@ -175,7 +181,7 @@ async def list_combos(
         else (Combo.updated_at.desc(), Combo.id.desc())
     )
     rows = (await db.execute(query.order_by(*order).limit(limit).offset(offset))).all()
-    return ComboPage(total=total or 0, items=[queries.admin_out(row) for row in rows])
+    return ComboPage(total=total or 0, items=[queries.admin_out(row, images) for row in rows])
 
 
 async def finish_filter(
@@ -206,9 +212,11 @@ async def finish_filter(
 
 
 @router.get("/combos/{combo_id}", responses=NOT_FOUND)
-async def get_combo(combo_id: PublicId, current: AdminDep, db: Session) -> AdminCombo:
+async def get_combo(
+    combo_id: PublicId, current: AdminDep, db: Session, images: ImageBase
+) -> AdminCombo:
     """One combo, in any status."""
-    return await load(db, combo_id)
+    return await load(db, combo_id, images)
 
 
 @router.put(
@@ -216,7 +224,7 @@ async def get_combo(combo_id: PublicId, current: AdminDep, db: Session) -> Admin
     responses={**NOT_FOUND, **conflict("`version_conflict`")},
 )
 async def update_combo(
-    combo_id: PublicId, change: ComboUpdate, current: AdminDep, db: Session
+    combo_id: PublicId, change: ComboUpdate, current: AdminDep, db: Session, images: ImageBase
 ) -> AdminCombo:
     """Change a combo's rating, description and conditions. `version` is the version the
     change was made from; another version refuses it. The pairing and status do not change."""
@@ -252,7 +260,7 @@ async def update_combo(
         setattr(row, column, value)
     await db.commit()
     logger.info("combo updated admin=%s id=%s version=%s", current.username, combo_id, row.version)
-    return await load(db, combo_id)
+    return await load(db, combo_id, images)
 
 
 @router.delete(
@@ -265,18 +273,23 @@ async def remove_combo(
     version: Annotated[int, Query(ge=1)],
     current: AdminDep,
     db: Session,
+    images: ImageBase,
+    request: Request,
 ) -> None:
-    """Delete a draft or unpublished combo, at the version it was read at. A published combo
-    must be unpublished first."""
+    """Delete a draft or unpublished combo, at the version it was read at, and its
+    screenshot. A published combo must be unpublished first."""
     row = await locked(db, combo_id)
     if row.version != version:
         raise refuse(status.HTTP_409_CONFLICT, "version_conflict")
     if row.status == "published":
         raise refuse(status.HTTP_409_CONFLICT, "combo_published")
-    removed = await load(db, combo_id)
+    removed = await load(db, combo_id, images)
+    shot = await db.get(ComboScreenshot, row.id)
+    objects = objects_of(combo_id, shot) if shot else []
     await db.delete(row)
     await db.commit()
     logger.info("combo removed admin=%s id=%s %s", current.username, combo_id, described(removed))
+    await delete_objects(request.app.state.storage, objects)
 
 
 async def locked_ids(db: AsyncSession, ids: list[str]) -> list[Combo]:
@@ -386,7 +399,9 @@ def existing_out(row: Combo | None) -> Existing | None:
 
 
 @router.post("/batches", responses=conflict("`version_conflict` or `combo_exists`"))
-async def save_batch(batch: BatchIn, current: AdminDep, db: Session) -> BatchSaved:
+async def save_batch(
+    batch: BatchIn, current: AdminDep, db: Session, images: ImageBase
+) -> BatchSaved:
     """Save a batch in one request: all of it, or nothing."""
     created, updated = await batches.save(db, batch, current)
     logger.info(
@@ -399,8 +414,8 @@ async def save_batch(batch: BatchIn, current: AdminDep, db: Session) -> BatchSav
         ",".join(updated),
     )
     return BatchSaved(
-        created=[await load(db, public_id) for public_id in created],
-        updated=[await load(db, public_id) for public_id in updated],
+        created=[await load(db, public_id, images) for public_id in created],
+        updated=[await load(db, public_id, images) for public_id in updated],
     )
 
 

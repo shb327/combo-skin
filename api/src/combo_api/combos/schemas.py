@@ -10,6 +10,7 @@ from pydantic_core import PydanticCustomError
 
 from combo_api.catalog.routes import Rarity
 from combo_api.combos.models import DESCRIPTION_MAX, SEED_MAX, SEEDS_MAX, Status
+from combo_api.screenshots.schemas import Screenshot, ScreenshotState
 
 SLUG_MAX = 64
 
@@ -258,6 +259,11 @@ class ScreenshotSettings(BaseModel):
     using_default: int
 
 
+class ScreenshotSettingsChanged(ScreenshotSettings):
+    # Combos without their own agent whose done screenshot is now due again.
+    requeued: int
+
+
 class ScreenshotSettingsIn(BaseModel):
     default_agent: AgentIndex
 
@@ -285,6 +291,8 @@ class PublicCombo(BaseModel):
     description: str | None
     glove: Item
     knife: Item
+    # The current screenshot's public versions, or null before the first one is stored.
+    screenshot: Screenshot | None
 
 
 class ComboCounts(BaseModel):
@@ -305,6 +313,8 @@ class AdminCombo(BaseModel):
     knife: Item
     # Null means the default agent.
     screenshot_agent: Agent | None
+    screenshot: Screenshot | None
+    screenshot_state: ScreenshotState
     created_at: datetime
     created_by: str
     updated_at: datetime

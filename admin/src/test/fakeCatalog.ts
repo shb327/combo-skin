@@ -10,6 +10,29 @@ export type Kind = 'glove' | 'knife'
 type Status = AdminCombo['status']
 type Conditions = Schemas['Conditions']
 type Agent = Schemas['Agent']
+type Worker = Schemas['WorkerOut']
+export type ScreenshotState = Schemas['ScreenshotState']
+export type Screenshot = Schemas['Screenshot']
+
+/** Where the fake's screenshots are: VITE_IMAGE_ORIGIN's default, the local storage service. */
+export const SCREENSHOT_ORIGIN = 'http://localhost:9000'
+
+/** A screenshot's three public versions. */
+export function screenshotOf(id: string, origin = SCREENSHOT_ORIGIN): Screenshot {
+  return {
+    width: 1920,
+    height: 1080,
+    images: [640, 1280, 1920].map((width) => ({
+      url: `${origin}/local-images/combos/${id}/v0000000000a/${width}.webp`,
+      width,
+      height: (width * 9) / 16,
+      type: 'image/webp' as const,
+    })),
+  }
+}
+
+/** A token of the right form; placeholders only. */
+export const tokenOf = (n: number) => `csw_${'placeholder-worker-token-'.padEnd(39, 'x')}${String(n).padStart(4, '0')}`
 
 interface FakeFinish {
   slug: string
@@ -193,6 +216,10 @@ export interface NewCombo {
   /** The screenshot agent's definition index; none means the default. */
   agent?: number | null
   by?: string
+  /** The screenshot state; `waiting` and `done` come with a screenshot. Default `none`. */
+  shot?: ScreenshotState['state']
+  rendering?: boolean
+  reason?: ScreenshotState['reason']
 }
 
 type Problem = { loc: (string | number)[]; msg: string; type: string }
@@ -211,6 +238,9 @@ const conditions = (c: Partial<Conditions> | undefined): Conditions => ({
 
 export class ComboStore {
   combos: AdminCombo[] = []
+  workers: Worker[] = []
+  /** The ids of every screenshot request, in order. */
+  requested: string[][] = []
   knifeOrder = ['karambit', 'butterfly', 'm9-bayonet']
   defaultAgent = RICKSAW
   private ids = 0
@@ -244,11 +274,23 @@ export class ComboStore {
       glove: item('glove', gloveType, gloveFinish, spec.gloveConditions),
       knife: item('knife', knifeType, knifeFinish, spec.knifeConditions),
       screenshot_agent: agentOf(spec.agent),
+      screenshot: null,
+      screenshot_state: {
+        state: spec.shot ?? 'none',
+        rendering: spec.rendering ?? false,
+        reason: spec.reason ?? (spec.shot === 'failed' ? 'render_failed' : null),
+        attempts: spec.shot === 'failed' ? 3 : 0,
+        made_at: null,
+      },
       created_at: at,
       created_by: by,
       updated_at: at,
       updated_by: by,
       published_at: spec.status === 'published' ? at : null,
+    }
+    if (spec.shot === 'waiting' || spec.shot === 'done') {
+      combo.screenshot = screenshotOf(combo.id)
+      combo.screenshot_state.made_at = at
     }
     this.combos.push(combo)
     this.changed.set(combo.id, this.ticks)
@@ -482,8 +524,59 @@ export class ComboStore {
     const found = agentOf(body.default_agent)
     if (!found) return refused([['body', 'default_agent'], 'agent_not_found'])
     if (!found.active) return refused([['body', 'default_agent'], 'agent_retired'])
+    let requeued = 0
+    if (found.def_index !== this.defaultAgent) {
+      for (const combo of this.combos) {
+        if (combo.screenshot_agent === null && combo.screenshot_state.state === 'done') {
+          combo.screenshot_state.state = 'waiting'
+          requeued += 1
+        }
+      }
+    }
     this.defaultAgent = found.def_index
-    return this.screenshotSettings()
+    const [, settings] = this.screenshotSettings()
+    return [200, { ...(settings as object), requeued }]
+  }
+
+  requestScreenshots(body: Schemas['ScreenshotRequest']): Answer {
+    for (const [i, id] of body.ids.entries()) {
+      if (!this.get(id)) return refused([['body', 'ids', i], 'combo_not_found'])
+    }
+    for (const id of body.ids) {
+      const state = (this.get(id) as AdminCombo).screenshot_state
+      state.state = state.made_at ? 'waiting' : 'none'
+      state.attempts = 0
+      state.reason = null
+    }
+    this.requested.push([...body.ids])
+    return [200, { changed: new Set(body.ids).size }]
+  }
+
+  listWorkers(): Answer {
+    return [200, this.workers]
+  }
+
+  createWorker(body: Schemas['WorkerIn'], by: string): Answer {
+    const name = body.name.trim()
+    if (!name) return refused([['body', 'name'], 'string_too_short'])
+    if (this.workers.some((w) => w.name === name)) return conflict('worker_exists')
+    const worker: Worker = {
+      id: this.workers.length + 1,
+      name,
+      created_at: this.now(),
+      created_by: by,
+      last_seen_at: null,
+      revoked_at: null,
+    }
+    this.workers.push(worker)
+    return [201, { worker, token: tokenOf(worker.id) }]
+  }
+
+  revokeWorker(id: number): Answer {
+    const worker = this.workers.find((w) => w.id === id)
+    if (!worker) return [404, { detail: 'worker_not_found' }]
+    worker.revoked_at ??= this.now()
+    return [200, worker]
   }
 
   getKnifeOrder(): Answer {

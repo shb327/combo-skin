@@ -2,7 +2,7 @@
 
 [![api](https://github.com/shb327/combo-skin/actions/workflows/api.yml/badge.svg)](https://github.com/shb327/combo-skin/actions/workflows/api.yml)
 
-The backend for Combo Skin: a FastAPI service on PostgreSQL, with SQLAlchemy 2 (async) and Alembic migrations. It serves health checks, its OpenAPI docs, the knife and glove catalog, admin login, and combos: the admin endpoints that enter them and the public endpoints that list them (see [`docs/specs/`](../docs/specs)).
+The backend for Combo Skin: a FastAPI service on PostgreSQL, with SQLAlchemy 2 (async) and Alembic migrations. It serves health checks, its OpenAPI docs, the knife and glove catalog, admin login, combos (the admin endpoints that enter them and the public endpoints that list them) and combo screenshots, which screenshot workers send and the API stores in S3-compatible object storage (see [`docs/specs/`](../docs/specs)).
 
 ## Prerequisites
 
@@ -18,22 +18,32 @@ cp api/.env.example api/.env
 docker compose up -d --wait
 ```
 
-This starts PostgreSQL, applies migrations, imports the catalog, then starts the API on port 8000. Check it with:
+This starts PostgreSQL and the storage service, applies migrations, imports the catalog, creates the two storage buckets, then starts the API on port 8000. Check it with:
 
 ```bash
 curl http://localhost:8000/health/ready
 ```
 
-Open http://localhost:8000/docs for the interactive docs. Stop everything with `docker compose down` (add `-v` to delete the database volume too).
+Open http://localhost:8000/docs for the interactive docs. Stop everything with `docker compose down` (add `-v` to delete the database and storage volumes too).
+
+The Compose services:
+
+| Service | What it does |
+| --- | --- |
+| `db` | PostgreSQL, on `127.0.0.1:54320`, data in the `db-data` volume |
+| `storage` | [RustFS](https://github.com/rustfs/rustfs), an S3-compatible object store, pinned by digest, on `127.0.0.1:9000`, data in the `storage-data` volume. It takes its credentials from `STORAGE_ACCESS_KEY_ID` and `STORAGE_SECRET_ACCESS_KEY` in `api/.env` |
+| `migrate`, `catalog` | One-shot: apply migrations, import the catalog |
+| `storage-init` | One-shot: `python -m combo_api.screenshots init`, which creates both buckets and lets anyone read the public one, through the S3 API. Safe to re-run |
+| `api` | The API on `127.0.0.1:8000`, once the one-shot services succeeded |
 
 ## Running
 
 **In Compose** (repository root): `docker compose up -d --wait` runs the built image. After changing code, rebuild with `docker compose up -d --wait --build`.
 
-**On the host**, for day-to-day work with auto-reload. Start only the database, then run the API from `api/`:
+**On the host**, for day-to-day work with auto-reload. Start only the database and storage, then run the API from `api/`:
 
 ```bash
-docker compose up -d --wait db
+docker compose up -d --wait db storage storage-init
 cd api
 uv sync
 uv run alembic upgrade head
@@ -45,15 +55,15 @@ Stop the Compose `api` service first (`docker compose stop api`) if it is runnin
 
 ## Tests
 
-Tests run against a real PostgreSQL: start the Compose database first. They use a separate `<POSTGRES_DB>_test` database, created and migrated automatically, so your local data is never touched.
+Tests run against a real PostgreSQL: start the Compose database first. They use a separate `<POSTGRES_DB>_test` database, created and migrated automatically, so your local data is never touched. Storage tests use an in-memory store, except `tests/screenshots/test_s3.py`, which runs against the storage service on throwaway buckets it removes again.
 
 ```bash
-docker compose up -d --wait db
+docker compose up -d --wait db storage
 cd api
 uv run pytest
 ```
 
-If the database is not running, the database tests fail rather than skip.
+If the database or the storage service is not running, their tests fail rather than skip.
 
 ## Lint and type check
 
@@ -188,11 +198,77 @@ There is one combo per pairing of a glove finish and a knife finish, and a combo
 
 **Batches.** A batch pairs one glove finish with one knife finish name (`doppler-ruby`, `blue-steel`) across knife types. `GET /admin/batches/finishes` lists the names; `GET /admin/batches/candidates` lists every active knife type with that finish, in knife order, with the combo it already has with those gloves. `POST /admin/batches` creates the new combos and changes the rating and description of existing ones in one request, all or nothing. The dashboard computes ratings, batch-wide conditions and each new combo's screenshot agent (batch-wide, or the knife's own); the API stores what it is sent. Existing combos in a batch keep their conditions and screenshot agent.
 
-**Default agent.** Combos without their own screenshot agent use one default agent, Lt. Commander Ricksaw | NSWC SEAL (definition index 5404) until an admin changes it with `PUT /admin/screenshot-settings`. It is one stored setting: changing it changes no combo.
+**Default agent.** Combos without their own screenshot agent use one default agent, Lt. Commander Ricksaw | NSWC SEAL (definition index 5404) until an admin changes it with `PUT /admin/screenshot-settings`. It is one stored setting: changing it changes no combo row, but the combos using it get a new screenshot (see Screenshots).
 
 **Knife order.** Batches follow one shared knife order, editable by any admin with `PUT /admin/knife-order`. It starts as Butterfly, Karambit, M9 Bayonet, Talon, Skeleton, Stiletto, Bayonet, Flip, Nomad, Huntsman, Falchion, Bowie, Classic, Ursus, Kukri, Paracord, Survival, Gut, Shadow Daggers, Navaja. Knife types added by a game update follow in catalog order until placed; retired ones are skipped.
 
 Refused input gets 422 in FastAPI's list format, with `loc` pointing at the field (in a batch, at the item) and a `type` code such as `finish_not_found`, `finish_retired`, `float_outside_finish`, `duplicate_seed`, `agent_not_found` or `agent_retired`. Conflicts get 409 with `{"detail": "<code>"}`. Every change is logged by the `combo_api.combos` logger with the admin's username.
+
+## Screenshots
+
+Every combo, in any status, gets a screenshot made by a **screenshot worker**: a separate program that claims a combo, draws it in the 3D viewer on its screenshot agent's arms, and sends the image back. The API keeps the original and makes watermarked WebP versions from it for the website and the dashboard.
+
+**Storage.** Two buckets, through the S3 API: originals (never public) and public images (readable by anyone at `IMAGE_BASE_URL`). Cloudflare R2 in production; the Compose `storage` service locally. Keys:
+
+| Bucket | Key |
+| --- | --- |
+| Originals | `combos/<combo id>/<upload id>.png`, kept byte for byte with its SHA-256 recorded; never served |
+| Public | `combos/<combo id>/<version id>/<width>.webp`, `Content-Type: image/webp`, `Cache-Control: public, max-age=31536000, immutable` |
+
+Upload and version ids are 12 random characters, new for every upload and every rebuild, so a changed image always has a new URL. Responses build full URLs from `IMAGE_BASE_URL` at request time. Drafts' versions are in the public bucket too, reachable only by a URL with two random ids.
+
+**Workers and tokens.** An admin creates a worker on the dashboard's Screenshots page with a name and gets its token once: `csw_` and 43 base64url characters (256 random bits). The API stores only its SHA-256 digest. Revoking a worker stops its token at once and releases its claims; workers are never deleted. A worker sends `Authorization: Bearer <token>` and may use only the worker routes; admin routes refuse worker tokens and worker routes refuse admin sessions. Worker routes refuse any request with an `Origin` header (403 `origin_not_allowed`), so no browser page can use them, also when the body is malformed; they send no CORS headers and `Cache-Control: no-store`. A refused token is logged with the client IP, never the token.
+
+**Worker routes.**
+
+| Route | Meaning |
+| --- | --- |
+| `GET /worker/me` | `{"name"}` of the token's worker |
+| `POST /worker/jobs/claim` | Claim one due combo for 5 minutes: 200 with a job, 204 when nothing is due |
+| `PUT /worker/jobs/{job}/screenshot` | The raw PNG, `Content-Type: image/png`, exactly 1920 by 1080, 8-bit RGB or RGBA, at most 16 MiB. 201 `{"combo_id", "screenshot"}` once stored |
+| `POST /worker/jobs/{job}/fail` | `{"reason": "render_failed" \| "asset_missing" \| "timeout", "detail": "<at most 300 characters>"}`; counts an attempt. The detail is logged, not stored. 204 |
+| `POST /worker/jobs/{job}/release` | `{"reason": "shutting_down" \| "gpu_unavailable"}`; frees the combo without counting. 204 |
+
+Refusals: 401 `not_authenticated`; 404 `job_not_found` (unknown job, another worker's, or one whose combo was claimed again since); 409 `claim_expired` (lease over or claim closed) or `inputs_changed` (the combo changed: nothing is stored and it is due again); 413 `too_large`; 415 `unsupported_media_type`; 422 `not_png`, `wrong_size` or `bad_pixel_format`. The PNG's signature and header are checked before any pixel is decoded.
+
+A job holds what the viewer needs and nothing else (no rating, description, status or admin names):
+
+```json
+{
+  "job_id": "w8d2k0q5n1zc", "lease_expires_at": "2026-11-05T12:05:00Z", "combo_id": "k3v9x0m2q7ab",
+  "image": {"width": 1920, "height": 1080, "type": "image/png"},
+  "glove": {"def_index": 5034, "codename": "specialist_gloves", "paint_index": 10064, "paint_codename": "...",
+            "name": "Specialist Gloves | Mogul", "float": 0.06, "seed": null,
+            "float_from": null, "float_to": null, "seeds": []},
+  "knife": {"def_index": 507, "codename": "weapon_knife_karambit", "paint_index": 419, "paint_codename": "...",
+            "name": "Karambit | Doppler (Phase 2)", "float": 0.0, "seed": 387,
+            "float_from": 0.0, "float_to": 0.01, "seeds": [387, 512]},
+  "agent": {"def_index": 5404, "codename": "customplayer_ctm_st6_varianti", "name": "...", "team": "ct", "default": true},
+  "render_revision": 1
+}
+```
+
+Each item is drawn with the start of the combo's float range (else the finish's minimum, null for Vanilla) and its lowest seed (else null, the viewer's default); the full conditions come too. The agent is the combo's own or the default (`default: true`).
+
+**The queue.** A combo's render inputs are both items' definition and paint indexes with the float and seed they are drawn with, the effective agent, and `RENDER_REVISION` (`screenshots/inputs.py`, raised when the viewer changes how combos look). A combo is due when it has no screenshot, when its render inputs differ from those of its screenshot, or when an admin asked for a new one (`POST /admin/screenshots/request`) after it was made. So changing a float range, the lowest seed or the agent makes a combo due; changing its rating or description does not; changing the default agent makes due every combo without its own agent, and `PUT /admin/screenshot-settings` answers how many were done before the change and are due after it (`requeued`). Claims take published combos first, then drafts and unpublished ones, each the longest waiting first, with a row lock (`SKIP LOCKED`), so two claims never get the same combo. A failure report or an expired lease counts a failed attempt; the combo then waits 1 minute, then 10; after 3 failed attempts for the same render inputs it is `failed` until they change or an admin asks again. The current screenshot stays shown until a new one is stored.
+
+States in admin responses (`screenshot_state`): `none` (no screenshot yet), `waiting` (an older one is shown, a new one is due), `done`, `failed`; with `rendering` while a worker holds a live claim, the last failure `reason`, the counted `attempts`, and `made_at`, when the current screenshot's render was claimed. A request for a new screenshot made while a worker is rendering is therefore not answered by that render. A revoked worker's claim or answer is refused even if it was authenticated just before the revoke.
+
+**Storing.** The upload is read up to 16 MiB, checked, decoded fully (Pillow's decompression-bomb guard stays on), flattened onto black, and made into WebP versions 640, 1280 and 1920 wide at quality 82, from pixels only, so no metadata or colour profile is copied. One image is processed at a time. The original and versions are written first; one transaction then points the combo at them; the old objects are deleted last. Removing a combo deletes its objects. A failed delete is logged (`object delete failed`) and left for `sweep`.
+
+**Watermark.** `combo.skin` in Montserrat SemiBold (`screenshots/fonts/`, OFL), white at alpha 180 over a black shadow at alpha 110 blurred by a tenth of the font size and offset by a twentieth, bottom-right. The font size is `max(16, round(0.022 × width))`, the margin `round(0.02 × width)` from the right and bottom. Changing it means raising `WATERMARK_REVISION` (`screenshots/images.py`) and running `rebuild`.
+
+**Commands**, from `api/` or in the image (`docker compose run --rm storage-init python -m combo_api.screenshots ...`):
+
+```bash
+uv run python -m combo_api.screenshots init            # create both buckets, the public one readable
+uv run python -m combo_api.screenshots init --check    # only check both exist (production); exit 1 if not
+uv run python -m combo_api.screenshots rebuild         # remake every public version from its original
+uv run python -m combo_api.screenshots sweep --dry-run # list objects under combos/ older than a day that no row refers to
+uv run python -m combo_api.screenshots sweep           # delete them
+```
+
+`init` sets the bucket policy through the S3 API, so it works the same on any S3 service; it refuses an originals bucket with a policy. `rebuild` gives every screenshot a new version id with the current watermark and deletes its old versions after each commit; originals are untouched, and one that is missing or cannot be decoded is reported and skipped (exit 1). `sweep` only looks at keys under `combos/`. Every screenshot event is logged by the `combo_api.screenshots` logger; tokens and storage credentials never are.
 
 ## OpenAPI snapshot
 
@@ -222,6 +298,13 @@ Settings come from environment variables. For local use they are read from `api/
 | `SESSION_IDLE_MINUTES` | no | `60` | A session ends after this many minutes without a request. 5 to 1440, and not more than `SESSION_MAX_HOURS`. |
 | `SESSION_MAX_HOURS` | no | `12` | A session ends this many hours after login. 1 to 24. |
 | `TRUSTED_PROXIES` | no | empty | Comma-separated IPs or CIDR ranges of reverse proxies whose `X-Forwarded-For` header is used for the client IP. |
+| `STORAGE_ENDPOINT_URL` | yes | | The S3 endpoint, an origin. The example uses the storage service's published port; inside the stack Compose sets `http://storage:9000`. |
+| `STORAGE_REGION` | no | `auto` | The S3 region; `auto`, as R2 expects. |
+| `STORAGE_ACCESS_KEY_ID` | yes | | Storage access key. |
+| `STORAGE_SECRET_ACCESS_KEY` | yes | | Storage secret. Never logged. |
+| `STORAGE_ORIGINALS_BUCKET` | yes | | The bucket for originals; never public. |
+| `STORAGE_PUBLIC_BUCKET` | yes | | The bucket for public versions. Must differ from the originals bucket. |
+| `IMAGE_BASE_URL` | yes | | The public bucket's base URL; image URLs are this plus the key. `https`, or plain http on `localhost`; an optional path (path-style locally), no query. |
 
 A missing or invalid setting stops startup with an error that names the variable but never shows its value.
 
@@ -237,7 +320,7 @@ A missing or invalid setting stops startup with an error that names the variable
 | `POST /admin/login` | Log in; sets the session cookie. 401, 403, 415, 422 or 429 otherwise. |
 | `GET /admin/me` | The logged-in admin and the session's CSRF token, or 401. |
 | `POST /admin/logout` | Ends the session and clears the cookie; 204. |
-| `GET /gloves/{type}/{finish}/combos`, `GET /knives/{type}/{finish}/combos` | The finish's published combos, highest rating first. `[]` without combos, 404 for an unknown finish. |
+| `GET /gloves/{type}/{finish}/combos`, `GET /knives/{type}/{finish}/combos` | The finish's published combos, highest rating first, each with its `screenshot` (`{width, height, images: [{url, width, height, type}]}`, narrowest first) or null. `[]` without combos, 404 for an unknown finish. |
 | `GET /combo-counts` | How many published combos each finish has, as `{"gloves": {type: {finish: n}}, "knives": {...}}`; finishes without any are left out. Counted exactly as the lists above. |
 | `GET /admin/combos` | Combos in any status. Filters: `glove_type`, `glove_finish`, `knife_type`, `knife_finish`, `status`; `sort` (`rating` or `updated`), `limit` (up to 500), `offset`. |
 | `POST /admin/combos` | Create a draft combo. 409 `combo_exists` if the pairing has one. |
@@ -246,7 +329,11 @@ A missing or invalid setting stops startup with an error that names the variable
 | `GET /admin/batches/finishes`, `GET /admin/batches/candidates`, `POST /admin/batches` | Batch finish names, candidates, and saving a batch. |
 | `GET`, `PUT /admin/knife-order` | Read or replace the knife order. |
 | `GET /admin/agents` | Agents still in the game: Counter-Terrorists first, then Terrorists, each by name. |
-| `GET`, `PUT /admin/screenshot-settings` | The default screenshot agent and how many combos use it (`using_default`); replace it with `{"default_agent": <definition index>}`. 503 `default_agent_missing` while the default agent is not in the catalog (before the first import). |
+| `GET`, `PUT /admin/screenshot-settings` | The default screenshot agent and how many combos use it (`using_default`); replace it with `{"default_agent": <definition index>}`, which also answers `requeued`, the done combos that get a new screenshot. 503 `default_agent_missing` while the default agent is not in the catalog (before the first import). |
+| `POST /admin/screenshots/request` | Ask for new screenshots of up to 500 combos (`{"ids": [...]}`); clears their failed attempts. `{"changed": n}` |
+| `GET`, `POST /admin/workers` | List screenshot workers; create one with `{"name"}` (201 with its token, once; 409 `worker_exists`) |
+| `POST /admin/workers/{id}/revoke` | Revoke a worker; 404 `worker_not_found` |
+| `GET /worker/me`, `POST /worker/jobs/claim`, `PUT /worker/jobs/{job}/screenshot`, `POST /worker/jobs/{job}/fail`, `POST /worker/jobs/{job}/release` | Worker routes, with a worker token (see Screenshots) |
 | `GET /docs`, `GET /openapi.json` | Interactive docs and the schema, unless `DOCS_ENABLED=false`. |
 
 ## Layout
@@ -261,6 +348,7 @@ A missing or invalid setting stops startup with an error that names the variable
 | `src/combo_api/catalog/` | Catalog data (knives, gloves, agents), commands, tables, import and endpoints |
 | `src/combo_api/combos/` | Combo, knife order and screenshot settings tables, admin and public endpoints, catalog checks, batches, agents |
 | `src/combo_api/admins/` | Admin tables, accounts command, passwords, sessions, rate limits, `require_admin` and login endpoints |
+| `src/combo_api/screenshots/` | Storage (S3 and in memory), screenshot tables, workers and `require_worker`, render inputs and the queue, uploads, images and the watermark font, admin and worker endpoints, commands |
 | `migrations/` | Alembic environment and revisions |
 | `tests/` | pytest suite |
 | `Dockerfile` | Production image: non-root, runtime dependencies only |

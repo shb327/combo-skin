@@ -3,7 +3,7 @@ from typing import Any
 
 import pytest
 from fastapi import APIRouter, FastAPI
-from fastapi.routing import APIRoute
+from fastapi.routing import RouteContext, iter_route_contexts
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from combo_api.admins.deps import ADMIN_RESPONSES, AdminDep, require_admin
 from combo_api.admins.models import Admin
 from combo_api.main import create_app
+from combo_api.screenshots.workers import (
+    WORKER_RESPONSES,
+    WorkerDep,
+    is_worker_path,
+    require_worker,
+)
 from tests.admins.conftest import API_URL
 from tests.admins.support import (
     USERNAME,
@@ -41,34 +47,58 @@ async def probe_write(current: AdminDep) -> dict[str, Any]:
     return {"id": current.id, "username": current.username}
 
 
-def depends_on_require_admin(route: APIRoute) -> bool:
+def api_routes(app: FastAPI) -> list[RouteContext]:
+    """Every route as the app serves it: included routers expanded, with their prefixes,
+    dependencies and responses."""
+    return [route for route in iter_route_contexts(app.routes) if route.path is not None]
+
+
+def depends_on(route: RouteContext, call: Any) -> bool:
     pending = list(route.dependant.dependencies)
     while pending:
         dependant = pending.pop()
-        if dependant.call is require_admin:
+        if dependant.call is call:
             return True
         pending.extend(dependant.dependencies)
     return False
 
 
+def depends_on_require_admin(route: RouteContext) -> bool:
+    return depends_on(route, require_admin)
+
+
 def unguarded_writes(app: FastAPI) -> list[str]:
+    """Write routes that depend on neither `require_admin` nor `require_worker`."""
     return [
-        route.name
-        for route in app.routes
-        if isinstance(route, APIRoute)
-        and set(route.methods or ()) & WRITES
+        str(route.name)
+        for route in api_routes(app)
+        if set(route.methods or ()) & WRITES
         and route.name not in UNGUARDED
         and not depends_on_require_admin(route)
+        and not depends_on(route, require_worker)
     ]
+
+
+def misguarded_worker_routes(app: FastAPI) -> list[str]:
+    """Routes under /worker/ without `require_worker` or with `require_admin`, and routes
+    elsewhere that depend on `require_worker`."""
+    found = []
+    for route in api_routes(app):
+        worker = depends_on(route, require_worker)
+        if is_worker_path(route.path or ""):
+            if not worker or depends_on_require_admin(route):
+                found.append(str(route.name))
+        elif worker:
+            found.append(str(route.name))
+    return found
 
 
 def unguarded_admin_routes(app: FastAPI) -> list[str]:
     """Routes under /admin/, whatever their method, that do not depend on `require_admin`."""
     return [
-        route.name
-        for route in app.routes
-        if isinstance(route, APIRoute)
-        and route.path.startswith("/admin/")
+        str(route.name)
+        for route in api_routes(app)
+        if (route.path or "").startswith("/admin/")
         and route.name not in OPEN_ADMIN_ROUTES
         and not depends_on_require_admin(route)
     ]
@@ -172,11 +202,9 @@ async def test_disabled_admin_session_stops_at_once(
 def undocumented(app: FastAPI) -> list[str]:
     """Routes behind `require_admin` that do not declare its 401 and 403 responses."""
     return [
-        route.name
-        for route in app.routes
-        if isinstance(route, APIRoute)
-        and depends_on_require_admin(route)
-        and not {401, 403} <= set(route.responses)
+        str(route.name)
+        for route in api_routes(app)
+        if depends_on_require_admin(route) and not {401, 403} <= set(route.responses)
     ]
 
 
@@ -185,6 +213,18 @@ def test_every_write_route_requires_an_admin() -> None:
     assert unguarded_writes(app) == []
     assert unguarded_admin_routes(app) == []
     assert undocumented(app) == []
+    assert misguarded_worker_routes(app) == []
+    # The checks see every route, not only those added to the app directly.
+    names = {route.name for route in api_routes(app)}
+    assert {"create_combo", "create_worker", "claim_job", "put_screenshot", "admin_login"} <= names
+    worker_paths = {r.path for r in api_routes(app) if depends_on(r, require_worker)}
+    assert worker_paths == {
+        "/worker/me",
+        "/worker/jobs/claim",
+        "/worker/jobs/{job_id}/screenshot",
+        "/worker/jobs/{job_id}/fail",
+        "/worker/jobs/{job_id}/release",
+    }
 
 
 def test_the_guard_finds_an_unprotected_write() -> None:
@@ -206,6 +246,38 @@ def test_the_guard_finds_an_unprotected_write() -> None:
     assert unguarded_writes(app) == ["unprotected_write"]
     assert unguarded_admin_routes(app) == ["unprotected_admin_read"]
     assert undocumented(app) == ["undocumented_read"]
+
+
+def test_the_guard_finds_misused_worker_routes() -> None:
+    app = create_app()
+
+    @app.get("/worker/open")
+    async def open_worker_read() -> None:
+        return None
+
+    @app.get("/worker")
+    async def bare_worker_path() -> None:
+        return None
+
+    @app.post("/worker/admin", responses={**ADMIN_RESPONSES, **WORKER_RESPONSES})
+    async def worker_route_for_admins(current: AdminDep, worker: WorkerDep) -> None:
+        return None
+
+    @app.get("/elsewhere", responses=WORKER_RESPONSES)
+    async def worker_token_elsewhere(worker: WorkerDep) -> None:
+        return None
+
+    @app.put("/unguarded")
+    async def write_without_either() -> None:
+        return None
+
+    assert misguarded_worker_routes(app) == [
+        "open_worker_read",
+        "bare_worker_path",
+        "worker_route_for_admins",
+        "worker_token_elsewhere",
+    ]
+    assert unguarded_writes(app) == ["write_without_either"]
 
 
 async def test_admin_responses_are_not_cached(

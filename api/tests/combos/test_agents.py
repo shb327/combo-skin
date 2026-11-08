@@ -231,7 +231,10 @@ async def test_default_agent_setting(
     assert response.status_code == 200, response.text
     assert response.json()["default_agent"]["def_index"] == DARRYL
     assert response.json()["using_default"] == 3
-    assert (await admin_client.get("/admin/screenshot-settings")).json() == response.json()
+    # No combo had a screenshot, so none is requeued.
+    assert response.json()["requeued"] == 0
+    shown = (await admin_client.get("/admin/screenshot-settings")).json()
+    assert shown == {k: v for k, v in response.json().items() if k != "requeued"}
     after = (await db_session.execute(select(Combo.id, Combo.version, Combo.updated_at))).all()
     assert sorted(after) == sorted(before)
     row = await db_session.get_one(ScreenshotSettings, 1)

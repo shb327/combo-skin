@@ -1,5 +1,5 @@
 import { onlineManager } from '@tanstack/react-query'
-import { act, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -12,6 +12,7 @@ import {
   item,
   json,
   notFound,
+  screenshotOf,
 } from '@/test/fakeApi'
 import { renderSite } from '@/test/render'
 
@@ -195,6 +196,59 @@ describe('a glove finish page', () => {
     // A picture off the image host is not shown; its half stays empty.
     expect(within(second).getAllByRole('img').map((p) => p.getAttribute('alt'))).toEqual([
       'Specialist Gloves | Mogul',
+    ])
+  })
+
+  it('shows the screenshot in place of the pictures when the combo has one', async () => {
+    const api = fakeApi()
+    const shot = screenshotOf('a')
+    api.combos(MOGUL_PATH, [combo('a', 8, MOGUL, KARAMBIT_RUBY, null, shot)])
+    renderSite(MOGUL_PATH, { api })
+    await loaded()
+
+    const [card] = cards()
+    const [image, ...others] = within(card).getAllByRole('img')
+    expect(others).toEqual([])
+    expect(image).toHaveAttribute('alt', 'Specialist Gloves | Mogul with Karambit | Doppler (Ruby)')
+    expect(image).toHaveAttribute(
+      'srcset',
+      shot.images.map((version) => `${version.url} ${version.width}w`).join(', '),
+    )
+    expect(image).toHaveAttribute('sizes', '(min-width: 1024px) 50vw, 100vw')
+    expect(image).toHaveAttribute('src', shot.images[1].url)
+    expect(image).toHaveAttribute('width', '1920')
+    expect(image).toHaveAttribute('height', '1080')
+    expect(image).toHaveAttribute('loading', 'lazy')
+    expect(image).toHaveAttribute('decoding', 'async')
+    expect(image).toHaveAttribute('referrerpolicy', 'no-referrer')
+  })
+
+  it('shows the finish pictures without a usable screenshot', async () => {
+    const api = fakeApi()
+    api.combos(MOGUL_PATH, [
+      combo('a', 9, MOGUL, KARAMBIT_RUBY),
+      combo('b', 8, MOGUL, M9, null, screenshotOf('b', 'https://images.example.com')),
+      combo('c', 7, MOGUL, BUTTERFLY, null, {
+        ...screenshotOf('c'),
+        images: [...screenshotOf('c').images.slice(0, 2), { ...screenshotOf('x', 'https://example.com').images[2] }],
+      }),
+      combo('d', 6, MOGUL, KARAMBIT_RUBY, null, screenshotOf('d')),
+    ])
+    renderSite(MOGUL_PATH, { api })
+    await loaded()
+
+    const [none, otherOrigin, oneOff, failing] = cards()
+    for (const card of [none, otherOrigin, oneOff]) {
+      const alts = within(card).getAllByRole('img').map((p) => p.getAttribute('alt'))
+      expect(alts).toHaveLength(2)
+      expect(alts[0]).toBe('Specialist Gloves | Mogul')
+    }
+    const shown = within(failing).getByRole('img')
+    expect(shown).toHaveAttribute('srcset')
+    fireEvent.error(shown)
+    expect(within(failing).getAllByRole('img').map((p) => p.getAttribute('alt'))).toEqual([
+      'Specialist Gloves | Mogul',
+      'Karambit | Doppler (Ruby)',
     ])
   })
 

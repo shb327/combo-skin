@@ -15,7 +15,12 @@ from combo_api.combos import queries, rules
 from combo_api.combos.models import Combo
 from combo_api.combos.models import ScreenshotSettings as SettingsRow
 from combo_api.combos.schemas import Agent as AgentOut
-from combo_api.combos.schemas import ScreenshotSettings, ScreenshotSettingsIn
+from combo_api.combos.schemas import (
+    ScreenshotSettings,
+    ScreenshotSettingsChanged,
+    ScreenshotSettingsIn,
+)
+from combo_api.screenshots import queue
 
 logger = logging.getLogger("combo_api.combos")
 router = APIRouter(prefix="/admin", tags=["admin"], responses=ADMIN_RESPONSES)
@@ -53,22 +58,28 @@ async def get_screenshot_settings(current: AdminDep, db: Session) -> ScreenshotS
 @router.put("/screenshot-settings", responses=MISSING)
 async def replace_screenshot_settings(
     change: ScreenshotSettingsIn, current: AdminDep, db: Session
-) -> ScreenshotSettings:
-    """Change the default screenshot agent. No combo changes."""
+) -> ScreenshotSettingsChanged:
+    """Change the default screenshot agent. Combos without their own agent get a new
+    screenshot; `requeued` counts those whose screenshot was done."""
     problems = rules.Problems()
     agent = await rules.resolve_agent(db, change.default_agent, ("body", "default_agent"), problems)
     if agent is None or problems.errors:
         raise problems.error()
     row = await db.get_one(SettingsRow, 1, with_for_update=True)
+    done_before = await queue.done_using_default(db)
     row.default_agent_def_index = agent.def_index
     row.updated_at = clock.now()
     row.updated_by = current.id
+    await db.flush()
+    # Done before the change and due after it; combos drawn with the new default are done again.
+    requeued = len(done_before - await queue.done_using_default(db))
     await db.commit()
     settings = await settings_out(db, row)
     logger.info(
-        "default agent changed admin=%s def_index=%s using_default=%s",
+        "default agent changed admin=%s def_index=%s using_default=%s requeued=%s",
         current.username,
         agent.def_index,
         settings.using_default,
+        requeued,
     )
-    return settings
+    return ScreenshotSettingsChanged(**settings.model_dump(), requeued=requeued)

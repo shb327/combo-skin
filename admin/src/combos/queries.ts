@@ -13,6 +13,8 @@ export type FinishDetail = Schemas['FinishDetail']
 export type Kind = 'glove' | 'knife'
 export type Agent = Schemas['Agent']
 export type ScreenshotSettings = Schemas['ScreenshotSettings']
+export type ScreenshotState = Schemas['ScreenshotState']
+export type Worker = Schemas['WorkerOut']
 export type ComboStatus = AdminCombo['status']
 
 /** One finish of the catalog, as the searches use it. */
@@ -58,6 +60,7 @@ export const keys = {
   draftCount: ['combos', 'draft-count'] as const,
   batchFinishes: ['batch-finishes'] as const,
   candidates: ['candidates'] as const,
+  workers: ['workers'] as const,
   candidatesFor: (type: string, finish: string, knifeFinish: string) => ['candidates', type, finish, knifeFinish] as const,
   knifeOrder: ['knife-order'] as const,
   agents: ['agents'] as const,
@@ -222,6 +225,15 @@ export function useScreenshotSettings() {
   return useQuery({
     queryKey: keys.screenshotSettings,
     queryFn: async () => (await api.request('get', '/admin/screenshot-settings')).data as ScreenshotSettings,
+  })
+}
+
+/** Every screenshot worker, revoked ones included. */
+export function useWorkers() {
+  const api = useApi()
+  return useQuery({
+    queryKey: keys.workers,
+    queryFn: async () => (await api.request('get', '/admin/workers')).data ?? [],
   })
 }
 

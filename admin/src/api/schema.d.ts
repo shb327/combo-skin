@@ -168,8 +168,8 @@ export interface paths {
         post?: never;
         /**
          * Remove Combo
-         * @description Delete a draft or unpublished combo, at the version it was read at. A published combo
-         *     must be unpublished first.
+         * @description Delete a draft or unpublished combo, at the version it was read at, and its
+         *     screenshot. A published combo must be unpublished first.
          */
         delete: operations["remove_combo"];
         options?: never;
@@ -275,10 +275,76 @@ export interface paths {
         get: operations["get_screenshot_settings"];
         /**
          * Replace Screenshot Settings
-         * @description Change the default screenshot agent. No combo changes.
+         * @description Change the default screenshot agent. Combos without their own agent get a new
+         *     screenshot; `requeued` counts those whose screenshot was done.
          */
         put: operations["replace_screenshot_settings"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/screenshots/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request Screenshots
+         * @description Ask for a new screenshot of each combo: due at once, with its failed attempts cleared.
+         *     The current screenshot stays shown until the new one is stored.
+         */
+        post: operations["request_screenshots"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/workers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Workers
+         * @description Every screenshot worker, revoked ones included, oldest first.
+         */
+        get: operations["list_workers"];
+        put?: never;
+        /**
+         * Create Worker
+         * @description Create a screenshot worker. Its token is in this response only.
+         */
+        post: operations["create_worker"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/workers/{worker_id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke Worker
+         * @description Revoke a worker: its token stops working at once and its claims are released.
+         */
+        post: operations["revoke_worker"];
         delete?: never;
         options?: never;
         head?: never;
@@ -507,6 +573,107 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/worker/jobs/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Claim Job
+         * @description Claim the combo that has waited longest for a screenshot, with a 5-minute lease.
+         */
+        post: operations["claim_job"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/worker/jobs/{job_id}/fail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fail Job
+         * @description Report a failed render. It counts as an attempt; the combo waits before the next.
+         */
+        post: operations["fail_job"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/worker/jobs/{job_id}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Release Job
+         * @description Give a claim back without counting an attempt.
+         */
+        post: operations["release_job"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/worker/jobs/{job_id}/screenshot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Screenshot
+         * @description Send the screenshot for a live claim: a PNG of the job's size, at most 16 MiB. It is
+         *     stored, with its watermarked versions, before this answers.
+         */
+        put: operations["put_screenshot"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/worker/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Worker Me
+         * @description The worker this token belongs to.
+         */
+        get: operations["worker_me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -530,7 +697,9 @@ export interface components {
             published_at: string | null;
             /** Rating */
             rating: number;
+            screenshot: components["schemas"]["Screenshot"] | null;
             screenshot_agent: components["schemas"]["Agent"] | null;
+            screenshot_state: components["schemas"]["ScreenshotState"];
             /**
              * Status
              * @enum {string}
@@ -772,6 +941,16 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** FailReport */
+        FailReport: {
+            /** Detail */
+            detail?: string | null;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "render_failed" | "asset_missing" | "timeout";
+        };
         /** Finish */
         Finish: {
             /** Active */
@@ -890,6 +1069,79 @@ export interface components {
             /** Slug */
             slug: string;
         };
+        /** Job */
+        Job: {
+            agent: components["schemas"]["JobAgent"];
+            /** Combo Id */
+            combo_id: string;
+            glove: components["schemas"]["JobItem"];
+            image: components["schemas"]["JobImage"];
+            /** Job Id */
+            job_id: string;
+            knife: components["schemas"]["JobItem"];
+            /**
+             * Lease Expires At
+             * Format: date-time
+             */
+            lease_expires_at: string;
+            /** Render Revision */
+            render_revision: number;
+        };
+        /** JobAgent */
+        JobAgent: {
+            /** Codename */
+            codename: string;
+            /** Def Index */
+            def_index: number;
+            /** Default */
+            default: boolean;
+            /** Name */
+            name: string;
+            /**
+             * Team
+             * @enum {string}
+             */
+            team: "ct" | "t";
+        };
+        /** JobImage */
+        JobImage: {
+            /** Height */
+            height: number;
+            /**
+             * Type
+             * @constant
+             */
+            type: "image/png";
+            /** Width */
+            width: number;
+        };
+        /**
+         * JobItem
+         * @description An item as the viewer identifies it, the float and seed to draw it with, and the
+         *     combo's full conditions.
+         */
+        JobItem: {
+            /** Codename */
+            codename: string;
+            /** Def Index */
+            def_index: number;
+            /** Float */
+            float: number | null;
+            /** Float From */
+            float_from: number | null;
+            /** Float To */
+            float_to: number | null;
+            /** Name */
+            name: string;
+            /** Paint Codename */
+            paint_codename: string | null;
+            /** Paint Index */
+            paint_index: number;
+            /** Seed */
+            seed: number | null;
+            /** Seeds */
+            seeds: number[];
+        };
         /** @enum {string} */
         Kind: "knife" | "glove";
         /** KnifeFinishName */
@@ -937,6 +1189,7 @@ export interface components {
             knife: components["schemas"]["Item"];
             /** Rating */
             rating: number;
+            screenshot: components["schemas"]["Screenshot"] | null;
         };
         /**
          * PublishRequest
@@ -966,9 +1219,56 @@ export interface components {
              */
             status: "ok" | "unavailable";
         };
+        /** Release */
+        Release: {
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "shutting_down" | "gpu_unavailable";
+        };
+        /**
+         * Screenshot
+         * @description A screenshot's public versions, narrowest first, and the original's size.
+         */
+        Screenshot: {
+            /** Height */
+            height: number;
+            /** Images */
+            images: components["schemas"]["ScreenshotImage"][];
+            /** Width */
+            width: number;
+        };
+        /** ScreenshotImage */
+        ScreenshotImage: {
+            /** Height */
+            height: number;
+            /**
+             * Type
+             * @constant
+             */
+            type: "image/webp";
+            /** Url */
+            url: string;
+            /** Width */
+            width: number;
+        };
+        /** ScreenshotRequest */
+        ScreenshotRequest: {
+            /** Ids */
+            ids: string[];
+        };
         /** ScreenshotSettings */
         ScreenshotSettings: {
             default_agent: components["schemas"]["Agent"];
+            /** Using Default */
+            using_default: number;
+        };
+        /** ScreenshotSettingsChanged */
+        ScreenshotSettingsChanged: {
+            default_agent: components["schemas"]["Agent"];
+            /** Requeued */
+            requeued: number;
             /** Using Default */
             using_default: number;
         };
@@ -976,6 +1276,32 @@ export interface components {
         ScreenshotSettingsIn: {
             /** Default Agent */
             default_agent: number;
+        };
+        /**
+         * ScreenshotState
+         * @description `none`: no screenshot yet. `waiting`: an older screenshot is shown, a new one is due.
+         *     `done`. `failed`: three failed attempts for the current render inputs.
+         */
+        ScreenshotState: {
+            /** Attempts */
+            attempts: number;
+            /** Made At */
+            made_at: string | null;
+            /** Reason */
+            reason: ("render_failed" | "asset_missing" | "timeout" | "lease_expired") | null;
+            /** Rendering */
+            rendering: boolean;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "none" | "waiting" | "done" | "failed";
+        };
+        /** Stored */
+        Stored: {
+            /** Combo Id */
+            combo_id: string;
+            screenshot: components["schemas"]["Screenshot"];
         };
         /** TypeDetail */
         TypeDetail: {
@@ -1022,6 +1348,40 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** WorkerCreated */
+        WorkerCreated: {
+            /** Token */
+            token: string;
+            worker: components["schemas"]["WorkerOut"];
+        };
+        /** WorkerIn */
+        WorkerIn: {
+            /** Name */
+            name: string;
+        };
+        /** WorkerMe */
+        WorkerMe: {
+            /** Name */
+            name: string;
+        };
+        /** WorkerOut */
+        WorkerOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Id */
+            id: number;
+            /** Last Seen At */
+            last_seen_at: string | null;
+            /** Name */
+            name: string;
+            /** Revoked At */
+            revoked_at: string | null;
         };
     };
     responses: never;
@@ -1913,7 +2273,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ScreenshotSettings"];
+                    "application/json": components["schemas"]["ScreenshotSettingsChanged"];
                 };
             };
             /** @description `not_authenticated` */
@@ -1950,6 +2310,213 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    request_screenshots: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScreenshotRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Changed"];
+                };
+            };
+            /** @description `not_authenticated` */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `origin_not_allowed` or `csrf_failed` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_workers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkerOut"][];
+                };
+            };
+            /** @description `not_authenticated` */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `origin_not_allowed` or `csrf_failed` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    create_worker: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkerIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkerCreated"];
+                };
+            };
+            /** @description `not_authenticated` */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `origin_not_allowed` or `csrf_failed` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `worker_exists` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_worker: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                worker_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkerOut"];
+                };
+            };
+            /** @description `not_authenticated` */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `origin_not_allowed` or `csrf_failed` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `worker_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -2291,6 +2858,316 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    claim_job: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Job"] | null;
+                };
+            };
+            /** @description Nothing is due */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `not_authenticated` */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `origin_not_allowed` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    fail_job: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FailReport"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `not_authenticated` */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `origin_not_allowed` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `job_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `claim_expired` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    release_job: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Release"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `not_authenticated` */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `origin_not_allowed` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `job_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `claim_expired` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_screenshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "image/png": string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Stored"];
+                };
+            };
+            /** @description `not_authenticated` */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `origin_not_allowed` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `job_not_found` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `claim_expired` or `inputs_changed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `too_large` */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `unsupported_media_type` */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `not_png`, `wrong_size` or `bad_pixel_format` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    worker_me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkerMe"];
+                };
+            };
+            /** @description `not_authenticated` */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `origin_not_allowed` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };

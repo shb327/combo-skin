@@ -11,6 +11,9 @@ import { loadEnv } from 'vite'
 
 const ADMIN = resolve(import.meta.dirname, '..')
 const DEFAULT_API_ORIGIN = 'http://localhost:8000'
+// Our image host, where screenshots load from (spec 015): VITE_IMAGE_ORIGIN, by default the
+// local storage service. Allowed in scripts and in img-src only.
+const DEFAULT_SCREENSHOT_ORIGIN = 'http://localhost:9000'
 // The game's image host, the only other host images may load from: the same as
 // src/api/images.ts (spec 010, Finish images). Allowed in scripts, which build picture URLs at
 // run time, and in img-src; still refused in an <img> of the HTML.
@@ -30,13 +33,15 @@ const { values } = parseArgs({ options: { dir: { type: 'string', default: join(A
 const dir = resolve(values.dir)
 const env = loadEnv('production', ADMIN, 'VITE_')
 const origin = process.env.VITE_API_BASE_URL || env.VITE_API_BASE_URL || DEFAULT_API_ORIGIN
+const screenshots =
+  process.env.VITE_IMAGE_ORIGIN || env.VITE_IMAGE_ORIGIN || DEFAULT_SCREENSHOT_ORIGIN
 
 const policy = [
   "default-src 'none'",
   "script-src 'self'",
   "style-src 'self'",
   "font-src 'self'",
-  `img-src 'self' ${IMAGE_ORIGIN}`,
+  `img-src 'self' ${IMAGE_ORIGIN} ${screenshots}`,
   `connect-src 'self' ${origin}`,
   "base-uri 'none'",
   "form-action 'none'",
@@ -55,6 +60,8 @@ const isAllowed = (url) => {
     lower.startsWith(`${origin}/`) ||
     lower === IMAGE_ORIGIN ||
     lower.startsWith(`${IMAGE_ORIGIN}/`) ||
+    lower === screenshots ||
+    lower.startsWith(`${screenshots}/`) ||
     NEVER_FETCHED.some((known) => lower === known || (known.endsWith('/') && lower.startsWith(known)))
   )
 }

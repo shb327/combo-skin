@@ -3,6 +3,7 @@
 import re
 from ipaddress import IPv4Network, IPv6Network, ip_network
 from typing import Annotated, Any, Literal
+from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, ValidationError, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -10,6 +11,8 @@ from sqlalchemy import URL
 
 # An exact origin: scheme, host and optional port, nothing else.
 ORIGIN = re.compile(r"https?://([a-z0-9.-]+|\[[0-9a-f:]+\])(:[0-9]{1,5})?")
+# Hosts where plain http is allowed for the image base URL.
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "[::1]"}
 
 
 class SettingsError(RuntimeError):
@@ -31,6 +34,15 @@ class Settings(BaseSettings):
     session_max_hours: int = Field(default=12, ge=1, le=24)
     session_idle_minutes: int = Field(default=60, ge=5, le=1440)
     trusted_proxies: Annotated[list[IPv4Network | IPv6Network], NoDecode] = []
+    # Object storage through the S3 API: Cloudflare R2 in production, RustFS locally.
+    storage_endpoint_url: str
+    storage_region: str = Field(default="auto", min_length=1)
+    storage_access_key_id: str = Field(min_length=1)
+    storage_secret_access_key: SecretStr
+    storage_originals_bucket: str = Field(min_length=1)
+    storage_public_bucket: str = Field(min_length=1)
+    # The public bucket's base URL; image URLs are this plus the object key.
+    image_base_url: str
 
     @field_validator("admin_origins", "trusted_proxies", mode="before")
     @classmethod
@@ -55,6 +67,37 @@ class Settings(BaseSettings):
                 ip_network(part, strict=False) if isinstance(part, str) else part for part in value
             ]
         return value
+
+    @field_validator("storage_endpoint_url")
+    @classmethod
+    def endpoint(cls, url: str) -> str:
+        if not ORIGIN.fullmatch(url):
+            raise ValueError("the endpoint must be scheme://host[:port]")
+        return url
+
+    @field_validator("image_base_url")
+    @classmethod
+    def base_url(cls, url: str) -> str:
+        """`https`, or plain http on localhost; an optional path; no query or fragment."""
+        parts = urlsplit(url)
+        origin = f"{parts.scheme}://{parts.netloc}"
+        if (
+            not ORIGIN.fullmatch(origin)
+            or parts.query
+            or parts.fragment
+            or "?" in url
+            or "#" in url
+            or (parts.scheme != "https" and parts.netloc.rsplit(":", 1)[0] not in LOCAL_HOSTS)
+        ):
+            raise ValueError("the base URL must be https://host[:port][/path], http on localhost")
+        return url.rstrip("/")
+
+    @field_validator("storage_public_bucket")
+    @classmethod
+    def separate_buckets(cls, bucket: str, info: ValidationInfo) -> str:
+        if bucket == info.data.get("storage_originals_bucket"):
+            raise ValueError("the public bucket must differ from the originals bucket")
+        return bucket
 
     @field_validator("session_idle_minutes")
     @classmethod

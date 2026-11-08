@@ -49,6 +49,16 @@
             "title": "Rating",
             "type": "number"
           },
+          "screenshot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Screenshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "screenshot_agent": {
             "anyOf": [
               {
@@ -58,6 +68,9 @@
                 "type": "null"
               }
             ]
+          },
+          "screenshot_state": {
+            "$ref": "#/components/schemas/ScreenshotState"
           },
           "status": {
             "enum": [
@@ -91,6 +104,8 @@
           "glove",
           "knife",
           "screenshot_agent",
+          "screenshot",
+          "screenshot_state",
           "created_at",
           "created_by",
           "updated_at",
@@ -727,6 +742,36 @@
         "title": "Existing",
         "type": "object"
       },
+      "FailReport": {
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "reason": {
+            "enum": [
+              "render_failed",
+              "asset_missing",
+              "timeout"
+            ],
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "FailReport",
+        "type": "object"
+      },
       "Finish": {
         "properties": {
           "active": {
@@ -1136,6 +1181,209 @@
         "title": "ItemTypeRef",
         "type": "object"
       },
+      "Job": {
+        "properties": {
+          "agent": {
+            "$ref": "#/components/schemas/JobAgent"
+          },
+          "combo_id": {
+            "title": "Combo Id",
+            "type": "string"
+          },
+          "glove": {
+            "$ref": "#/components/schemas/JobItem"
+          },
+          "image": {
+            "$ref": "#/components/schemas/JobImage"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "knife": {
+            "$ref": "#/components/schemas/JobItem"
+          },
+          "lease_expires_at": {
+            "format": "date-time",
+            "title": "Lease Expires At",
+            "type": "string"
+          },
+          "render_revision": {
+            "title": "Render Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "job_id",
+          "lease_expires_at",
+          "combo_id",
+          "image",
+          "glove",
+          "knife",
+          "agent",
+          "render_revision"
+        ],
+        "title": "Job",
+        "type": "object"
+      },
+      "JobAgent": {
+        "properties": {
+          "codename": {
+            "title": "Codename",
+            "type": "string"
+          },
+          "def_index": {
+            "title": "Def Index",
+            "type": "integer"
+          },
+          "default": {
+            "title": "Default",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "team": {
+            "enum": [
+              "ct",
+              "t"
+            ],
+            "title": "Team",
+            "type": "string"
+          }
+        },
+        "required": [
+          "def_index",
+          "codename",
+          "name",
+          "team",
+          "default"
+        ],
+        "title": "JobAgent",
+        "type": "object"
+      },
+      "JobImage": {
+        "properties": {
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          },
+          "type": {
+            "const": "image/png",
+            "title": "Type",
+            "type": "string"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "width",
+          "height",
+          "type"
+        ],
+        "title": "JobImage",
+        "type": "object"
+      },
+      "JobItem": {
+        "description": "An item as the viewer identifies it, the float and seed to draw it with, and the\ncombo's full conditions.",
+        "properties": {
+          "codename": {
+            "title": "Codename",
+            "type": "string"
+          },
+          "def_index": {
+            "title": "Def Index",
+            "type": "integer"
+          },
+          "float": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Float"
+          },
+          "float_from": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Float From"
+          },
+          "float_to": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Float To"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "paint_codename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paint Codename"
+          },
+          "paint_index": {
+            "title": "Paint Index",
+            "type": "integer"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "seeds": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Seeds",
+            "type": "array"
+          }
+        },
+        "required": [
+          "def_index",
+          "codename",
+          "paint_index",
+          "paint_codename",
+          "name",
+          "float",
+          "seed",
+          "float_from",
+          "float_to",
+          "seeds"
+        ],
+        "title": "JobItem",
+        "type": "object"
+      },
       "Kind": {
         "enum": [
           "knife",
@@ -1262,6 +1510,16 @@
           "rating": {
             "title": "Rating",
             "type": "number"
+          },
+          "screenshot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Screenshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -1269,7 +1527,8 @@
           "rating",
           "description",
           "glove",
-          "knife"
+          "knife",
+          "screenshot"
         ],
         "title": "PublicCombo",
         "type": "object"
@@ -1355,6 +1614,99 @@
         "title": "Ready",
         "type": "object"
       },
+      "Release": {
+        "properties": {
+          "reason": {
+            "enum": [
+              "shutting_down",
+              "gpu_unavailable"
+            ],
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "Release",
+        "type": "object"
+      },
+      "Screenshot": {
+        "description": "A screenshot's public versions, narrowest first, and the original's size.",
+        "properties": {
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/ScreenshotImage"
+            },
+            "title": "Images",
+            "type": "array"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "width",
+          "height",
+          "images"
+        ],
+        "title": "Screenshot",
+        "type": "object"
+      },
+      "ScreenshotImage": {
+        "properties": {
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          },
+          "type": {
+            "const": "image/webp",
+            "title": "Type",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "url",
+          "width",
+          "height",
+          "type"
+        ],
+        "title": "ScreenshotImage",
+        "type": "object"
+      },
+      "ScreenshotRequest": {
+        "properties": {
+          "ids": {
+            "items": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "title": "ScreenshotRequest",
+        "type": "object"
+      },
       "ScreenshotSettings": {
         "properties": {
           "default_agent": {
@@ -1372,6 +1724,28 @@
         "title": "ScreenshotSettings",
         "type": "object"
       },
+      "ScreenshotSettingsChanged": {
+        "properties": {
+          "default_agent": {
+            "$ref": "#/components/schemas/Agent"
+          },
+          "requeued": {
+            "title": "Requeued",
+            "type": "integer"
+          },
+          "using_default": {
+            "title": "Using Default",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "default_agent",
+          "using_default",
+          "requeued"
+        ],
+        "title": "ScreenshotSettingsChanged",
+        "type": "object"
+      },
       "ScreenshotSettingsIn": {
         "properties": {
           "default_agent": {
@@ -1385,6 +1759,84 @@
           "default_agent"
         ],
         "title": "ScreenshotSettingsIn",
+        "type": "object"
+      },
+      "ScreenshotState": {
+        "description": "`none`: no screenshot yet. `waiting`: an older screenshot is shown, a new one is due.\n`done`. `failed`: three failed attempts for the current render inputs.",
+        "properties": {
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "made_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Made At"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "render_failed",
+                  "asset_missing",
+                  "timeout",
+                  "lease_expired"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "rendering": {
+            "title": "Rendering",
+            "type": "boolean"
+          },
+          "state": {
+            "enum": [
+              "none",
+              "waiting",
+              "done",
+              "failed"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "rendering",
+          "reason",
+          "attempts",
+          "made_at"
+        ],
+        "title": "ScreenshotState",
+        "type": "object"
+      },
+      "Stored": {
+        "properties": {
+          "combo_id": {
+            "title": "Combo Id",
+            "type": "string"
+          },
+          "screenshot": {
+            "$ref": "#/components/schemas/Screenshot"
+          }
+        },
+        "required": [
+          "combo_id",
+          "screenshot"
+        ],
+        "title": "Stored",
         "type": "object"
       },
       "TypeDetail": {
@@ -1519,6 +1971,105 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "WorkerCreated": {
+        "properties": {
+          "token": {
+            "title": "Token",
+            "type": "string"
+          },
+          "worker": {
+            "$ref": "#/components/schemas/WorkerOut"
+          }
+        },
+        "required": [
+          "worker",
+          "token"
+        ],
+        "title": "WorkerCreated",
+        "type": "object"
+      },
+      "WorkerIn": {
+        "properties": {
+          "name": {
+            "maxLength": 256,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "WorkerIn",
+        "type": "object"
+      },
+      "WorkerMe": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "WorkerMe",
+        "type": "object"
+      },
+      "WorkerOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "last_seen_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "created_by",
+          "last_seen_at",
+          "revoked_at"
+        ],
+        "title": "WorkerOut",
         "type": "object"
       }
     }
@@ -2161,7 +2712,7 @@
     },
     "/admin/combos/{combo_id}": {
       "delete": {
-        "description": "Delete a draft or unpublished combo, at the version it was read at. A published combo\nmust be unpublished first.",
+        "description": "Delete a draft or unpublished combo, at the version it was read at, and its\nscreenshot. A published combo must be unpublished first.",
         "operationId": "remove_combo",
         "parameters": [
           {
@@ -2706,7 +3257,7 @@
         ]
       },
       "put": {
-        "description": "Change the default screenshot agent. No combo changes.",
+        "description": "Change the default screenshot agent. Combos without their own agent get a new\nscreenshot; `requeued` counts those whose screenshot was done.",
         "operationId": "replace_screenshot_settings",
         "requestBody": {
           "content": {
@@ -2723,7 +3274,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScreenshotSettings"
+                  "$ref": "#/components/schemas/ScreenshotSettingsChanged"
                 }
               }
             },
@@ -2771,6 +3322,259 @@
           }
         },
         "summary": "Replace Screenshot Settings",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/screenshots/request": {
+      "post": {
+        "description": "Ask for a new screenshot of each combo: due at once, with its failed attempts cleared.\nThe current screenshot stays shown until the new one is stored.",
+        "operationId": "request_screenshots",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScreenshotRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Changed"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`not_authenticated`"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`origin_not_allowed` or `csrf_failed`"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Screenshots",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/workers": {
+      "get": {
+        "description": "Every screenshot worker, revoked ones included, oldest first.",
+        "operationId": "list_workers",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WorkerOut"
+                  },
+                  "title": "Response List Workers",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`not_authenticated`"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`origin_not_allowed` or `csrf_failed`"
+          }
+        },
+        "summary": "List Workers",
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "description": "Create a screenshot worker. Its token is in this response only.",
+        "operationId": "create_worker",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkerIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerCreated"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`not_authenticated`"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`origin_not_allowed` or `csrf_failed`"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`worker_exists`"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Worker",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/workers/{worker_id}/revoke": {
+      "post": {
+        "description": "Revoke a worker: its token stops working at once and its claims are released.",
+        "operationId": "revoke_worker",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "worker_id",
+            "required": true,
+            "schema": {
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Worker Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`not_authenticated`"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`origin_not_allowed` or `csrf_failed`"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`worker_not_found`"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Worker",
         "tags": [
           "admin"
         ]
@@ -3229,6 +4033,393 @@
         "summary": "List Knife Finish Combos",
         "tags": [
           "combos"
+        ]
+      }
+    },
+    "/worker/jobs/claim": {
+      "post": {
+        "description": "Claim the combo that has waited longest for a screenshot, with a 5-minute lease.",
+        "operationId": "claim_job",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Job"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Claim Job"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "204": {
+            "description": "Nothing is due"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`not_authenticated`"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`origin_not_allowed`"
+          }
+        },
+        "summary": "Claim Job",
+        "tags": [
+          "worker"
+        ]
+      }
+    },
+    "/worker/jobs/{job_id}/fail": {
+      "post": {
+        "description": "Report a failed render. It counts as an attempt; the combo waits before the next.",
+        "operationId": "fail_job",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FailReport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`not_authenticated`"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`origin_not_allowed`"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`job_not_found`"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`claim_expired`"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Fail Job",
+        "tags": [
+          "worker"
+        ]
+      }
+    },
+    "/worker/jobs/{job_id}/release": {
+      "post": {
+        "description": "Give a claim back without counting an attempt.",
+        "operationId": "release_job",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Release"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`not_authenticated`"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`origin_not_allowed`"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`job_not_found`"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`claim_expired`"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Release Job",
+        "tags": [
+          "worker"
+        ]
+      }
+    },
+    "/worker/jobs/{job_id}/screenshot": {
+      "put": {
+        "description": "Send the screenshot for a live claim: a PNG of the job's size, at most 16 MiB. It is\nstored, with its watermarked versions, before this answers.",
+        "operationId": "put_screenshot",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "image/png": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Stored"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`not_authenticated`"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`origin_not_allowed`"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`job_not_found`"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`claim_expired` or `inputs_changed`"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`too_large`"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`unsupported_media_type`"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`not_png`, `wrong_size` or `bad_pixel_format`"
+          }
+        },
+        "summary": "Put Screenshot",
+        "tags": [
+          "worker"
+        ]
+      }
+    },
+    "/worker/me": {
+      "get": {
+        "description": "The worker this token belongs to.",
+        "operationId": "worker_me",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerMe"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`not_authenticated`"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`origin_not_allowed`"
+          }
+        },
+        "summary": "Worker Me",
+        "tags": [
+          "worker"
         ]
       }
     }

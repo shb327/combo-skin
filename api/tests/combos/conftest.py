@@ -13,6 +13,7 @@ from tests.admins.conftest import (  # noqa: F401
     clients,
     fake_clock,
     other_admin,
+    storage,
 )
 
 SNAPSHOT = load_snapshot()
