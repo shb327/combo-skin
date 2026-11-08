@@ -154,11 +154,17 @@ async def test_items_carry_the_game_indexes(
         "/knives/karambit/doppler-ruby/combos",
         "/knives/karambit/vanilla/combos",
     ):
-        for combo in await public(anonymous, path):
+        combos = await public(anonymous, path)
+        assert combos, path
+        for combo in combos:
             glove, knife = expected[combo["id"]]
             assert {k: combo["glove"][k] for k in glove} == glove, path
             assert {k: combo["knife"][k] for k in knife} == knife, path
+    listed = (await admin_client.get("/admin/combos")).json()["items"]
+    assert {c["id"] for c in listed} == set(expected)
     for combo_id, (glove, knife) in expected.items():
         admin = (await admin_client.get(f"/admin/combos/{combo_id}")).json()
-        assert {k: admin["glove"][k] for k in glove} == glove
-        assert {k: admin["knife"][k] for k in knife} == knife
+        in_list = next(c for c in listed if c["id"] == combo_id)
+        for read in (admin, in_list):
+            assert {k: read["glove"][k] for k in glove} == glove
+            assert {k: read["knife"][k] for k in knife} == knife
