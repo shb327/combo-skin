@@ -311,4 +311,51 @@ Built in the order A, C, B. The branch was rebased on `main` after spec 016 merg
 
 ## Audit
 
-Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
+**Date:** 2026-11-08 · **Branch:** 017-logo-watermark-dashboard · **Commit:** 9559e5c
+**Verdict:** Fail
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | Logo box at 1920, 1280, 640 | Pass | `api/tests/screenshots/test_watermark.py:21`, `uv run pytest` |
+| 2 | White at 60%, nothing darker | Pass | `test_watermark.py:40` |
+| 3 | `logo-white.png` 1044 by 364, white RGBA | Pass | `test_watermark.py:61` |
+| 4 | Revision 2, no font, notices, README | Pass | `test_watermark.py:70`; `test_commands.py:73` unchanged and passing; `THIRD_PARTY_NOTICES.md` has one Montserrat section (the admin's); `api/README.md` describes the mark and the logo file |
+| 5 | Manual worker claim | Pass | Implementation notes, Manual checks (measured boxes and 0.60 lift) |
+| 6 | Own rating moves no other row in the fill | Pass | `admin/src/combos/fill.test.ts:52`; spec 010 cases at `:9` to `:44`; `npm test` |
+| 7 | "Own rating" button | Pass | `admin/src/pages/BatchPage.test.tsx:141`, `:167`, `:92`, `:126` |
+| 8 | Configure link and four navigation links | Pass | `admin/src/pages/HomePage.test.tsx:57`; `admin/src/App.test.tsx:321`, `:53` |
+| 9 | Batch order controls | Pass | `BatchPage.test.tsx:242` |
+| 10 | Order lock | Pass | `BatchPage.test.tsx:268` |
+| 11 | Step field | Pass | `BatchPage.test.tsx:312`, `:332` |
+| 12 | Order, step and lock kept | Pass | `BatchPage.test.tsx:293`; `admin/src/combos/drafts.test.tsx:47` |
+| 13 | View state in the URL | Pass | `admin/src/pages/FinishPage.test.tsx:249` |
+| 14 | Scroll restored | Pass | `FinishPage.test.tsx:277` (Back link and the browser's Back) |
+| 15 | Inline rating | Pass | `FinishPage.test.tsx:301`, `:340` |
+| 16 | Inline rating conflict | Pass | `FinishPage.test.tsx:369` |
+| 17 | `ratingBetween` | Pass | `admin/src/combos/order.test.ts` |
+| 18 | Keyboard drag | Pass | `FinishPage.test.tsx:425`, `:441`, `:463`, from a freshly sorted list; see the blocking finding for a drop after an in-place save |
+| 19 | Manual dashboard checks | Pass | Implementation notes, Manual checks |
+| 20 | Click test | Pass | `website/src/pages/ImageClicks.test.tsx:30`, `:42`; failing before the fix recorded in Implementation notes, not re-run |
+| 21 | `draggable` test | Pass | `ImageClicks.test.tsx:67` |
+| 22 | Trackpad | Pass | Owner's check, Implementation notes |
+| 23 | Commands, README | Pass | Table below; `admin/README.md` describes batch order and step, inline rating, dragging and the navigation |
+| 24 | Workflow runs and secret scan | Pass | For 9559e5c: push runs `api` 42525640644, `admin` 42525640643, `website` 42525640637, and pull request runs `api` 42525644037, `admin` 42525644004, `website` 42525643997, all successful (8 of 8 checks on the pull request); gitleaks below |
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Lint | `api/`: `uv sync --locked`, `ruff format --check .` (119 files), `ruff check .`, `mypy` (111 files); `admin/`: `npm ci`, `api:types:check`, `lint`, `typecheck`; `website/`: `npm ci`, `api:types:check`, `lint` | Pass |
+| Tests | `api/`: `uv run pytest` 455 passed, none skipped, OpenAPI check unchanged; `admin/`: `npm test` 365 passed in 27 files; `website/`: `npm test` 209 passed | Pass |
+| Build | `docker build` of `api/` (278 MB); `admin/`: `npm run build`, `check:bundle`; `website/`: `npm run build` | Pass |
+| Secret scan | `gitleaks dir .`, `gitleaks git` over `main..017-logo-watermark-dashboard` (15 commits) | Pass |
+| Public exposure | manual review of the diff and log: no secrets, hosts, paths or private names; commits by the owner, one line, no trailers; `.claude/` and `CLAUDE.md` ignored and untracked | Pass |
+| Design conformance | manual review | Fail |
+
+**Findings**
+
+- (blocking) A drop after a rating was saved in place keeps the combo in its old place. An inline save freezes the shown order (`admin/src/combos/ComboList.tsx:206`), and only "Sort again" or a view change clears it. When that save did not change the order, dragging stays enabled (`:100` to `:102`). A drop then saves the right rating, but the list still follows the frozen order, so the combo stays where it was and "Order changed. Sort again" shows. Reproduced in a throwaway test, since deleted: with ratings 9.00, 8.79, 8.62 and 8.61, saving 8.50 on the last combo and then dragging the first down one place saved 8.70, and the list stayed in the old order with "Sort again". Design (Drag) says the combo "shows in its new place while saving", and R13 says it is dragged to a new place. No test covers a drop after an in-place save.
+- (follow-up) Criterion 15: "other values unchanged" is checked on a combo with no description, conditions or agent, so a request built from defaults would also pass; the Enter case checks only the count and the rating; the "Order changed." text is not asserted.
+- (follow-up) Criterion 16: the time is matched with `.*`, so an empty or invalid time would pass.
+- (follow-up) Criterion 17: 9.95 itself is not tested; 9.96 checks only the cap.
+- (follow-up) Criterion 14: the test does not show that `scrollTo` waits for the combos to render, only that it runs once they have.
+- (follow-up) Not recorded in Implementation notes: the end-of-list refusals say "No rating fits above X." or "below X." instead of the Design's "between" text; Save stays disabled while a conflict is shown until "Use theirs" or "Keep mine"; the list's rating label is visible to screen readers only; a missing or invalid step blocks Save only for ticked rows after the first that follow the fill (asserted at `BatchPage.test.tsx:350`).
+- (follow-up) Implementation notes point to `BatchPage.test.tsx:337`; that test starts at `:332`.
