@@ -5,6 +5,7 @@ import { Picture } from './Picture'
 import { COMBO_MESSAGES, comboErrorMessage, isCode } from './messages'
 import { finishLabel, useComboWrites, useCombos, type AdminCombo, type ComboFilters, type ComboStatus, type Kind } from './queries'
 import { INPUT, LINK, SECONDARY } from './styles'
+import { ScreenshotBadges } from './ScreenshotBadges'
 import { ConfirmDialog, QueryState, StatusBadge } from './ui'
 import { conditionsSummary, formatRating } from './values'
 
@@ -221,6 +222,7 @@ export function ComboList({ side, filters }: { side: Kind; filters: ComboFilters
                   </Link>
                   <span className="font-semibold tabular-nums">{formatRating(hundredths(combo.rating))}</span>
                   <StatusBadge status={combo.status} />
+                  <ScreenshotBadges state={combo.screenshot_state} />
                 </div>
                 <p className="mt-1 text-sm text-white/70">
                   {conditionsSummary('Gloves', combo.glove)} · {conditionsSummary('Knife', combo.knife)}

@@ -4,6 +4,8 @@ import { Link } from 'react-router'
 import { useApi } from '../api/useApi'
 import { useTitle } from '../components/useTitle'
 import { AgentPicker } from '../combos/AgentPicker'
+import { FailedScreenshots } from '../combos/FailedScreenshots'
+import { Workers } from '../combos/Workers'
 import { comboErrorMessage } from '../combos/messages'
 import { keys, useAgents, useScreenshotSettings, type Agent } from '../combos/queries'
 import { LINK } from '../combos/styles'
@@ -11,8 +13,10 @@ import { ConfirmDialog } from '../combos/ui'
 
 const usingDefault = (count: number) =>
   `${count} ${count === 1 ? 'combo uses' : 'combos use'} the default agent.`
+const requeued = (count: number) => `${count} ${count === 1 ? 'combo gets' : 'combos get'} a new screenshot.`
 
-/** The default screenshot agent, used by every combo without its own. */
+/** The default screenshot agent, used by every combo without its own; screenshot workers; and
+ * failed screenshots. */
 export function ScreenshotsPage() {
   useTitle('Screenshots')
   const api = useApi()
@@ -38,7 +42,8 @@ export function ScreenshotsPage() {
         body: { default_agent: agent.def_index },
       })
       queryClient.setQueryData(keys.screenshotSettings, data)
-      setMessage('Saved the default agent.')
+      await queryClient.invalidateQueries({ queryKey: keys.combos })
+      setMessage(`Saved the default agent. ${requeued(data?.requeued ?? 0)}`)
     } catch (error) {
       setFailure(comboErrorMessage(error))
     } finally {
@@ -87,9 +92,11 @@ export function ScreenshotsPage() {
           onCancel={() => setPending(null)}
           onConfirm={() => void save(pending)}
         >
-          {usingDefault(settings.data.using_default)}
+          {usingDefault(settings.data.using_default)} Their screenshots are drawn again.
         </ConfirmDialog>
       )}
+      <Workers />
+      <FailedScreenshots />
     </section>
   )
 }

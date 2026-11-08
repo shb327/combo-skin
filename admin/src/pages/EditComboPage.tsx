@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ApiError } from '../api/errors'
 import { useApi } from '../api/useApi'
 import { useTitle } from '../components/useTitle'
+import { ScreenshotPanel } from '../combos/ScreenshotPanel'
 import { ComboFields } from '../combos/ComboFields'
 import { Picture } from '../combos/Picture'
 import { EMPTY_COMBO, checkCombo, comboText, problemErrors, summaryEntries, type ComboText, type FieldErrors } from '../combos/form'
@@ -249,6 +250,7 @@ export function EditComboPage() {
         )}
       </div>
 
+      <ScreenshotPanel combo={stored} />
       {draft.restored && <RestoredNotice onDiscard={draft.forget} />}
       {message && (
         <p role="status" className="mt-4 text-sm text-accent">

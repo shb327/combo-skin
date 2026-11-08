@@ -38,6 +38,10 @@ export type Route =
   | 'GET /admin/agents'
   | 'GET /admin/screenshot-settings'
   | 'PUT /admin/screenshot-settings'
+  | 'POST /admin/screenshots/request'
+  | 'GET /admin/workers'
+  | 'POST /admin/workers'
+  | 'POST /admin/workers/{id}/revoke'
 
 const FIXED = new Set([
   '/admin/me',
@@ -52,6 +56,8 @@ const FIXED = new Set([
   '/admin/knife-order',
   '/admin/agents',
   '/admin/screenshot-settings',
+  '/admin/screenshots/request',
+  '/admin/workers',
   '/gloves',
   '/knives',
 ])
@@ -62,6 +68,9 @@ export function routeOf(method: string, pathname: string): { route: Route; param
   const parts = pathname.split('/').slice(1)
   if (parts[0] === 'admin' && parts[1] === 'combos' && parts.length === 3) {
     return { route: `${method} /admin/combos/{id}` as Route, params: [parts[2]] }
+  }
+  if (parts[0] === 'admin' && parts[1] === 'workers' && parts[3] === 'revoke' && parts.length === 4) {
+    return { route: `${method} /admin/workers/{id}/revoke` as Route, params: [parts[2]] }
   }
   if ((parts[0] === 'gloves' || parts[0] === 'knives') && parts.length <= 3) {
     const pattern = ['', parts[0], '{type}', '{finish}'].slice(0, parts.length + 1).join('/')
@@ -248,6 +257,14 @@ export class FakeApi {
         return store.screenshotSettings()
       case 'PUT /admin/screenshot-settings':
         return store.replaceScreenshotSettings(body)
+      case 'POST /admin/screenshots/request':
+        return store.requestScreenshots(body)
+      case 'GET /admin/workers':
+        return store.listWorkers()
+      case 'POST /admin/workers':
+        return store.createWorker(body, by)
+      case 'POST /admin/workers/{id}/revoke':
+        return store.revokeWorker(Number(params[0]))
       default:
         return [404, { detail: 'Not Found' }]
     }

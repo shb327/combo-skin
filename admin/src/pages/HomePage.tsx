@@ -5,6 +5,7 @@ import { useTitle } from '../components/useTitle'
 import { comboErrorMessage } from '../combos/messages'
 import { Picture } from '../combos/Picture'
 import { useCatalog, useComboWrites, useCombos, useDraftCount, useFinish, type AdminCombo, type CatalogEntry, type Kind } from '../combos/queries'
+import type { ScreenshotState } from '../combos/queries'
 import { SECONDARY } from '../combos/styles'
 import { ConfirmDialog, QueryState } from '../combos/ui'
 
@@ -55,6 +56,32 @@ function Statistics() {
         />
       )}
     </section>
+  )
+}
+
+const STATES: [ScreenshotState['state'], string][] = [
+  ['none', 'without a screenshot'],
+  ['waiting', 'waiting for a new one'],
+  ['done', 'done'],
+  ['failed', 'failed'],
+]
+
+/** How many combos are in each screenshot state, from the combos the statistics load. */
+function ScreenshotCounts() {
+  const combos = useCombos({})
+  if (!combos.data) return null
+  const all = combos.data
+  return (
+    <ul aria-label="Screenshots by state" className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {STATES.map(([state, label]) => (
+        <li key={state} className="rounded-md border border-white/10 p-3">
+          <span className="block text-lg font-semibold tabular-nums">
+            {all.filter((c) => c.screenshot_state.state === state).length}
+          </span>
+          <span className="text-sm text-white/70">{label}</span>
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -148,8 +175,10 @@ export function HomePage() {
       <div className="mt-6 rounded-lg border border-white/10 p-5">
         <h2 className="font-semibold">Screenshots</h2>
         <p className="mt-1 text-sm text-white/70">
-          The agent screenshots are drawn with, for every combo without its own.
+          The agent screenshots are drawn with, for every combo without its own; screenshot workers; failed
+          screenshots.
         </p>
+        <ScreenshotCounts />
         <Link to="/screenshots" className={`${SECONDARY} mt-3 inline-block`}>
           Change the default agent
         </Link>
