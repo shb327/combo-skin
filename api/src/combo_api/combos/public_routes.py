@@ -15,6 +15,7 @@ from combo_api.combos import queries
 from combo_api.combos.models import Combo, KnifeOrder
 from combo_api.combos.schemas import SLUG_MAX, ComboCounts, PublicCombo
 from combo_api.db import get_session
+from combo_api.screenshots.shapes import ImageBase
 
 Session = Annotated[AsyncSession, Depends(get_session)]
 
@@ -35,14 +36,16 @@ async def finish_of(db: AsyncSession, kind: Kind, type_slug: str, finish_slug: s
     return finish
 
 
-async def published(db: AsyncSession, query: Select[*queries.ComboColumns]) -> list[PublicCombo]:
+async def published(
+    db: AsyncSession, query: Select[*queries.ComboColumns], base_url: str
+) -> list[PublicCombo]:
     rows = (await db.execute(query.where(queries.PUBLISHED))).all()
-    return [queries.public_out(row) for row in rows]
+    return [queries.public_out(row, base_url) for row in rows]
 
 
 @router.get("/gloves/{type_slug}/{finish_slug}/combos", responses=NOT_FOUND)
 async def list_glove_finish_combos(
-    type_slug: SlugPath, finish_slug: SlugPath, db: Session
+    type_slug: SlugPath, finish_slug: SlugPath, db: Session, images: ImageBase
 ) -> list[PublicCombo]:
     """The published combos of one glove finish, highest rating first; ties in knife order."""
     finish = await finish_of(db, "glove", type_slug, finish_slug)
@@ -58,12 +61,12 @@ async def list_glove_finish_combos(
             Combo.id,
         )
     )
-    return await published(db, query)
+    return await published(db, query, images)
 
 
 @router.get("/knives/{type_slug}/{finish_slug}/combos", responses=NOT_FOUND)
 async def list_knife_finish_combos(
-    type_slug: SlugPath, finish_slug: SlugPath, db: Session
+    type_slug: SlugPath, finish_slug: SlugPath, db: Session, images: ImageBase
 ) -> list[PublicCombo]:
     """The published combos of one knife finish, highest rating first; ties in glove order."""
     finish = await finish_of(db, "knife", type_slug, finish_slug)
@@ -77,7 +80,7 @@ async def list_knife_finish_combos(
             Combo.id,
         )
     )
-    return await published(db, query)
+    return await published(db, query, images)
 
 
 async def counts_by_finish(

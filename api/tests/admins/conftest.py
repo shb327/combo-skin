@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from combo_api.admins import accounts, clock
 from combo_api.db import get_session
 from combo_api.main import create_app
+from combo_api.screenshots.storage import MemoryStorage
 from combo_api.settings import Settings
 from tests.admins.support import OTHER_PASSWORD, OTHER_USERNAME, PASSWORD, USERNAME, Clock
 
@@ -28,8 +29,16 @@ def admin_settings(test_settings: Settings) -> Settings:
 
 
 @pytest.fixture
-async def app(admin_settings: Settings, db_session: AsyncSession) -> AsyncIterator[FastAPI]:
-    app = create_app(settings=admin_settings)
+def storage() -> MemoryStorage:
+    """Object storage in memory; `tests/screenshots/test_s3.py` uses the real service."""
+    return MemoryStorage()
+
+
+@pytest.fixture
+async def app(
+    admin_settings: Settings, db_session: AsyncSession, storage: MemoryStorage
+) -> AsyncIterator[FastAPI]:
+    app = create_app(settings=admin_settings, storage=storage)
 
     async def test_session() -> AsyncIterator[AsyncSession]:
         yield db_session

@@ -11,7 +11,7 @@ pytestmark = [pytest.mark.anyio, pytest.mark.usefixtures("catalog", "admin")]
 
 CRIMSON = "specialist", "crimson-kimono"
 RUBY = "karambit", "doppler-ruby"
-PUBLIC_KEYS = {"id", "rating", "description", "glove", "knife"}
+PUBLIC_KEYS = {"id", "rating", "description", "glove", "knife", "screenshot"}
 ITEM_KEYS = {
     "type_slug",
     "type_name",

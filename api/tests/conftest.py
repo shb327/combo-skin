@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engin
 
 from combo_api.db import get_session
 from combo_api.main import create_app
+from combo_api.screenshots.storage import MemoryStorage
 from combo_api.settings import Settings, load_settings
 from tests.support import ADMIN_ORIGIN, alembic_config, rolled_back_session, running
 
@@ -68,7 +69,7 @@ async def db_session(engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
 
 @pytest.fixture
 async def client(test_settings: Settings, db_session: AsyncSession) -> AsyncIterator[AsyncClient]:
-    app = create_app(settings=test_settings)
+    app = create_app(settings=test_settings, storage=MemoryStorage())
 
     async def test_session() -> AsyncIterator[AsyncSession]:
         yield db_session

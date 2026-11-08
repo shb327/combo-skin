@@ -27,12 +27,17 @@ from combo_api.combos import admin_routes as combos_admin
 from combo_api.combos import agents as combos_agents
 from combo_api.combos import public_routes as combos_public
 from combo_api.db import create_engine, head_revision
+from combo_api.screenshots import admin_routes as screenshots_admin
+from combo_api.screenshots import worker_routes as screenshots_worker
+from combo_api.screenshots.storage import S3Storage, Storage
 from combo_api.settings import Settings, load_settings
 
 # LOG_LEVEL applies to the API's own logs and to uvicorn's error and access logs.
 LOGGERS = ("combo_api", "uvicorn", "uvicorn.error", "uvicorn.access")
 # Password hashes computed at once; each takes tens of MiB of memory.
 HASH_SLOTS = 2
+# Screenshots processed at once: about a second and a few hundred MiB each.
+IMAGE_SLOTS = 1
 # Routes with these tags serve public data that any origin may read (PublicCors).
 PUBLIC_TAGS = {"catalog", "combos"}
 
@@ -50,7 +55,8 @@ def operation_id(route: APIRoute) -> str:
 class AdminCors:
     """CORS for the admin origins in settings, which are only known once the app has started.
 
-    Requests from any other origin skip CORS entirely and get no CORS headers.
+    Requests from any other origin skip CORS entirely and get no CORS headers, and so do
+    worker routes, which no browser page may use.
     """
 
     def __init__(self, app: ASGIApp) -> None:
@@ -58,7 +64,7 @@ class AdminCors:
         self.cors: dict[tuple[str, ...], ASGIApp] = {}
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] == "http":
+        if scope["type"] == "http" and not scope["path"].startswith("/worker/"):
             origins = tuple(scope["app"].state.settings.admin_origins)
             origin = dict(scope["headers"]).get(b"origin", b"").decode("latin-1")
             if origin in origins:
@@ -143,7 +149,11 @@ def admin_login_route() -> APIRoute:
     )
 
 
-def create_app(settings: Settings | None = None, env_file: str | None = ".env") -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    env_file: str | None = ".env",
+    storage: Storage | None = None,
+) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.settings = settings or load_settings(env_file)
@@ -156,6 +166,8 @@ def create_app(settings: Settings | None = None, env_file: str | None = ".env") 
         app.state.sessionmaker = async_sessionmaker(app.state.engine, expire_on_commit=False)
         app.state.head_revision = head_revision()
         app.state.hash_limiter = anyio.CapacityLimiter(HASH_SLOTS)
+        app.state.image_limiter = anyio.CapacityLimiter(IMAGE_SLOTS)
+        app.state.storage = storage or S3Storage(app.state.settings)
         await anyio.to_thread.run_sync(passwords.prepare)
         if not app.state.settings.session_cookie_secure:
             logger.warning(
@@ -182,6 +194,8 @@ def create_app(settings: Settings | None = None, env_file: str | None = ".env") 
     app.include_router(combos_admin.router)
     app.include_router(combos_agents.router)
     app.include_router(combos_public.router)
+    app.include_router(screenshots_admin.router)
+    app.include_router(screenshots_worker.router)
     app.add_middleware(AdminCors)
     app.add_middleware(PublicCors)
     app.add_exception_handler(RequestValidationError, validation_error)

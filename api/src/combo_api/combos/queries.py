@@ -4,10 +4,11 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import Row, Select, select
+from sqlalchemy import Row, Select, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
+from combo_api.admins import clock
 from combo_api.admins.models import Admin
 from combo_api.catalog.models import Agent, Finish, ItemType
 from combo_api.catalog.routes import Rarity
@@ -22,6 +23,9 @@ from combo_api.combos.schemas import (
     number,
 )
 from combo_api.combos.schemas import Agent as AgentOut
+from combo_api.screenshots import inputs
+from combo_api.screenshots.models import ComboScreenshot, ScreenshotJob
+from combo_api.screenshots.shapes import screenshot_out, state_out
 
 GloveFinish = aliased(Finish, name="glove_finish")
 GloveType = aliased(ItemType, name="glove_type")
@@ -33,11 +37,29 @@ Updater = aliased(Admin, name="updater")
 # What the public sees: the combo lists and their counts use this one condition.
 PUBLISHED = Combo.status == "published"
 
-ComboColumns = tuple[Combo, Finish, ItemType, Finish, ItemType, str, str, Agent | None]
+ComboColumns = tuple[
+    Combo, Finish, ItemType, Finish, ItemType, str, str, Agent | None, ComboScreenshot | None
+]
 ComboRow = Row[*ComboColumns]
+AdminColumns = tuple[
+    Combo,
+    Finish,
+    ItemType,
+    Finish,
+    ItemType,
+    str,
+    str,
+    Agent | None,
+    ComboScreenshot | None,
+    ScreenshotJob | None,
+    str,
+    int,
+]
+AdminRow = Row[*AdminColumns]
 
 
 def combos() -> Select[*ComboColumns]:
+    """Combos with their finishes, types, admins, own agent and current screenshot."""
     return (
         select(
             Combo,
@@ -48,6 +70,7 @@ def combos() -> Select[*ComboColumns]:
             Creator.username,
             Updater.username,
             Agent,
+            ComboScreenshot,
         )
         .join(GloveFinish, Combo.glove_finish_id == GloveFinish.id)
         .join(GloveType, GloveFinish.item_type_id == GloveType.id)
@@ -56,6 +79,22 @@ def combos() -> Select[*ComboColumns]:
         .join(Creator, Combo.created_by == Creator.id)
         .join(Updater, Combo.updated_by == Updater.id)
         .outerjoin(Agent, Combo.screenshot_agent_id == Agent.id)
+        .outerjoin(ComboScreenshot, ComboScreenshot.combo_id == Combo.id)
+    )
+
+
+def admin_combos() -> Select[*AdminColumns]:
+    """`combos()` with each combo's screenshot job, state and counted attempts."""
+    current = inputs.current_inputs()
+    return (
+        combos()
+        .add_columns(
+            ScreenshotJob,
+            inputs.state(current.c.value).label("screenshot_state"),
+            inputs.attempts(current.c.value).label("screenshot_attempts"),
+        )
+        .outerjoin(ScreenshotJob, ScreenshotJob.combo_id == Combo.id)
+        .join(current, true())
     )
 
 
@@ -154,8 +193,9 @@ def agent_out(agent: Agent) -> AgentOut:
     )
 
 
-def admin_out(row: ComboRow) -> AdminCombo:
-    combo, glove, glove_type, knife, knife_type, created_by, updated_by, agent = row
+def admin_out(row: AdminRow, base_url: str) -> AdminCombo:
+    combo, glove, glove_type, knife, knife_type, created_by, updated_by, agent, shot = row[:9]
+    job, state, attempts = row[9:]
     return AdminCombo(
         id=combo.public_id,
         status=combo.status,
@@ -165,6 +205,8 @@ def admin_out(row: ComboRow) -> AdminCombo:
         glove=combo_item(combo, "glove", glove, glove_type),
         knife=combo_item(combo, "knife", knife, knife_type),
         screenshot_agent=None if agent is None else agent_out(agent),
+        screenshot=screenshot_out(combo.public_id, shot, base_url),
+        screenshot_state=state_out(shot, job, state, attempts, clock.now()),
         created_at=combo.created_at,
         created_by=created_by,
         updated_at=combo.updated_at,
@@ -173,17 +215,18 @@ def admin_out(row: ComboRow) -> AdminCombo:
     )
 
 
-def public_out(row: ComboRow) -> PublicCombo:
-    combo, glove, glove_type, knife, knife_type, *_ = row
+def public_out(row: ComboRow, base_url: str) -> PublicCombo:
+    combo, glove, glove_type, knife, knife_type, *_, shot = row
     return PublicCombo(
         id=combo.public_id,
         rating=float(combo.rating),
         description=combo.description,
         glove=combo_item(combo, "glove", glove, glove_type),
         knife=combo_item(combo, "knife", knife, knife_type),
+        screenshot=screenshot_out(combo.public_id, shot, base_url),
     )
 
 
-async def find(db: AsyncSession, public_id: str) -> AdminCombo | None:
-    row = (await db.execute(combos().where(Combo.public_id == public_id))).first()
-    return None if row is None else admin_out(row)
+async def find(db: AsyncSession, public_id: str, base_url: str) -> AdminCombo | None:
+    row = (await db.execute(admin_combos().where(Combo.public_id == public_id))).first()
+    return None if row is None else admin_out(row, base_url)
