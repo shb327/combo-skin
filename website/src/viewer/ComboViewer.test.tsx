@@ -364,7 +364,7 @@ describe('phones and small screens', () => {
     expect(card('b')).toContainElement(frame())
   })
 
-  it('remembers the visit on other finish pages: the warning, no WebGL2, combos it cannot draw', async () => {
+  it('remembers the warning and no WebGL2 on other finish pages', async () => {
     stubWebGL2()
     stubMatchMedia(true)
     const C = combo('c', 7, { ...KARAMBIT_RUBY, type_slug: 'specialist', type_name: 'Specialist Gloves', finish_slug: 'crimson-kimono', display_name: 'Crimson Kimono', def_index: 5034, paint_index: 10033 }, RUBY, null, screenshotOf('c'))
