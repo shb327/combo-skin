@@ -15,7 +15,7 @@ function withCombos() {
 describe('the screenshots page', () => {
   it('is reached from Home', async () => {
     const { user } = renderApp('/', new FakeApi().withSession())
-    await user.click(await screen.findByRole('link', { name: 'Change the default agent' }))
+    await user.click(await screen.findByRole('link', { name: 'Configure' }))
     await waitFor(() => expect(where()).toBe('/screenshots'))
     expect(await screen.findByRole('heading', { name: 'Screenshots' })).toBeInTheDocument()
     expect(document.title).toBe('Screenshots · Combo Skin admin')
@@ -128,7 +128,7 @@ describe('screenshot workers', () => {
 
     await user.click(screen.getAllByRole('link', { name: 'Home' })[0])
     await waitFor(() => expect(where()).toBe('/'))
-    await user.click(await screen.findByRole('link', { name: 'Change the default agent' }))
+    await user.click(await screen.findByRole('link', { name: 'Configure' }))
     const again = await screen.findByRole('region', { name: 'Screenshot workers' })
     await within(again).findByText('render-pc')
     expect(within(again).queryByRole('textbox', { name: /Token/ })).toBeNull()

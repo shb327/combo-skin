@@ -1,6 +1,6 @@
 /** Inputs for combo values. Each shows its message next to it and is linked to it for
  * assistive technology. */
-import { useState, type ReactNode } from 'react'
+import { useState, type ReactNode, type Ref } from 'react'
 import { ERROR_TEXT, INPUT } from './styles'
 import {
   CHECKS,
@@ -10,6 +10,7 @@ import {
   parseSeeds,
   rangeHint,
   stepRating,
+  type Checked,
   type ConditionsErrors,
   type ConditionsText,
   type FinishRange,
@@ -31,6 +32,10 @@ export function RatingField({
   onChange,
   className = '',
   disabled = false,
+  inputRef,
+  parse = parseRating,
+  step = stepRating,
+  labelHidden = false,
 }: {
   id: string
   label: string
@@ -39,13 +44,20 @@ export function RatingField({
   onChange(value: string): void
   className?: string
   disabled?: boolean
+  inputRef?: Ref<HTMLInputElement>
+  /** How the value is read when the field is left, and stepped with Up and Down. */
+  parse?: (text: string) => Checked<number>
+  step?: (text: string, direction: 1 | -1) => string
+  /** For a field whose row already names it: the label is read out but not shown. */
+  labelHidden?: boolean
 }) {
   return (
     <div className={className}>
-      <label htmlFor={id} className="block text-sm">
+      <label htmlFor={id} className={labelHidden ? 'sr-only' : 'block text-sm'}>
         {label}
       </label>
       <input
+        ref={inputRef}
         id={id}
         type="text"
         inputMode="decimal"
@@ -60,10 +72,10 @@ export function RatingField({
         onKeyDown={(event) => {
           if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
           event.preventDefault()
-          onChange(stepRating(value, event.key === 'ArrowUp' ? 1 : -1))
+          onChange(step(value, event.key === 'ArrowUp' ? 1 : -1))
         }}
         onBlur={() => {
-          const parsed = parseRating(value)
+          const parsed = parse(value)
           if (parsed.ok && formatRating(parsed.value) !== value) onChange(formatRating(parsed.value))
         }}
       />

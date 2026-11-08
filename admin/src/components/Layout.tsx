@@ -12,6 +12,7 @@ const SECTIONS = [
   { to: '/', label: 'Home', end: true },
   { to: '/gloves', label: 'By gloves', end: false },
   { to: '/knives', label: 'By knife', end: false },
+  { to: '/screenshots', label: 'Screenshots', end: false },
 ]
 
 export function Layout() {

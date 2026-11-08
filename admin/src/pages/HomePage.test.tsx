@@ -53,6 +53,13 @@ describe('home', () => {
     expect(order).toHaveAttribute('href', '/knife-order')
     expect(within(main).queryByRole('link', { name: /^Knife order/ })).toBeNull()
   })
+
+  it('links the Screenshots section to its page with "Configure"', async () => {
+    renderApp('/', withDrafts())
+    const main = await screen.findByRole('main')
+    expect(within(main).getByRole('link', { name: 'Configure' })).toHaveAttribute('href', '/screenshots')
+    expect(within(main).queryByRole('link', { name: 'Change the default agent' })).toBeNull()
+  })
 })
 
 describe('statistics', () => {

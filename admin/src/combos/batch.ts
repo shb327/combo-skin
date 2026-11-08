@@ -9,8 +9,10 @@ import {
   NO_CONDITIONS,
   checkConditions,
   checkDescription,
+  DEFAULT_STEP,
   formatRating,
   parseRating,
+  parseStep,
   type Conditions,
   type ConditionsText,
   type FinishRange,
@@ -42,6 +44,12 @@ export interface BatchText {
   /** The batch-wide screenshot agent; null is the default agent. */
   agent: number | null
   rows: Record<string, RowText>
+  /** This batch's knife order, by knife type slug (spec 017); empty is the shared order. */
+  order: string[]
+  /** Set by "Refill from top", cleared by "Change order": the order controls are hidden. */
+  orderLocked: boolean
+  /** How much less each next knife following the fill gets, as typed. */
+  step: string
 }
 
 export const EMPTY_BATCH: BatchText = {
@@ -51,6 +59,18 @@ export const EMPTY_BATCH: BatchText = {
   description: '',
   agent: null,
   rows: {},
+  order: [],
+  orderLocked: false,
+  step: DEFAULT_STEP,
+}
+
+/** The candidates in the batch's order. Knife types missing from it (a catalog change) follow,
+ * in the shared order; slugs no longer listed are left out. */
+export function inBatchOrder(candidates: Candidate[], order: string[]): Candidate[] {
+  const bySlug = new Map(candidates.map((c) => [c.knife.type_slug, c]))
+  const listed = order.flatMap((slug) => bySlug.get(slug) ?? [])
+  const placed = new Set(listed.map((c) => c.knife.type_slug))
+  return [...listed, ...candidates.filter((c) => !placed.has(c.knife.type_slug))]
 }
 
 export interface Row {
@@ -75,9 +95,10 @@ const ratingValue = (text: string) => {
   return parsed.ok ? parsed.value : null
 }
 
-/** The rows in the candidates' order, with the fill applied. */
+/** The rows in the batch's order, with the fill applied. */
 export function batchRows(candidates: Candidate[], text: BatchText): Row[] {
-  const rows = candidates.map((candidate) => ({
+  const step = parseStep(text.step)
+  const rows = inBatchOrder(candidates, text.order).map((candidate) => ({
     candidate,
     text: text.rows[candidate.knife.type_slug] ?? defaultRow(candidate),
   }))
@@ -89,6 +110,7 @@ export function batchRows(candidates: Candidate[], text: BatchText): Row[] {
       ...(row.ownRating !== undefined ? { own: ratingValue(row.ownRating) } : {}),
     })),
     ratingValue(text.top),
+    step.ok ? step.value : null,
   )
   return rows.map(({ candidate, text: row }, i) => {
     const fill = filled[i]
@@ -97,11 +119,10 @@ export function batchRows(candidates: Candidate[], text: BatchText): Row[] {
       candidate,
       text: row,
       existing: candidate.existing,
+      // An own rating shows as typed: the row's one box edits it.
       rating:
         row.ownRating !== undefined
-          ? fill === null
-            ? row.ownRating
-            : formatRating(fill)
+          ? row.ownRating
           : row.byHand
             ? row.rating
             : fill === null
@@ -165,6 +186,10 @@ export function checkBatch(
   const needsTop = ticked.some((r) => !r.text.byHand)
   const top = parseRating(text.top)
   if (!top.ok && (top.error !== CHECKS.ratingMissing || (attempted && needsTop))) batch.top = top.error
+  // The step is needed only while an included row after the first follows the fill.
+  const needsStep = ticked.slice(1).some((r) => !r.text.byHand && r.text.ownRating === undefined)
+  const step = parseStep(text.step)
+  if (!step.ok && (step.error !== CHECKS.stepMissing || (attempted && needsStep))) batch.step = step.error
   addConditions(batch, 'glove', checkConditions(text.glove, glove.range))
   addConditions(batch, 'knife', checkConditions(text.knife, knifeBatchRange(rows)))
   const description = checkDescription(text.description)

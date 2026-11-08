@@ -7,6 +7,11 @@ import { renderApp, where } from '../test/render'
 const BATCH = '/gloves/specialist/crimson-kimono/batch'
 const RUBY = `${BATCH}/doppler-ruby`
 
+const names = () =>
+  within(screen.getByRole('list', { name: 'Knives' }))
+    .getAllByRole('listitem')
+    .map((r) => r.getAttribute('aria-label'))
+const ratings = () => ['Karambit', 'Butterfly Knife', 'M9 Bayonet'].map((name) => [name, (rating(name) as HTMLInputElement).value])
 const row = (name: string) => within(screen.getByRole('list', { name: 'Knives' })).getByRole('listitem', { name })
 const rating = (name: string) => screen.getByLabelText(`Rating for ${name}`)
 
@@ -88,15 +93,15 @@ describe('the batch rows', () => {
     const fake = new FakeApi().withSession()
     const { user } = renderApp(RUBY, fake)
     await user.type(await screen.findByLabelText('Top rating'), '8.49')
-    await user.click(screen.getByRole('button', { name: 'Own values for Karambit' }))
-    await user.click(screen.getByRole('button', { name: 'Set own rating for Karambit' }))
+    await user.click(screen.getByRole('button', { name: 'Own rating for Karambit' }))
     const ownField = screen.getByLabelText('Rating, Karambit only')
     expect(ownField).toHaveValue('8.49')
+    expect(ownField).toHaveFocus()
     await user.clear(ownField)
     await user.type(ownField, '7')
-    expect(rating('Karambit')).toHaveValue('7.00')
-    expect(rating('Karambit')).toBeDisabled()
-    expect(row('Karambit')).toHaveTextContent('Own rating')
+    expect(ownField).toHaveValue('7')
+    expect(screen.queryByLabelText('Rating for Karambit')).toBeNull()
+    expect(row('Karambit')).toHaveTextContent('Own rating, not passed on')
     expect(rating('Butterfly Knife')).toHaveValue('8.44')
     expect(rating('M9 Bayonet')).toHaveValue('8.39')
 
@@ -105,7 +110,7 @@ describe('the batch rows', () => {
     await user.type(rating('Butterfly Knife'), '6')
     expect(rating('M9 Bayonet')).toHaveValue('5.95')
     await user.click(screen.getByRole('button', { name: 'Refill from top' }))
-    expect(rating('Karambit')).toHaveValue('7.00')
+    expect(ownField).toHaveValue('7.00')
     expect(rating('Butterfly Knife')).toHaveValue('8.44')
 
     await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
@@ -118,16 +123,56 @@ describe('the batch rows', () => {
     ])
   })
 
-  it('returns a knife to the fill when its own rating is cleared', async () => {
+  it('returns a knife to the fill when its own rating is turned off', async () => {
     const { user } = renderApp(RUBY, new FakeApi().withSession())
     await user.type(await screen.findByLabelText('Top rating'), '8.49')
-    await user.click(screen.getByRole('button', { name: 'Own values for Karambit' }))
-    await user.click(screen.getByRole('button', { name: 'Set own rating for Karambit' }))
+    const toggle = screen.getByRole('button', { name: 'Own rating for Karambit' })
+    expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-pressed', 'true')
     await user.clear(screen.getByLabelText('Rating, Karambit only'))
     await user.type(screen.getByLabelText('Rating, Karambit only'), '7')
-    await user.click(screen.getByRole('button', { name: 'Clear own rating for Karambit' }))
+    await user.click(toggle)
+    expect(toggle).toHaveAttribute('aria-pressed', 'false')
     expect(rating('Karambit')).toHaveValue('8.49')
     expect(rating('Karambit')).toBeEnabled()
+  })
+
+  it('moves no other knife when a typed knife gets its own rating', async () => {
+    const { user } = renderApp(RUBY, new FakeApi().withSession())
+    await user.type(await screen.findByLabelText('Top rating'), '8.49')
+    await user.clear(rating('Butterfly Knife'))
+    await user.type(rating('Butterfly Knife'), '9')
+    expect(rating('M9 Bayonet')).toHaveValue('8.95')
+
+    await user.click(screen.getByRole('button', { name: 'Own rating for Butterfly Knife' }))
+    expect(screen.getByRole('button', { name: 'Own rating for Butterfly Knife' })).toHaveAttribute('aria-pressed', 'true')
+    const ownField = screen.getByLabelText('Rating, Butterfly Knife only')
+    expect(within(row('Butterfly Knife')).getAllByRole('textbox')).toEqual([ownField])
+    expect(ownField).toHaveValue('9.00')
+    expect(ownField).toHaveFocus()
+    expect(rating('M9 Bayonet')).toHaveValue('8.95')
+
+    await user.clear(ownField)
+    await user.type(ownField, '7')
+    expect(rating('M9 Bayonet')).toHaveValue('8.95')
+    await user.tab()
+    expect(ownField).toHaveValue('7.00')
+
+    await user.click(screen.getByRole('button', { name: 'Own rating for Butterfly Knife' }))
+    expect(rating('Butterfly Knife')).toHaveValue('9.00')
+    expect(rating('M9 Bayonet')).toHaveValue('8.95')
+  })
+
+  it('keeps no rating among a knife own values', async () => {
+    const { user } = renderApp(RUBY, new FakeApi().withSession())
+    await user.type(await screen.findByLabelText('Top rating'), '8.49')
+    await user.click(screen.getByRole('button', { name: 'Own rating for Karambit' }))
+    const ownValues = screen.getByRole('button', { name: 'Own values for Karambit' })
+    expect(ownValues).toHaveTextContent(/^Own values for Karambit$/)
+    await user.click(ownValues)
+    expect(screen.queryByRole('button', { name: 'Set own rating for Karambit' })).toBeNull()
+    expect(within(row('Karambit')).getAllByRole('textbox')).toHaveLength(1)
   })
 
   it('applies batch-wide values, overrides per row, and checks each row against its finish', async () => {
@@ -190,6 +235,129 @@ describe('the batch rows', () => {
     const { create } = JSON.parse(fake.to('POST /admin/batches')[0].body)
     expect(create.map((c: { description: string | null }) => c.description)).toEqual([null, null, null])
     expect(create[0].knife).toEqual({ float_from: null, float_to: null, seeds: [] })
+  })
+})
+
+describe('the batch order', () => {
+  it('reorders this batch only, and the fill follows the order', async () => {
+    const fake = new FakeApi().withSession()
+    const { user } = renderApp(RUBY, fake)
+    await user.type(await screen.findByLabelText('Top rating'), '9.5')
+    expect(screen.queryByRole('button', { name: 'Move Karambit up' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Move Karambit down' })).toBeInTheDocument()
+    await user.selectOptions(screen.getByLabelText('Position of M9 Bayonet'), '1')
+    expect(names()).toEqual(['M9 Bayonet', 'Karambit', 'Butterfly Knife'])
+    expect(screen.getByText('M9 Bayonet moved to position 1.')).toBeInTheDocument()
+    expect(rating('M9 Bayonet')).toHaveValue('9.50')
+    expect(rating('Karambit')).toHaveValue('9.45')
+    expect(rating('Butterfly Knife')).toHaveValue('9.40')
+
+    screen.getByRole('button', { name: 'Move Karambit down' }).focus()
+    await user.keyboard('{Enter}')
+    expect(names()).toEqual(['M9 Bayonet', 'Butterfly Knife', 'Karambit'])
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Move Karambit up' })).toHaveFocus())
+    expect(screen.getByText('Karambit moved to position 3.')).toBeInTheDocument()
+    expect(fake.to('PUT /admin/knife-order')).toHaveLength(0)
+
+    // Another knife finish starts from the shared order.
+    await user.click(screen.getByRole('link', { name: 'Choose another knife finish' }))
+    await user.click(await screen.findByRole('link', { name: /Blue Steel/ }))
+    await waitFor(() => expect(names()).toEqual(['Karambit', 'Butterfly Knife', 'M9 Bayonet']))
+  })
+
+  it('locks the order after Refill from top until Change order, and saves in the batch order', async () => {
+    const fake = new FakeApi().withSession()
+    const { user } = renderApp(RUBY, fake)
+    await user.type(await screen.findByLabelText('Top rating'), '9.5')
+    await user.selectOptions(screen.getByLabelText('Position of M9 Bayonet'), '1')
+    await user.click(screen.getByRole('button', { name: 'Refill from top' }))
+    expect(screen.queryByRole('button', { name: /^Move / })).toBeNull()
+    expect(screen.queryByLabelText(/^Position of /)).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Change order' }))
+    expect(screen.queryByRole('button', { name: 'Change order' })).toBeNull()
+    expect(screen.getByLabelText('Position of Karambit')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Refill from top' }))
+    expect(screen.queryByLabelText('Position of Karambit')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Change order' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
+    await waitFor(() => expect(fake.to('POST /admin/batches')).toHaveLength(1))
+    const body = JSON.parse(fake.to('POST /admin/batches')[0].body)
+    expect(body.create.map((c: { knife_type: string; rating: number }) => [c.knife_type, c.rating])).toEqual([
+      ['m9-bayonet', 9.5],
+      ['karambit', 9.45],
+      ['butterfly', 9.4],
+    ])
+  })
+
+  it('keeps the order, lock and step when the page is left and opened again', async () => {
+    const { user } = renderApp(RUBY, new FakeApi().withSession())
+    await user.type(await screen.findByLabelText('Top rating'), '9.5')
+    await user.selectOptions(screen.getByLabelText('Position of M9 Bayonet'), '1')
+    await user.clear(screen.getByLabelText('Step'))
+    await user.type(screen.getByLabelText('Step'), '0.1')
+    await user.click(screen.getByRole('button', { name: 'Refill from top' }))
+    await user.click(screen.getByRole('link', { name: 'Back' }))
+    await waitFor(() => expect(where()).toBe(BATCH.replace('/batch', '')))
+    window.history.back()
+    await waitFor(() => expect(where()).toBe(RUBY))
+    await waitFor(() => expect(names()).toEqual(['M9 Bayonet', 'Karambit', 'Butterfly Knife']))
+    expect(screen.getByLabelText('Step')).toHaveValue('0.10')
+    expect(screen.getByRole('button', { name: 'Change order' })).toBeInTheDocument()
+    expect(rating('Karambit')).toHaveValue('9.40')
+  })
+})
+
+describe('the batch step', () => {
+  it('starts at 0.05 and sets how much less each next knife gets', async () => {
+    const { user } = renderApp(RUBY, new FakeApi().withSession())
+    const step = await screen.findByLabelText('Step')
+    expect(step).toHaveValue('0.05')
+    expect(screen.getByText('Each next knife gets the step less, never below 0.')).toBeInTheDocument()
+    await user.type(screen.getByLabelText('Top rating'), '9.5')
+    await user.clear(step)
+    await user.type(step, '0.10')
+    expect(ratings()).toEqual([
+      ['Karambit', '9.50'],
+      ['Butterfly Knife', '9.40'],
+      ['M9 Bayonet', '9.30'],
+    ])
+    await user.keyboard('{ArrowUp}')
+    expect(step).toHaveValue('0.11')
+    expect(rating('M9 Bayonet')).toHaveValue('9.28')
+    await user.keyboard('{ArrowDown}{ArrowDown}')
+    expect(step).toHaveValue('0.09')
+  })
+
+  it.each([
+    ['0', 'Step must be from 0.01 to 1.00.'],
+    ['1.01', 'Step must be from 0.01 to 1.00.'],
+    ['abc', 'Enter a number such as 0.05.'],
+    ['0.055', 'Use at most 2 decimals.'],
+  ])('refuses %s and saves nothing while a knife follows the fill', async (typed, message) => {
+    const fake = new FakeApi().withSession()
+    const { user } = renderApp(RUBY, fake)
+    await user.type(await screen.findByLabelText('Top rating'), '9.5')
+    await user.clear(screen.getByLabelText('Step'))
+    await user.type(screen.getByLabelText('Step'), typed)
+    expect(screen.getByLabelText('Step')).toHaveAccessibleDescription(message)
+    expect(rating('Butterfly Knife')).toHaveValue('')
+    await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
+    expect(screen.getByRole('alert')).toHaveTextContent(`Step: ${message}`)
+    expect(fake.to('POST /admin/batches')).toHaveLength(0)
+  })
+
+  it('asks for a step only when a knife follows the fill', async () => {
+    const fake = new FakeApi().withSession()
+    const { user } = renderApp(RUBY, fake)
+    await user.type(await screen.findByLabelText('Top rating'), '9.5')
+    await user.clear(screen.getByLabelText('Step'))
+    expect(screen.getByLabelText('Step')).not.toHaveAccessibleDescription()
+    for (const name of ['Butterfly Knife', 'M9 Bayonet']) {
+      await user.click(screen.getByRole('checkbox', { name: `Include ${name}` }))
+    }
+    await user.click(screen.getByRole('button', { name: 'Save 1 as drafts' }))
+    await waitFor(() => expect(fake.to('POST /admin/batches')).toHaveLength(1))
   })
 })
 

@@ -4,6 +4,7 @@ import { Swiper, SwiperSlide } from 'swiper/react'
 import { Autoplay, Controller } from 'swiper/modules'
 import type { Swiper as SwiperType } from 'swiper'
 import 'swiper/css'
+import { LINK_CAROUSEL } from '@/components/carousel'
 
 import glove1 from '@/assets/hero/glove-1.png'
 import glove2 from '@/assets/hero/glove-2.png'
@@ -52,13 +53,13 @@ export function Hero() {
               onSwiper={setGloveSwiper}
               controller={{ control: knifeSwiper }}
               autoplay={{ delay: 3000, disableOnInteraction: false }}
-              allowTouchMove={false}
+              {...LINK_CAROUSEL}
               loop
               className="w-full h-full transition-transform duration-300 md:group-hover:scale-110"
             >
               {gloves.map((glove, index) => (
                 <SwiperSlide key={index}>
-                  <img src={glove} alt={`Glove ${index + 1}`} className="w-full h-full object-contain p-4 md:p-6" />
+                  <img src={glove} alt={`Glove ${index + 1}`} className="w-full h-full object-contain p-4 md:p-6 select-none" draggable={false} />
                 </SwiperSlide>
               ))}
             </Swiper>
@@ -74,13 +75,13 @@ export function Hero() {
               onSwiper={setKnifeSwiper}
               controller={{ control: gloveSwiper }}
               autoplay={{ delay: 3000, disableOnInteraction: false }}
-              allowTouchMove={false}
+              {...LINK_CAROUSEL}
               loop
               className="w-full h-full transition-transform duration-300 md:group-hover:scale-110"
             >
               {knives.map((knife, index) => (
                 <SwiperSlide key={index}>
-                  <img src={knife} alt={`Knife ${index + 1}`} className="w-full h-full object-contain p-6 md:p-12" />
+                  <img src={knife} alt={`Knife ${index + 1}`} className="w-full h-full object-contain p-6 md:p-12 select-none" draggable={false} />
                 </SwiperSlide>
               ))}
             </Swiper>

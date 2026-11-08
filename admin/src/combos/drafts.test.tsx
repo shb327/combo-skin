@@ -48,6 +48,10 @@ const FORMS: Form[] = [
     path: () => '/gloves/specialist/crimson-kimono/batch/doppler-ruby',
     async fill(user) {
       await user.type(await screen.findByLabelText('Top rating'), '9.5')
+      await user.selectOptions(screen.getByLabelText('Position of M9 Bayonet'), '1')
+      await user.clear(screen.getByLabelText('Step'))
+      await user.type(screen.getByLabelText('Step'), '0.10')
+      await user.click(screen.getByRole('button', { name: 'Refill from top' }))
       await user.click(screen.getByRole('checkbox', { name: 'Include Butterfly Knife' }))
       await user.clear(screen.getByLabelText('Rating for M9 Bayonet'))
       await user.type(screen.getByLabelText('Rating for M9 Bayonet'), '9.9')
@@ -60,8 +64,12 @@ const FORMS: Form[] = [
     async filled(user) {
       expect(screen.getByLabelText('Top rating')).toHaveValue('9.50')
       expect(screen.getByRole('checkbox', { name: 'Include Butterfly Knife' })).not.toBeChecked()
-      expect(screen.getByLabelText('Rating for Karambit')).toHaveValue('9.50')
+      const knives = within(screen.getByRole('list', { name: 'Knives' })).getAllByRole('listitem')
+      expect(knives.map((k) => k.getAttribute('aria-label'))).toEqual(['M9 Bayonet', 'Karambit', 'Butterfly Knife'])
+      expect(screen.getByLabelText('Step')).toHaveValue('0.10')
+      expect(screen.getByRole('button', { name: 'Change order' })).toBeInTheDocument()
       expect(screen.getByLabelText('Rating for M9 Bayonet')).toHaveValue('9.90')
+      expect(screen.getByLabelText('Rating for Karambit')).toHaveValue('9.80')
       expect(within(knifeGroup()).getByLabelText('Float to')).toHaveValue('0.02')
       expect(within(knifeGroup()).getByLabelText('Float from')).toHaveValue('0')
       await user.click(screen.getByRole('button', { name: 'Own values for Karambit (description)' }))
@@ -70,6 +78,8 @@ const FORMS: Form[] = [
     stored() {
       expect(screen.getByLabelText('Top rating')).toHaveValue('')
       expect(screen.getByRole('checkbox', { name: 'Include Butterfly Knife' })).toBeChecked()
+      expect(screen.getByLabelText('Step')).toHaveValue('0.05')
+      expect(screen.getByLabelText('Position of Karambit')).toHaveValue('0')
     },
     save: 'Save 2 as drafts',
   },

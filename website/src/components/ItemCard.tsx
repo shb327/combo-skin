@@ -1,6 +1,7 @@
 import { Swiper, SwiperSlide } from 'swiper/react'
 import type { Swiper as SwiperType } from 'swiper'
 import 'swiper/css'
+import { LINK_CAROUSEL } from '@/components/carousel'
 import { comboWord } from '@/components/comboText'
 
 interface ItemCardProps {
@@ -20,7 +21,7 @@ export function ItemCard({ name, images, count, comboCount, onSwiperInit }: Item
         <Swiper
           speed={800}
           loop
-          allowTouchMove={false}
+          {...LINK_CAROUSEL}
           className="w-full h-full transition-transform duration-300 group-hover:scale-110"
           onSwiper={onSwiperInit}
         >

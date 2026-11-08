@@ -3,7 +3,7 @@ import { fillRatings, type FillRow } from './fill'
 
 const auto = (included = true): FillRow => ({ included, byHand: false, value: null })
 const hand = (value: number | null): FillRow => ({ included: true, byHand: true, value })
-const own = (value: number | null, byHand = false): FillRow => ({ included: true, byHand, value: null, own: value })
+const own = (value: number | null): FillRow => ({ included: true, byHand: false, value: null, own: value })
 
 describe('fillRatings', () => {
   it('steps 0.05 down from the top rating', () => {
@@ -40,9 +40,41 @@ describe('fillRatings', () => {
   it('uses an own rating for its row only, and fills past it as if it followed', () => {
     expect(fillRatings([own(700), auto(), auto()], 849)).toEqual([700, 844, 839])
     expect(fillRatings([auto(), hand(900), own(100), auto()], 950)).toEqual([950, 900, 100, 890])
-    // An own rating replaces a rating typed in the row, which then plays no part.
-    expect(fillRatings([own(700, true), auto()], 849)).toEqual([700, 844])
     expect(fillRatings([own(null), auto()], 849)).toEqual([null, 844])
+  })
+
+  it('keeps a typed rating carrying on down when the row gets an own rating', () => {
+    // Butterfly Knife typed 9, then given its own 7: M9 Bayonet stays at 8.95.
+    expect(fillRatings([auto(), hand(900), auto()], 849)).toEqual([849, 900, 895])
+    expect(fillRatings([auto(), { ...hand(900), own: 700 }, auto()], 849)).toEqual([849, 700, 895])
+  })
+
+  it('changes no other row when an own rating is set, changed or cleared', () => {
+    const rows: FillRow[] = [
+      auto(),
+      hand(980),
+      auto(false),
+      auto(),
+      hand(null),
+      auto(),
+      { ...hand(500), included: false },
+      hand(20),
+      auto(),
+      auto(),
+    ]
+    for (const top of [950, null]) {
+      const before = fillRatings(rows, top)
+      rows.forEach((row, index) => {
+        for (const value of [700, 0, null]) {
+          const withOwn = rows.map((r, i) => (i === index ? { ...r, own: value } : r))
+          const after = fillRatings(withOwn, top)
+          after.forEach((rating, i) => {
+            if (i !== index) expect(rating).toBe(before[i])
+          })
+          expect(after[index]).toBe(row.included ? value : null)
+        }
+      })
+    }
   })
 
   it('is exact over twenty rows', () => {

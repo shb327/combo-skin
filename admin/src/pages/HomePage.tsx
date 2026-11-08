@@ -180,7 +180,7 @@ export function HomePage() {
         </p>
         <ScreenshotCounts />
         <Link to="/screenshots" className={`${SECONDARY} mt-3 inline-block`}>
-          Change the default agent
+          Configure
         </Link>
       </div>
       {confirming && (

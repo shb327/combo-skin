@@ -1,16 +1,16 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router'
 import { ApiError, errorMessage } from '../api/errors'
 import { useApi } from '../api/useApi'
 import { useTitle } from '../components/useTitle'
 import { COMBO_MESSAGES } from '../combos/messages'
+import { OrderControls } from '../combos/OrderControls'
+import { moveSlug, movedText, useMoveFocus, type MoveAction } from '../combos/moves'
 import { keys, useKnifeOrder } from '../combos/queries'
 import { LINK, PRIMARY, SECONDARY } from '../combos/styles'
 import { QueryState, RestoredNotice } from '../combos/ui'
 import { useDraft } from '../combos/useDrafts'
-
-type Action = 'up' | 'down'
 
 /** The order of knife types in every batch, shared by all admins. */
 export function KnifeOrderPage() {
@@ -25,33 +25,21 @@ export function KnifeOrderPage() {
   const [failure, setFailure] = useState<string | null>(null)
   const [mismatch, setMismatch] = useState(false)
   const [busy, setBusy] = useState(false)
-  // The button a move was made with, to focus once the list has moved; cleared when used.
-  const focus = useRef<{ slug: string; action: Action } | null>(null)
-  const buttons = useRef(new Map<string, HTMLButtonElement>())
-
-  useEffect(() => {
-    const target = focus.current
-    if (!target) return
-    focus.current = null
-    const other: Action = target.action === 'up' ? 'down' : 'up'
-    // The button used may be gone at the top or bottom of the list; then the other one.
-    ;(buttons.current.get(`${target.slug}:${target.action}`) ?? buttons.current.get(`${target.slug}:${other}`))?.focus()
-  })
+  const focus = useMoveFocus()
 
   if (!order.data) return <QueryState error={order.error} onRetry={() => order.refetch()} />
   const names = new Map(order.data.map((t) => [t.slug, t.name]))
   const slugs = draft.values
   const changed = slugs.join() !== saved.join()
 
-  function move(slug: string, to: number, action?: Action) {
-    const next = slugs.filter((s) => s !== slug)
-    next.splice(to, 0, slug)
+  function move(slug: string, to: number, action?: MoveAction) {
+    const next = moveSlug(slugs, slug, to)
     setMessage(null)
     setFailure(null)
     if (next.join() === saved.join()) draft.forget()
     else draft.set(() => next)
-    setAnnouncement(`${names.get(slug)} moved to position ${to + 1}.`)
-    focus.current = action ? { slug, action } : null
+    setAnnouncement(movedText(names.get(slug) ?? slug, to))
+    focus.moved(slug, action)
   }
 
   async function save() {
@@ -119,49 +107,14 @@ export function KnifeOrderPage() {
             <li key={slug} className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 px-3 py-2">
               <span className="w-6 text-right text-white/50 tabular-nums">{i + 1}</span>
               <span className="min-w-0 flex-1 font-semibold">{name}</span>
-              {i > 0 && (
-                <button
-                  type="button"
-                  ref={(el) => {
-                    if (el) buttons.current.set(`${slug}:up`, el)
-                    else buttons.current.delete(`${slug}:up`)
-                  }}
-                  aria-label={`Move ${name} up`}
-                  className={SECONDARY}
-                  onClick={() => move(slug, i - 1, 'up')}
-                >
-                  Up
-                </button>
-              )}
-              {i < slugs.length - 1 && (
-                <button
-                  type="button"
-                  ref={(el) => {
-                    if (el) buttons.current.set(`${slug}:down`, el)
-                    else buttons.current.delete(`${slug}:down`)
-                  }}
-                  aria-label={`Move ${name} down`}
-                  className={SECONDARY}
-                  onClick={() => move(slug, i + 1, 'down')}
-                >
-                  Down
-                </button>
-              )}
-              <label className="sr-only" htmlFor={`position-${slug}`}>
-                Position of {name}
-              </label>
-              <select
-                id={`position-${slug}`}
-                value={i}
-                className="rounded-md border border-white/15 bg-background px-2 py-1 text-sm"
-                onChange={(event) => move(slug, Number(event.target.value))}
-              >
-                {slugs.map((_, position) => (
-                  <option key={position} value={position}>
-                    {position + 1}
-                  </option>
-                ))}
-              </select>
+              <OrderControls
+                slug={slug}
+                name={name}
+                index={i}
+                count={slugs.length}
+                focus={focus}
+                onMove={(to, action) => move(slug, to, action)}
+              />
             </li>
           )
         })}
