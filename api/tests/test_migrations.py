@@ -18,6 +18,7 @@ def test_revision_history() -> None:
         "0003": "0002",
         "0004": "0003",
         "0005": "0004",
+        "0006": "0005",
     }
 
 
@@ -62,6 +63,9 @@ async def test_head_has_only_known_tables(engine: AsyncEngine) -> None:
             "knife_order",
             "agents",
             "screenshot_settings",
+            "workers",
+            "combo_screenshots",
+            "screenshot_jobs",
         }
 
 

@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 import combo_api.admins.models  # registers the admin tables
 import combo_api.catalog.models  # registers the catalog tables
-import combo_api.combos.models  # noqa: F401  (registers the combo tables)
+import combo_api.combos.models  # registers the combo tables
+import combo_api.screenshots.models  # noqa: F401  (registers the screenshot tables)
 from combo_api.db import Base
 from combo_api.settings import load_settings
 
