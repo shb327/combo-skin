@@ -221,9 +221,13 @@ function ViewControls({ box, onClose }: { box: RefObject<HTMLDivElement | null>;
     return () => document.removeEventListener('fullscreenchange', onChange)
   }, [box])
 
+  // Decided by the document, not the label, in case a `fullscreenchange` is still to come.
   const toggle = () => {
-    if (fullscreen) void document.exitFullscreen()
-    else void box.current?.requestFullscreen()
+    if (document.fullscreenElement && document.fullscreenElement === box.current) {
+      void document.exitFullscreen().finally(() => setFullscreen(false))
+    } else {
+      void box.current?.requestFullscreen().then(() => setFullscreen(document.fullscreenElement === box.current))
+    }
   }
 
   return (

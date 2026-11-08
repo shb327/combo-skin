@@ -247,6 +247,18 @@ describe('closing', () => {
     expect(exit).toHaveBeenCalledTimes(1)
   })
 
+  it('leaves full screen by what the document says, even before the change event', async () => {
+    stubWebGL2()
+    const { request, exit } = stubFullscreen({ events: false })
+    await site()
+    await open('a')
+    await userEvent.click(inCard('a').getByRole('button', { name: 'Full screen' }))
+    expect(request).toHaveBeenCalledTimes(1)
+    await userEvent.click(await inCard('a').findByRole('button', { name: 'Exit full screen' }))
+    expect(exit).toHaveBeenCalledTimes(1)
+    expect(request).toHaveBeenCalledTimes(1)
+  })
+
   it('has no full-screen control where the browser has none', async () => {
     stubWebGL2()
     await site()

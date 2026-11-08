@@ -27,17 +27,18 @@ export function stubDataSaver(saveData: boolean) {
   Object.defineProperty(navigator, 'connection', { value: { saveData }, configurable: true })
 }
 
-/** Full screen on elements, recording what was asked. */
-export function stubFullscreen() {
+/** Full screen on elements, recording what was asked. `events: false` never fires
+ * `fullscreenchange`, as a browser that has not drawn a frame yet. */
+export function stubFullscreen({ events = true }: { events?: boolean } = {}) {
   Object.defineProperty(document, 'fullscreenEnabled', { value: true, configurable: true })
   const request = vi.fn(function (this: Element) {
     Object.defineProperty(document, 'fullscreenElement', { value: this, configurable: true })
-    document.dispatchEvent(new Event('fullscreenchange'))
+    if (events) document.dispatchEvent(new Event('fullscreenchange'))
     return Promise.resolve()
   })
   const exit = vi.fn(() => {
     Object.defineProperty(document, 'fullscreenElement', { value: null, configurable: true })
-    document.dispatchEvent(new Event('fullscreenchange'))
+    if (events) document.dispatchEvent(new Event('fullscreenchange'))
     return Promise.resolve()
   })
   Object.defineProperty(HTMLElement.prototype, 'requestFullscreen', { value: request, configurable: true })
