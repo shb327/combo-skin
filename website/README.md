@@ -12,9 +12,23 @@ In Counter-Strike 2, players equip cosmetic gloves and knives, each available in
 - **Browse knives**: pick one of 20 knife types, then one of its finishes (576 in total).
 - **See where the combos are before clicking**: type cards show how many combos each type has, finish cards how many each finish has, and a "Has combos" filter hides the finishes without any. The filter is kept in the page's URL (`?has=combos`), so a shared link keeps it.
 - **See combos for a glove or knife finish**: the knives that suit a glove finish, or the gloves that suit a knife finish, best rated first, each with a rating, both finish pictures, the pattern seeds and float ranges that suit it ("Any" where any will do), and sometimes a short description.
+- **View a combo in 3D**: "View in 3D" on a card opens the combo in first person in the 3D viewer, inside the card (see View in 3D).
 - **Search** gloves and knives by name from the top bar.
 
 Combos come from the Combo Skin API ([`api/`](../api/README.md)): they are entered in the admin dashboard, and only published combos are shown. Each card shows the combo's in-game screenshot, drawn by a screenshot worker and watermarked by the API; a combo without one yet, or whose screenshot fails to load, shows the catalog pictures of its gloves and knife instead.
+
+## View in 3D
+
+Each combo card has a "View in 3D" button in the top-right corner of its screenshot, in white at about 60% opacity like the screenshots' watermark. It shows only in browsers with WebGL2, checked once per page load with a canvas that is released at once. Nothing of the viewer loads until a click.
+
+- **Opening.** The click puts the viewer, an iframe from `VITE_VIEWER_ORIGIN`, in the card's 16:9 box under the screenshot. The screenshot stays on top, with "Loading 3D view…" and a progress bar, until the viewer reports the combo drawn; then the 3D view shows in its place. Full screen (where the browser allows it on an element) and "Close 3D view" sit in the same corner. Opening another card's view closes the first, so at most one view is on the page.
+- **What is drawn.** Both items by the game's definition and paint index (from the API's combo items), with the float and seed the card's screenshot is drawn with: the start of the combo's float range, else the finish's lowest float, and the combo's lowest seed, else no seed (the viewer then draws its default, as it does for the screenshot). A vanilla knife has neither. No agent is sent, so every combo is drawn on the viewer's default agent.
+- **Closing.** "Close 3D view", Escape while focus is on the box's controls, opening another card, or leaving the page removes the iframe (pointed at `about:blank` first) and frees its memory. Keys pressed inside the 3D view go to the viewer, not the page.
+- **Phones.** On a screen under 768 px wide, a touch-first device or a browser asking to save data, the first click of a visit says the view downloads about 34 MB, with "Load 3D view" and "Cancel".
+- **Errors.** Any viewer error, or no answer within 15 seconds (or no news for 60 seconds while loading), removes the viewer and shows the screenshot with a short message, and "Try again" when it may help. A browser without WebGL2 loses the button on every card; a combo the viewer cannot draw loses its own.
+- **Messages.** The page accepts the viewer's events only from `VITE_VIEWER_ORIGIN` and only from the open iframe, posts to it only with that origin as the target, and never shows the viewer's own message text. The iframe is sandboxed (`allow-scripts allow-same-origin`) and keeps the default referrer policy, which the viewer needs to know its parent.
+
+The viewer and its message contract live in their own public repository; see its [`docs/embed.md`](https://github.com/shb327/cs2-combo-viewer/blob/main/docs/embed.md). The hosted viewer accepts this site's dev and preview servers (ports 5173 and 4173), so it can be used in development by setting `VITE_VIEWER_ORIGIN` in `website/.env`.
 
 ## Screenshots
 
@@ -60,6 +74,7 @@ Optional settings live in `website/.env`, which is never committed (see [`.env.e
 | --- | --- | --- |
 | `VITE_API_BASE_URL` | `https://api.example.com` | Optional. The API's origin; `http://localhost:8000` when unset. Exactly an origin: `http` or `https`, a host and an optional port, with no path, trailing slash, query or user info; plain `http` only for `localhost`. Any other value stops the dev server and the build with an error naming the variable. |
 | `VITE_IMAGE_ORIGIN` | `https://images.example.com` | Optional. Where combo screenshots load from: the API's public image bucket, `http://localhost:9000` (the local storage service of the Compose stack) when unset. The same rules as `VITE_API_BASE_URL`; an invalid value stops the dev server and the build with an error naming the variable. |
+| `VITE_VIEWER_ORIGIN` | `https://viewer.example.com` | Optional. The 3D viewer's origin for "View in 3D"; `http://127.0.0.1:5321` (the viewer's local production build, `vite preview` in the viewer project) when unset. The same rules as `VITE_API_BASE_URL`, except that plain `http` is also allowed for `127.0.0.1`; an invalid value stops the dev server and the build with an error naming the variable. Production sets the hosted viewer. |
 | `DEV_ALLOWED_HOSTS` | `tunnel.example.com` | Optional. Comma-separated extra hosts the dev server accepts, for example a tunnel to your machine. Dev server only. |
 
 Finish images load from Steam's image servers, using the URLs in `src/data/catalog.json` (see Data); the browser sends them no referrer. Combo cards show the combo's screenshot: an `img` with a `srcset` of its three WebP versions (640, 1280 and 1920 pixels wide), `sizes="(min-width: 1024px) 50vw, 100vw"` to match the one- and two-column layouts, a fixed width and height so nothing shifts while it loads, lazy loading and no referrer. Screenshots load only from `VITE_IMAGE_ORIGIN`; a URL on any other host, a combo without a screenshot, or an image that fails to load shows the catalog pictures, from the URLs in the API's answer and only from Steam's image host. Glove and knife type images and the home page artwork are stored in the repository, imported in code and bundled by the build.
@@ -82,10 +97,11 @@ Without it, Vite answers requests for any other host with 403. `DEV_ALLOWED_HOST
 | --- | --- |
 | `src/pages/` | One component per route: `Home`, `SearchGloves`, `GloveFinishes`, `SearchKnives`, `KnifeFinishes`, `Combos`. Routes are defined in `src/App.tsx`. |
 | `src/components/` | Shared UI: app bar with search, hero, item cards, footer. |
+| `src/viewer/` | "View in 3D": the viewer's address for a combo (`params.ts`), its events and the page's error text (`messages.ts`), the WebGL2 and data-saving checks (`webgl.ts`), the open view and the visit's flags (`state.ts`), and the iframe (`ComboViewer.tsx`). The card's box with its controls is `src/components/ComboPictures.tsx`. |
 | `src/api/` | The API client (`client.ts`, the only module that makes requests), its types generated from the OpenAPI snapshot (`schema.d.ts`), the combos and counts queries (`queries.ts`, with the count helpers in `counts.ts`), and the API origin, image origin, picture and screenshot host rules. |
 | `src/data/` | The generated knife and glove catalog (`catalog.json`, read by `gloves.ts` and `knives.ts`). |
 | `src/assets/` | Images bundled with the site: logos, glove and knife type images, the home page artwork (`hero/`). |
-| `src/test/` | Test helpers: the fake API and a renderer for the whole site. Tests sit next to the code as `*.test.ts(x)`. |
+| `src/test/` | Test helpers: the fake API, a fake viewer (`viewer.ts`) and a renderer for the whole site. Tests sit next to the code as `*.test.ts(x)`. |
 | `CS2_FINISHES.md` | Why knife finish counts differ between knives in CS2. |
 
 The `@` import alias points to `src/`.
