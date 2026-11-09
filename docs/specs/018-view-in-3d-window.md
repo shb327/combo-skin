@@ -1,6 +1,6 @@
 # 018: View in 3D in a full window
 
-**Status:** Draft
+**Status:** Approved
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** website, api
