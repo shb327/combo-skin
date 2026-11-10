@@ -53,6 +53,8 @@ export default function ViewerWindow({
   const [state] = useViewerState()
   const active = state.active?.comboId === combo.id ? state.active : null
   const dialog = useRef<HTMLDialogElement>(null)
+  // What goes full screen: the browsers' Fullscreen API refuses a dialog element itself.
+  const frame = useRef<HTMLDivElement>(null)
   const closeButton = useRef<HTMLButtonElement>(null)
   const titleId = useId()
   const name = `${itemName(combo.glove)} with ${itemName(combo.knife)}`
@@ -105,50 +107,57 @@ export default function ViewerWindow({
       }}
       onKeyDown={onKeyDown}
       className={
-        'm-0 p-0 w-full max-w-none h-[100dvh] max-h-none bg-background text-white open:flex flex-col ' +
+        'm-0 p-0 w-full max-w-none h-[100dvh] max-h-none bg-background text-white open:flex ' +
         'backdrop:bg-black/70 roomy:m-auto roomy:w-fit roomy:h-fit roomy:max-h-[100dvh] roomy:max-w-[100vw] ' +
-        'roomy:p-3 roomy:gap-2 roomy:rounded-xl roomy:border roomy:border-white/10'
+        'roomy:rounded-xl roomy:border roomy:border-white/10'
       }
     >
-      <div className="flex items-start gap-2 px-3 pt-2 pb-2 roomy:p-0 short:absolute short:top-1 short:right-1 short:z-20 short:p-0">
-        <div className="flex-1 min-w-0 flex items-center gap-2 short:hidden">
-          <h2 id={titleId} className="text-sm roomy:text-base font-semibold text-white">
-            {name}
-          </h2>
-          <span
-            aria-label={`Rating ${combo.rating}`}
-            className="shrink-0 px-2 py-0.5 rounded-full border border-current text-xs roomy:text-sm font-bold"
-            style={{ color: scoreColor(combo.rating) }}
-          >
-            {combo.rating}
-          </span>
+      <div
+        ref={frame}
+        data-window
+        className="viewer-window-frame relative flex flex-col flex-1 min-w-0 min-h-0 bg-background roomy:p-3 roomy:gap-2"
+      >
+        <div className="flex items-start gap-2 px-3 pt-2 pb-2 roomy:p-0 short:absolute short:top-1 short:right-1 short:z-20 short:p-0">
+          <div className="flex-1 min-w-0 flex items-center gap-2 short:hidden">
+            <h2 id={titleId} className="text-sm roomy:text-base font-semibold text-white">
+              {name}
+            </h2>
+            <span
+              aria-label={`Rating ${combo.rating}`}
+              className="shrink-0 px-2 py-0.5 rounded-full border border-current text-xs roomy:text-sm font-bold"
+              style={{ color: scoreColor(combo.rating) }}
+            >
+              {combo.rating}
+            </span>
+          </div>
+          <HeaderButtons frame={frame} href={href} closeButton={closeButton} onClose={onClose} />
         </div>
-        <HeaderButtons dialog={dialog} href={href} closeButton={closeButton} onClose={onClose} />
+        {active && (
+          <WindowBody
+            key={active.attempt}
+            combo={combo}
+            name={name}
+            active={active}
+            inspectRef={inspect}
+            listOpenRef={listOpen}
+            onClose={onClose}
+            onLoaded={onLoaded}
+          />
+        )}
       </div>
-      {active && (
-        <WindowBody
-          key={active.attempt}
-          combo={combo}
-          name={name}
-          active={active}
-          inspectRef={inspect}
-          listOpenRef={listOpen}
-          onClose={onClose}
-          onLoaded={onLoaded}
-        />
-      )}
     </dialog>
   )
 }
 
-/** Copy link, full screen (where the browser allows it on an element) and Close. */
+/** Copy link, full screen (on the window's contents, where the browser allows it on an element)
+ * and Close. */
 function HeaderButtons({
-  dialog,
+  frame,
   href,
   closeButton,
   onClose,
 }: {
-  dialog: RefObject<HTMLDialogElement | null>
+  frame: RefObject<HTMLDivElement | null>
   href: string
   closeButton: RefObject<HTMLButtonElement | null>
   onClose(): void
@@ -158,10 +167,10 @@ function HeaderButtons({
   const canCopy = typeof navigator.clipboard?.writeText === 'function'
 
   useEffect(() => {
-    const onChange = () => setFullscreen(document.fullscreenElement === dialog.current)
+    const onChange = () => setFullscreen(document.fullscreenElement === frame.current)
     document.addEventListener('fullscreenchange', onChange)
     return () => document.removeEventListener('fullscreenchange', onChange)
-  }, [dialog])
+  }, [frame])
 
   useEffect(() => {
     if (!copied) return
@@ -172,11 +181,11 @@ function HeaderButtons({
   // Decided by the document, not the label, in case a `fullscreenchange` is still to come.
   const toggle = () => {
     // A browser may refuse either (no permission, or no longer in full screen): nothing changes.
-    const settle = () => setFullscreen(!!document.fullscreenElement && document.fullscreenElement === dialog.current)
-    if (document.fullscreenElement && document.fullscreenElement === dialog.current) {
+    const settle = () => setFullscreen(!!document.fullscreenElement && document.fullscreenElement === frame.current)
+    if (document.fullscreenElement && document.fullscreenElement === frame.current) {
       document.exitFullscreen().then(settle, settle)
     } else {
-      dialog.current?.requestFullscreen().then(settle, settle)
+      frame.current?.requestFullscreen().then(settle, settle)
     }
   }
 
@@ -188,7 +197,7 @@ function HeaderButtons({
   }
 
   return (
-    <div className="flex gap-1 shrink-0">
+    <div className="flex gap-1 shrink-0 short:drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
       {canCopy && (
         <button type="button" aria-label="Copy link" title="Copy link" onClick={copy} className={HEADER_BUTTON}>
           <Link aria-hidden className="w-4 h-4" />

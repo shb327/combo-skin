@@ -30,3 +30,16 @@ body {
     width: min(1600px, 94vw, calc((92dvh - 7.75rem) * 16 / 9));
   }
 }
+
+/* In full screen the window's contents fill the screen: the view takes the space between the name
+   row and the controls, at any shape (the viewer keeps its angles). */
+.viewer-window-frame:fullscreen {
+  padding: 0.75rem;
+  gap: 0.5rem;
+}
+.viewer-window-frame:fullscreen .viewer-window-view {
+  width: 100%;
+  flex: 1 1 0;
+  min-height: 0;
+  aspect-ratio: auto;
+}

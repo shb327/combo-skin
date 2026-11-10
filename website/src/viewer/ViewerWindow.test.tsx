@@ -345,14 +345,24 @@ describe('closing', () => {
 })
 
 describe('full screen', () => {
-  it('puts the whole window in full screen and back', async () => {
+  it('puts the whole window’s contents in full screen and back (a dialog itself cannot be)', async () => {
     stubWebGL2()
     const { request, exit } = stubFullscreen()
     await site()
     await open(0)
     await userEvent.click(inWindow().getByRole('button', { name: 'Full screen' }))
     expect(request).toHaveBeenCalledTimes(1)
-    expect(request.mock.contexts[0]).toBe(windowElement())
+    const contents = windowElement().querySelector('[data-window]')!
+    expect(request.mock.contexts[0]).toBe(contents)
+    expect(contents.parentElement).toBe(windowElement())
+    for (const part of [
+      inWindow().getByRole('heading', { name: A_NAME }),
+      frame(),
+      inWindow().getByRole('button', { name: 'Inspect' }),
+      inWindow().getByRole('button', { name: 'Close' }),
+    ]) {
+      expect(contents).toContainElement(part)
+    }
     await userEvent.click(inWindow().getByRole('button', { name: 'Exit full screen' }))
     expect(exit).toHaveBeenCalledTimes(1)
   })
