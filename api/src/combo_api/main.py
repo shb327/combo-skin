@@ -21,7 +21,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from combo_api import health
 from combo_api.admins import passwords
 from combo_api.admins import routes as admins
-from combo_api.admins.deps import CSRF_HEADER, NO_STORE
+from combo_api.admins.deps import CSRF_HEADER, NO_STORE, error_response
 from combo_api.catalog import routes as catalog
 from combo_api.combos import admin_routes as combos_admin
 from combo_api.combos import agents as combos_agents
@@ -43,6 +43,7 @@ IMAGE_SLOTS = 1
 PUBLIC_TAGS = {"catalog", "combos"}
 
 logger = logging.getLogger("combo_api.admins")
+errors_logger = logging.getLogger("combo_api.errors")
 # Uvicorn configures only its own loggers; without this, the API's info lines are dropped.
 LOG_HANDLER = logging.StreamHandler()
 LOG_HANDLER.setFormatter(logging.Formatter("%(levelname)s:     %(name)s %(message)s"))
@@ -82,6 +83,43 @@ class AdminCors:
                 await self.cors[origins](scope, receive, send)
                 return
         await self.app(scope, receive, send)
+
+
+class InternalErrors:
+    """500 `internal_error` for an exception no handler took, answered inside the CORS
+    middlewares so the response carries the CORS headers its route would have had.
+
+    Starlette's own error middleware answers outside every user middleware, so a browser saw
+    such a 500 without CORS headers, as a network error. The traceback goes to the log only;
+    the body is a fixed code and the response is never cached.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        started = False
+
+        async def tracked(message: Message) -> None:
+            nonlocal started
+            started = started or message["type"] == "http.response.start"
+            await send(message)
+
+        try:
+            await self.app(scope, receive, tracked)
+        except Exception:
+            errors_logger.exception(
+                "unhandled error method=%s path=%s", scope["method"], scope["path"]
+            )
+            if started:
+                raise
+            response = JSONResponse(
+                {"detail": "internal_error"}, status_code=500, headers=dict(NO_STORE)
+            )
+            await response(scope, receive, send)
 
 
 class PublicCors:
@@ -194,6 +232,8 @@ def create_app(
         version=version("combo-api"),
         lifespan=lifespan,
         generate_unique_id_function=operation_id,
+        # Any route can fail unexpectedly; InternalErrors answers it.
+        responses={status.HTTP_500_INTERNAL_SERVER_ERROR: error_response("`internal_error`")},
         openapi_url=None,
         docs_url=None,
         redoc_url=None,
@@ -206,6 +246,8 @@ def create_app(
     app.include_router(combos_public.router)
     app.include_router(screenshots_admin.router)
     app.include_router(screenshots_worker.router)
+    # Innermost first: errors become responses before the CORS layers see them.
+    app.add_middleware(InternalErrors)
     app.add_middleware(AdminCors)
     app.add_middleware(PublicCors)
     app.add_exception_handler(RequestValidationError, validation_error)

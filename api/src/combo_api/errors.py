@@ -12,6 +12,7 @@ ErrorCode = Literal[
     "csrf_failed",
     "default_agent_missing",
     "inputs_changed",
+    "internal_error",
     "invalid_credentials",
     "job_not_found",
     "not_authenticated",

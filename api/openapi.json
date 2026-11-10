@@ -697,6 +697,7 @@
               "csrf_failed",
               "default_agent_missing",
               "inputs_changed",
+              "internal_error",
               "invalid_credentials",
               "job_not_found",
               "not_authenticated",
@@ -2142,6 +2143,16 @@
               }
             },
             "description": "`origin_not_allowed` or `csrf_failed`"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "List Agents",
@@ -2214,6 +2225,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Save Batch",
@@ -2301,6 +2322,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Get Batch Candidates",
@@ -2347,6 +2378,16 @@
               }
             },
             "description": "`origin_not_allowed` or `csrf_failed`"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "List Batch Finishes",
@@ -2532,6 +2573,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "List Combos",
@@ -2602,6 +2653,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Create Combo",
@@ -2664,6 +2725,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Publish Combos",
@@ -2726,6 +2797,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Unpublish Combos",
@@ -2815,6 +2896,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Remove Combo",
@@ -2888,6 +2979,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Get Combo",
@@ -2981,6 +3082,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Update Combo",
@@ -3023,6 +3134,16 @@
               }
             },
             "description": "`origin_not_allowed` or `csrf_failed`"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Get Knife Order",
@@ -3083,6 +3204,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Replace Knife Order",
@@ -3165,6 +3296,16 @@
               }
             },
             "description": "`too_many_attempts`; `Retry-After` gives the seconds to wait"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Admin Login",
@@ -3190,6 +3331,16 @@
               }
             },
             "description": "`origin_not_allowed` or `csrf_failed`"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Admin Logout",
@@ -3222,6 +3373,16 @@
               }
             },
             "description": "`not_authenticated`"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Admin Me",
@@ -3264,6 +3425,16 @@
               }
             },
             "description": "`origin_not_allowed` or `csrf_failed`"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           },
           "503": {
             "content": {
@@ -3334,6 +3505,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           },
           "503": {
             "content": {
@@ -3406,6 +3587,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Request Screenshots",
@@ -3452,6 +3643,16 @@
               }
             },
             "description": "`origin_not_allowed` or `csrf_failed`"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "List Workers",
@@ -3522,6 +3723,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Create Worker",
@@ -3597,6 +3808,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Revoke Worker",
@@ -3619,6 +3840,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Get Combo Counts",
@@ -3645,6 +3876,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "List Glove Types",
@@ -3691,6 +3932,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Get Glove Type",
@@ -3746,6 +3997,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Get Glove Finish",
@@ -3809,6 +4070,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "List Glove Finish Combos",
@@ -3831,6 +4102,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Health Live",
@@ -3853,6 +4134,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           },
           "503": {
             "content": {
@@ -3889,6 +4180,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "List Knife Types",
@@ -3935,6 +4236,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Get Knife Type",
@@ -3990,6 +4301,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Get Knife Finish",
@@ -4053,6 +4374,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "List Knife Finish Combos",
@@ -4106,6 +4437,16 @@
               }
             },
             "description": "`origin_not_allowed`"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Claim Job",
@@ -4194,6 +4535,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Fail Job",
@@ -4282,6 +4633,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Release Job",
@@ -4398,6 +4759,16 @@
               }
             },
             "description": "`not_png`, `wrong_size` or `bad_pixel_format`"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Put Screenshot",
@@ -4440,6 +4811,16 @@
               }
             },
             "description": "`origin_not_allowed`"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
           }
         },
         "summary": "Worker Me",

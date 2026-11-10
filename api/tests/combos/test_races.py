@@ -108,15 +108,17 @@ async def test_a_batch_draws_a_taken_public_id_again(
 
 
 async def test_an_id_taken_three_times_running_is_an_error(
-    admin_client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+    admin_client: AsyncClient, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
     headers = await logged_in(admin_client)
     first = await create(admin_client, headers)
     ids_from(monkeypatch, [first["id"]] * 3)
-    with pytest.raises(Exception, match="uq_combos_public_id"):
-        await admin_client.post(
-            "/admin/combos", json=combo_body(knife=("butterfly", "fade")), headers=headers
-        )
+    response = await admin_client.post(
+        "/admin/combos", json=combo_body(knife=("butterfly", "fade")), headers=headers
+    )
+    assert response.status_code == 500
+    assert response.json() == {"detail": "internal_error"}
+    assert "uq_combos_public_id" in caplog.text
 
 
 @pytest.fixture
