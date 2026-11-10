@@ -106,7 +106,7 @@ export default function ViewerWindow({
       onKeyDown={onKeyDown}
       className={
         'm-0 p-0 w-full max-w-none h-[100dvh] max-h-none bg-background text-white open:flex flex-col ' +
-        'backdrop:bg-black/70 roomy:m-auto roomy:w-auto roomy:h-auto roomy:max-h-[100dvh] roomy:max-w-[100vw] ' +
+        'backdrop:bg-black/70 roomy:m-auto roomy:w-fit roomy:h-fit roomy:max-h-[100dvh] roomy:max-w-[100vw] ' +
         'roomy:p-3 roomy:gap-2 roomy:rounded-xl roomy:border roomy:border-white/10'
       }
     >
