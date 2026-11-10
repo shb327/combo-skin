@@ -2,7 +2,7 @@
 
 uv run python -m combo_api.catalog refresh --commit <sha>    # rewrite snapshot.json
 uv run python -m combo_api.catalog import                   # load snapshot.json into the database
-uv run python -m combo_api.catalog export-website [--check] # write or check the website's copy
+uv run python -m combo_api.catalog export-website [--check] # write or check the website's copies
 """
 
 import argparse
@@ -92,20 +92,27 @@ def import_(_: argparse.Namespace) -> int:
 def export_website(args: argparse.Namespace) -> int:
     snapshot, order = load_snapshot(args.snapshot), load_display_order()
     validate(snapshot, order)
-    expected = export.render(snapshot, order)
+    files = [
+        (args.output, export.render(snapshot, order)),
+        (args.agents_output, export.render_agents(snapshot)),
+    ]
     report_unlisted(snapshot, order)
     if args.check:
-        current = args.output.read_text() if args.output.exists() else ""
-        if current != expected:
+        stale = [path for path, expected in files if read(path) != expected]
+        for path in stale:
             print(
-                f"{args.output.name} is out of date: run "
+                f"{path.name} is out of date: run "
                 "`uv run python -m combo_api.catalog export-website`",
                 file=sys.stderr,
             )
-            return 1
-        return 0
-    args.output.write_text(expected)
+        return 1 if stale else 0
+    for path, expected in files:
+        path.write_text(expected)
     return 0
+
+
+def read(path: Path) -> str:
+    return path.read_text() if path.exists() else ""
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -123,9 +130,12 @@ def main(argv: list[str] | None = None) -> int:
     command = commands.add_parser("import", help="load the snapshot into the database")
     command.set_defaults(run=import_)
 
-    command = commands.add_parser("export-website", help="write the website's copy")
+    command = commands.add_parser("export-website", help="write the website's copies")
     command.add_argument("--check", action="store_true", help="fail if the copy is stale")
     command.add_argument("--output", type=Path, default=export.WEBSITE_EXPORT, help="file path")
+    command.add_argument(
+        "--agents-output", type=Path, default=export.AGENTS_EXPORT, help="agents file path"
+    )
     command.add_argument("--snapshot", type=Path, default=SNAPSHOT, help=argparse.SUPPRESS)
     command.set_defaults(run=export_website)
 
