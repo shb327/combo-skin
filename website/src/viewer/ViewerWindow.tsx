@@ -24,7 +24,7 @@ import { ViewerControls } from './ViewerControls'
 export type OnViewerLoaded = (view: { comboId: string; ms: number | null }) => void
 
 /** The screenshot's width in the window. */
-const SIZES = '(min-width: 768px) min(1600px, 94vw), 100vw'
+const SIZES = '(min-width: 768px) min(1400px, 88vw), 100vw'
 const FADE_MS = 200
 
 const HEADER_BUTTON =

@@ -23,11 +23,11 @@ body {
   min-height: 100vh;
 }
 
-/* The 3D window's view on a larger screen: 16:9, as wide as fits with the window's name row and
-   controls in 92% of the screen's height, and at most 1600 px. */
+/* The 3D window's view on a larger screen: 16:9, at most 88% of the screen's width and 1400 px,
+   and short enough that the window's name row, view and controls fit in 86% of its height. */
 @media (min-width: 768px) and (min-height: 500px) {
   .viewer-window-view {
-    width: min(1600px, 94vw, calc((92dvh - 7.75rem) * 16 / 9));
+    width: min(1400px, 88vw, calc((86dvh - 7.75rem) * 16 / 9));
   }
 }
 
