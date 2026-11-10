@@ -1,0 +1,88 @@
+# The local development services, included by compose.yaml, which reads api/.env for the
+# ${...} values below. The API's containers get all of api/.env; the database and the storage
+# service get only the settings they use.
+
+x-api: &api
+  build: api
+  env_file:
+    - path: api/.env
+      required: true
+  environment:
+    # Containers reach the database and storage on the Compose network, not the published ports.
+    POSTGRES_HOST: db
+    POSTGRES_PORT: "5432"
+    STORAGE_ENDPOINT_URL: http://storage:9000
+
+services:
+  db:
+    image: postgres:18@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in api/.env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in api/.env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in api/.env}
+    ports:
+      - "127.0.0.1:54320:5432"
+    volumes:
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  migrate:
+    <<: *api
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Loads the committed catalog snapshot. Safe to re-run: unchanged rows are left alone.
+  catalog:
+    <<: *api
+    command: ["python", "-m", "combo_api.catalog", "import"]
+    restart: "no"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # S3-compatible object storage for screenshots: RustFS.
+  storage:
+    image: rustfs/rustfs:1.0.4@sha256:ed9210d6411d77ffceb70d94b964a3cb7d225983368bc25bebe01e995293dcc2
+    # RustFS reads the storage credentials of api/.env under its own names.
+    environment:
+      RUSTFS_ACCESS_KEY: ${STORAGE_ACCESS_KEY_ID:?set STORAGE_ACCESS_KEY_ID in api/.env}
+      RUSTFS_SECRET_KEY: ${STORAGE_SECRET_ACCESS_KEY:?set STORAGE_SECRET_ACCESS_KEY in api/.env}
+    ports:
+      - "127.0.0.1:9000:9000"
+    volumes:
+      - storage-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:9000/health"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  # Creates both buckets and lets anyone read the public one. Safe to re-run.
+  storage-init:
+    <<: *api
+    command: ["python", "-m", "combo_api.screenshots", "init"]
+    restart: "no"
+    depends_on:
+      storage:
+        condition: service_healthy
+
+  api:
+    <<: *api
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      catalog:
+        condition: service_completed_successfully
+      storage-init:
+        condition: service_completed_successfully
+
+volumes:
+  db-data:
+  storage-data:

@@ -26,12 +26,12 @@ curl http://localhost:8000/health/ready
 
 Open http://localhost:8000/docs for the interactive docs. Stop everything with `docker compose down` (add `-v` to delete the database and storage volumes too).
 
-The Compose services:
+The Compose services, in `compose.services.yaml` (included by `compose.yaml`, which reads `api/.env` for their settings). The API's containers get all of `api/.env`; `db` and `storage` only the values they use:
 
 | Service | What it does |
 | --- | --- |
-| `db` | PostgreSQL, on `127.0.0.1:54320`, data in the `db-data` volume |
-| `storage` | [RustFS](https://github.com/rustfs/rustfs), an S3-compatible object store, pinned by digest, on `127.0.0.1:9000`, data in the `storage-data` volume. It takes its credentials from `STORAGE_ACCESS_KEY_ID` and `STORAGE_SECRET_ACCESS_KEY` in `api/.env` |
+| `db` | PostgreSQL, on `127.0.0.1:54320`, data in the `db-data` volume. It gets only `POSTGRES_USER`, `POSTGRES_PASSWORD` and `POSTGRES_DB` |
+| `storage` | [RustFS](https://github.com/rustfs/rustfs), an S3-compatible object store, pinned by digest, on `127.0.0.1:9000`, data in the `storage-data` volume. It gets only its credentials, `STORAGE_ACCESS_KEY_ID` and `STORAGE_SECRET_ACCESS_KEY` from `api/.env` under RustFS's own names |
 | `migrate`, `catalog` | One-shot: apply migrations, import the catalog |
 | `storage-init` | One-shot: `python -m combo_api.screenshots init`, which creates both buckets and lets anyone read the public one, through the S3 API. Safe to re-run |
 | `api` | The API on `127.0.0.1:8000`, once the one-shot services succeeded |
