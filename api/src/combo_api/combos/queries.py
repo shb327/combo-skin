@@ -5,10 +5,12 @@ from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import Row, Select, select, true
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from combo_api.admins import clock
+from combo_api.admins.deps import refuse
 from combo_api.admins.models import Admin
 from combo_api.catalog.models import Agent, Finish, ItemType
 from combo_api.catalog.routes import Rarity
@@ -126,6 +128,39 @@ def new_combo(
         created_by=admin_id,
         updated_by=admin_id,
     )
+
+
+# The constraints a new combo can meet when another request wrote first.
+PAIRING_CONSTRAINT = "uq_combos_glove_finish_id_knife_finish_id"
+PUBLIC_ID_CONSTRAINT = "uq_combos_public_id"
+# Draws of public ids before a collision is an error: one is already about one in 10^18.
+ID_DRAWS = 3
+
+
+def violated(error: IntegrityError) -> str | None:
+    """The name of the constraint a database error is about, if it names one."""
+    name = getattr(getattr(error.orig, "diag", None), "constraint_name", None)
+    return name if isinstance(name, str) else None
+
+
+async def insert(db: AsyncSession, rows: list[Combo]) -> None:
+    """Insert new combos in a savepoint, so a refusal leaves the request's transaction (and its
+    locks) as it was. A pairing another request stored after this one's existence check is 409
+    `combo_exists`; a public id that is already taken is drawn again."""
+    for draw in range(1, ID_DRAWS + 1):
+        try:
+            async with db.begin_nested():
+                db.add_all(rows)
+        except IntegrityError as error:
+            constraint = violated(error)
+            if constraint == PAIRING_CONSTRAINT:
+                raise refuse(409, "combo_exists") from None
+            if constraint != PUBLIC_ID_CONSTRAINT or draw == ID_DRAWS:
+                raise
+            for row in rows:
+                row.public_id = new_public_id()
+        else:
+            return
 
 
 async def pairing_exists(db: AsyncSession, glove: Finish, knife: Finish) -> bool:

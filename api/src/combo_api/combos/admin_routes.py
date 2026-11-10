@@ -122,7 +122,7 @@ async def create_combo(
         current.id,
         clock.now(),
     )
-    db.add(row)
+    await queries.insert(db, [row])
     await db.commit()
     logger.info(
         "combo created admin=%s id=%s glove=%s/%s knife=%s/%s",

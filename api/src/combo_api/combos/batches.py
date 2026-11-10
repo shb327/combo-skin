@@ -133,7 +133,7 @@ async def save(
         )
         for entry, finish, agent in creates
     ]
-    db.add_all(created)
+    await queries.insert(db, created)
     for change, row in updates:
         row.rating = decimal(change.rating)
         row.description = change.description
