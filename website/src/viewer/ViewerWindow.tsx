@@ -27,9 +27,11 @@ export type OnViewerLoaded = (view: { comboId: string; ms: number | null }) => v
 const SIZES = '(min-width: 1024px) calc(100vw - 378px), (min-width: 768px) calc(100vw - 154px), 100vw'
 const FADE_MS = 200
 
+// Focus shows as the hover's background, not an outline: Close takes the focus when the window opens.
 const HEADER_BUTTON =
   'flex items-center justify-center gap-1.5 min-h-11 min-w-11 roomy:min-h-9 roomy:min-w-9 px-2 rounded-lg ' +
-  'text-white/70 text-sm hover:text-white hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white ' +
+  'text-white/70 text-sm hover:text-white hover:bg-white/10 focus-visible:outline-none focus-visible:text-white ' +
+  'focus-visible:bg-white/10 ' +
   'cursor-pointer transition-colors'
 
 const prefersReducedMotion = () =>
