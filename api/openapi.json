@@ -359,6 +359,7 @@
             "type": "number"
           },
           "version": {
+            "maximum": 2147483647.0,
             "minimum": 1.0,
             "title": "Version",
             "type": "integer"
@@ -600,6 +601,7 @@
             "title": "Screenshot Agent"
           },
           "version": {
+            "maximum": 2147483647.0,
             "minimum": 1.0,
             "title": "Version",
             "type": "integer"
@@ -2741,6 +2743,7 @@
             "name": "version",
             "required": true,
             "schema": {
+              "maximum": 2147483647,
               "minimum": 1,
               "title": "Version",
               "type": "integer"

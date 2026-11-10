@@ -21,6 +21,7 @@ from combo_api.catalog.snapshot import Kind
 from combo_api.combos import batches, order, queries, rules
 from combo_api.combos.models import Combo, Status
 from combo_api.combos.schemas import (
+    VERSION_MAX,
     AdminCombo,
     BatchFinish,
     BatchIn,
@@ -270,7 +271,7 @@ async def update_combo(
 )
 async def remove_combo(
     combo_id: PublicId,
-    version: Annotated[int, Query(ge=1)],
+    version: Annotated[int, Query(ge=1, le=VERSION_MAX)],
     current: AdminDep,
     db: Session,
     images: ImageBase,
