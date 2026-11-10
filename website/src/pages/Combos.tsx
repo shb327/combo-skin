@@ -4,8 +4,10 @@ import { useFinishCombos } from '@/api/queries'
 import { ComboPictures } from '@/components/ComboPictures'
 import { comboCount, floatRange, itemName, patternSeeds } from '@/components/comboText'
 import { Message } from '@/components/Message'
+import { scoreColor } from '@/components/score'
 import { getAllGloves } from '@/data/gloves'
 import { getAllKnives } from '@/data/knives'
+import { ViewerHost } from '@/viewer/ViewerHost'
 
 type CatalogItem = ReturnType<typeof getAllGloves>[number]
 
@@ -36,61 +38,55 @@ function FinishCombos({ kind, item }: { kind: Kind; item: CatalogItem }) {
   const combos = loading || query.isError ? undefined : query.data
 
   return (
-    <div className="px-4 md:px-16 lg:px-44 pt-4 md:pt-8 pb-8 md:pb-16">
-      <div className="bg-white/5 rounded-lg p-3 md:p-4 flex items-center gap-3 md:gap-6">
-        <img
-          src={item.image}
-          alt={item.fullName}
-          className="h-16 w-16 md:h-24 md:w-24 object-contain"
-          draggable={false}
-          referrerPolicy="no-referrer"
-        />
-        <div className="flex-1 min-w-0">
-          <h1 className="text-lg md:text-2xl font-semibold text-white truncate">{item.fullName}</h1>
-          {combos && <p className="text-white/60 text-xs md:text-sm mt-1">{comboCount(combos.length)}</p>}
-        </div>
-      </div>
-
-      {loading ? (
-        <Message text="Loading combos…" />
-      ) : query.isError ? (
-        query.error instanceof ApiError && query.error.reason === 'not_found' ? (
-          <Message text="This finish was not found." />
-        ) : (
-          <Message text="Combos could not be loaded.">
-            <button
-              type="button"
-              onClick={() => query.refetch()}
-              className="mt-4 px-4 py-2 rounded-lg bg-white/10 text-white text-sm md:text-base hover:bg-white/20 transition-colors cursor-pointer"
-            >
-              Try again
-            </button>
-          </Message>
-        )
-      ) : (
-        combos &&
-        combos.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6 mt-4 md:mt-8">
-            {combos.map((combo) => (
-              <ComboCard key={combo.id} combo={combo} isGlove={kind === 'gloves'} />
-            ))}
+    <ViewerHost combos={combos}>
+      <div className="px-4 md:px-16 lg:px-44 pt-4 md:pt-8 pb-8 md:pb-16">
+        <div className="bg-white/5 rounded-lg p-3 md:p-4 flex items-center gap-3 md:gap-6">
+          <img
+            src={item.image}
+            alt={item.fullName}
+            className="h-16 w-16 md:h-24 md:w-24 object-contain"
+            draggable={false}
+            referrerPolicy="no-referrer"
+          />
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg md:text-2xl font-semibold text-white truncate">{item.fullName}</h1>
+            {combos && <p className="text-white/60 text-xs md:text-sm mt-1">{comboCount(combos.length)}</p>}
           </div>
-        )
-      )}
-    </div>
+        </div>
+
+        {loading ? (
+          <Message text="Loading combos…" />
+        ) : query.isError ? (
+          query.error instanceof ApiError && query.error.reason === 'not_found' ? (
+            <Message text="This finish was not found." />
+          ) : (
+            <Message text="Combos could not be loaded.">
+              <button
+                type="button"
+                onClick={() => query.refetch()}
+                className="mt-4 px-4 py-2 rounded-lg bg-white/10 text-white text-sm md:text-base hover:bg-white/20 transition-colors cursor-pointer"
+              >
+                Try again
+              </button>
+            </Message>
+          )
+        ) : (
+          combos &&
+          combos.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6 mt-4 md:mt-8">
+              {combos.map((combo) => (
+                <ComboCard key={combo.id} combo={combo} isGlove={kind === 'gloves'} />
+              ))}
+            </div>
+          )
+        )}
+      </div>
+    </ViewerHost>
   )
 }
 
-function getScoreColor(score: number): string {
-  if (score >= 8.5) return '#00DE12' // brand green
-  if (score >= 6.5) return '#84cc16' // lime
-  if (score >= 5) return '#eab308' // yellow
-  if (score >= 3.5) return '#f97316' // orange
-  return '#ef4444' // red
-}
-
 function ScoreCircle({ score }: { score: number }) {
-  const color = getScoreColor(score)
+  const color = scoreColor(score)
   const percentage = (score / 10) * 100
   const radius = 40
   const circumference = 2 * Math.PI * radius
