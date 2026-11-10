@@ -224,7 +224,7 @@ function AgentPicker({
       </button>
       {open && (
         <div
-          className="absolute bottom-full left-0 right-0 roomy:left-auto roomy:w-96 mb-2 z-10 rounded-lg border border-white/15 bg-background shadow-xl"
+          className="absolute bottom-full left-0 right-0 roomy:left-auto roomy:right-3 roomy:w-96 mb-2 roomy:mb-5 z-10 rounded-lg border border-white/15 bg-background shadow-xl"
           onKeyDown={(event) => {
             if (event.key !== 'Escape') return
             // The list takes Escape first: the window stays open.
