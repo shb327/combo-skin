@@ -63,9 +63,17 @@ export default function ViewerWindow({
   // The agent list is open: it takes Escape first.
   const listOpen = useRef(false)
   const latestClose = useRef(onClose)
+  // Whether the window is still meant to be open, for a close the browser makes by itself.
+  const activeRef = useRef(true)
   useEffect(() => {
     latestClose.current = onClose
   })
+  useEffect(() => {
+    activeRef.current = true
+    return () => {
+      activeRef.current = false
+    }
+  }, [])
 
   // Modal from the start: the page behind is inert and does not scroll; both undone on close.
   useLayoutEffect(() => {
@@ -104,6 +112,12 @@ export default function ViewerWindow({
         // cleaned up. An open agent list keeps it.
         event.preventDefault()
         if (!listOpen.current) latestClose.current()
+      }}
+      onClose={() => {
+        // The browser closed the dialog by itself (Chrome may answer Escape without a cancelable
+        // cancel event): close the window properly. A close event while the dialog is open again
+        // is a stale one (the dialog was closed and reopened), and is ignored.
+        if (dialog.current && !dialog.current.open && activeRef.current) latestClose.current()
       }}
       onKeyDown={onKeyDown}
       className={

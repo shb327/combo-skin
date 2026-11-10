@@ -259,6 +259,31 @@ describe('closing', () => {
     expect(inCard(0).getByRole('button', { name: 'View in 3D' })).toHaveFocus()
   })
 
+  it('closes when the browser closes the dialog itself, without a cancel event', async () => {
+    stubWebGL2()
+    const { url } = await site()
+    await open(0)
+    const iframe = frame()
+    // Chrome may close a modal dialog on Escape without a cancelable cancel event.
+    act(() => (windowElement() as HTMLDialogElement).close())
+    await waitFor(() => expect(url()).toBe(PATH))
+    expect(iframe.isConnected).toBe(false)
+    expect(dialogs()).toHaveLength(0)
+    expect(document.documentElement.style.overflow).toBe('')
+    expect(inCard(0).getByRole('button', { name: 'View in 3D' })).toHaveFocus()
+  })
+
+  it('ignores a close event while the dialog is still open', async () => {
+    stubWebGL2()
+    await site()
+    await open(0)
+    act(() => {
+      windowElement().dispatchEvent(new Event('close'))
+    })
+    expect(openDialogs()).toHaveLength(1)
+    expect(frames()).toHaveLength(1)
+  })
+
   it('closes on an Escape forwarded from inside the 3D view', async () => {
     stubWebGL2()
     await site()
