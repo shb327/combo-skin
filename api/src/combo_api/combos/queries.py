@@ -163,6 +163,16 @@ async def insert(db: AsyncSession, rows: list[Combo]) -> None:
             return
 
 
+async def lock(db: AsyncSession, public_ids: list[str]) -> dict[str, Combo]:
+    """The combos with these ids, by id, locked until the transaction ends. Rows are locked in
+    the table's id order, whatever the request's order, so two requests over the same combos
+    cannot each hold a row the other waits for."""
+    rows = await db.scalars(
+        select(Combo).where(Combo.public_id.in_(public_ids)).order_by(Combo.id).with_for_update()
+    )
+    return {row.public_id: row for row in rows}
+
+
 async def pairing_exists(db: AsyncSession, glove: Finish, knife: Finish) -> bool:
     found = await db.scalar(
         select(Combo.id).where(Combo.glove_finish_id == glove.id, Combo.knife_finish_id == knife.id)

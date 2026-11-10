@@ -92,9 +92,10 @@ async def save(
         creates.append((entry, finish, agent))
 
     updates: list[tuple[BatchUpdate, Combo]] = []
+    rows = await queries.lock(db, [change.id for change in batch.update])
     for index, change in enumerate(batch.update):
         id_loc: rules.Loc = ("body", "update", index, "id")
-        row = await db.scalar(select(Combo).where(Combo.public_id == change.id).with_for_update())
+        row = rows.get(change.id)
         if row is None:
             problems.add(id_loc, "combo_not_found", "No combo has this id")
             continue

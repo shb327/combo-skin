@@ -293,16 +293,16 @@ async def remove_combo(
 
 
 async def locked_ids(db: AsyncSession, ids: list[str]) -> list[Combo]:
-    """The combos with these ids, locked; 422 naming each unknown id."""
-    rows = (await db.scalars(select(Combo).where(Combo.public_id.in_(ids)).with_for_update())).all()
-    known = {row.public_id for row in rows}
+    """The combos with these ids, locked in id order; 422 naming each unknown id."""
+    rows = await queries.lock(db, ids)
+    known = set(rows)
     problems = rules.Problems()
     for index, public_id in enumerate(ids):
         if public_id not in known:
             problems.add(("body", "ids", index), "combo_not_found", "No combo has this id")
     if problems.errors:
         raise problems.error()
-    return list(rows)
+    return list(rows.values())
 
 
 async def set_status(
@@ -328,7 +328,7 @@ async def publish_combos(request: PublishRequest, current: AdminDep, db: Session
     if request.ids is not None:
         rows = await locked_ids(db, request.ids)
     else:
-        query = select(Combo).where(Combo.status == "draft").with_for_update()
+        query = select(Combo).where(Combo.status == "draft").order_by(Combo.id).with_for_update()
         rows = list((await db.scalars(query)).all())
     changed = await set_status(db, rows, "published", current)
     logger.info("combos published admin=%s ids=%s", current.username, ",".join(changed))
