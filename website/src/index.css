@@ -23,11 +23,20 @@ body {
   min-height: 100vh;
 }
 
-/* The 3D window's view on a larger screen: 16:9, at most 88% of the screen's width and 1400 px,
-   and short enough that the window's name row, view and controls fit in 86% of its height. */
+/* The 3D window on a larger screen: as wide as the page's content column (the same side gutters
+   as the cards behind it), and narrower when that is needed for the name row, the 16:9 view and the
+   controls to fit in 86% of the screen's height. 26px is the window's padding and border. */
+.viewer-window {
+  --page-gutter: 4rem;
+}
+@media (min-width: 1024px) {
+  .viewer-window {
+    --page-gutter: 11rem;
+  }
+}
 @media (min-width: 768px) and (min-height: 500px) {
-  .viewer-window-view {
-    width: min(1400px, 88vw, calc((86dvh - 7.75rem) * 16 / 9));
+  .viewer-window {
+    width: min(100% - 2 * var(--page-gutter), (86dvh - 7.75rem) * 16 / 9 + 26px);
   }
 }
 

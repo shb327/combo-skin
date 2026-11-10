@@ -24,7 +24,7 @@ import { ViewerControls } from './ViewerControls'
 export type OnViewerLoaded = (view: { comboId: string; ms: number | null }) => void
 
 /** The screenshot's width in the window. */
-const SIZES = '(min-width: 768px) min(1400px, 88vw), 100vw'
+const SIZES = '(min-width: 1024px) calc(100vw - 378px), (min-width: 768px) calc(100vw - 154px), 100vw'
 const FADE_MS = 200
 
 const HEADER_BUTTON =
@@ -118,8 +118,8 @@ export default function ViewerWindow({
       }}
       onKeyDown={onKeyDown}
       className={
-        'm-0 p-0 w-full max-w-none h-[100dvh] max-h-none bg-background text-white open:flex ' +
-        'backdrop:bg-black/70 roomy:m-auto roomy:w-fit roomy:h-fit roomy:max-h-[100dvh] roomy:max-w-[100vw] ' +
+        'viewer-window m-0 p-0 w-full max-w-none h-[100dvh] max-h-none bg-background text-white open:flex ' +
+        'backdrop:bg-black/70 roomy:m-auto roomy:h-fit roomy:max-h-[100dvh] roomy:max-w-[100vw] ' +
         'roomy:rounded-xl roomy:border roomy:border-white/10'
       }
     >
