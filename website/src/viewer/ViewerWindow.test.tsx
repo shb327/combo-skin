@@ -15,7 +15,6 @@ import {
   frames,
   recordPosts,
   send,
-  stubClipboard,
   stubDataSaver,
   stubFullscreen,
   stubMatchMedia,
@@ -466,14 +465,11 @@ describe('the window’s address', () => {
     expect(dialogs()).toHaveLength(0)
   })
 
-  it('Copy link copies the page’s address with the window', async () => {
+  it('has no Copy link: the address bar holds the same link', async () => {
     stubWebGL2()
-    const writeText = stubClipboard()
     await site()
     await open(0)
-    await userEvent.click(inWindow().getByRole('button', { name: 'Copy link' }))
-    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}${PATH}?3d=${A_ID}`)
-    expect(await screen.findByText('Link copied')).toBeInTheDocument()
+    expect(inWindow().queryByRole('button', { name: /copy/i })).not.toBeInTheDocument()
   })
 })
 

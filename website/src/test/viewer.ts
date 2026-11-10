@@ -48,20 +48,12 @@ export function stubFullscreen({ events = true }: { events?: boolean } = {}) {
   return { request, exit }
 }
 
-/** A clipboard recording what is written to it. */
-export function stubClipboard() {
-  const writeText = vi.fn(() => Promise.resolve())
-  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
-  return writeText
-}
-
-/** Undoes `stubFullscreen`, `stubDataSaver` and `stubClipboard`, which `vi.restoreAllMocks` does
- * not. */
+/** Undoes `stubFullscreen` and `stubDataSaver`, which `vi.restoreAllMocks` does not. */
 export function unstubBrowser() {
   for (const [target, names] of [
     [document, ['fullscreenEnabled', 'fullscreenElement', 'exitFullscreen']],
     [HTMLElement.prototype, ['requestFullscreen']],
-    [navigator, ['connection', 'clipboard']],
+    [navigator, ['connection']],
   ] as const) {
     for (const name of names) {
       if (Object.getOwnPropertyDescriptor(target, name)?.configurable) {

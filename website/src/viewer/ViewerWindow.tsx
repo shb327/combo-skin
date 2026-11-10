@@ -8,7 +8,7 @@
  * frame. Closing (Close, Escape, Escape forwarded from inside the view, Back, leaving the page)
  * goes through `onClose`, which the host turns into the address and the visit's state. */
 import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
-import { Link, Maximize2, Minimize2, X } from 'lucide-react'
+import { Maximize2, Minimize2, X } from 'lucide-react'
 import type { PublicCombo } from '@/api/client'
 import { ComboImage } from '@/components/ComboImage'
 import { itemName } from '@/components/comboText'
@@ -40,13 +40,10 @@ const touchFirst = () =>
 
 export default function ViewerWindow({
   combo,
-  href,
   onClose,
   onLoaded,
 }: {
   combo: PublicCombo
-  /** The page's address with this window open, for "Copy link". */
-  href: string
   onClose(): void
   onLoaded?: OnViewerLoaded
 }) {
@@ -144,7 +141,7 @@ export default function ViewerWindow({
               {combo.rating}
             </span>
           </div>
-          <HeaderButtons frame={frame} href={href} closeButton={closeButton} onClose={onClose} />
+          <HeaderButtons frame={frame} closeButton={closeButton} onClose={onClose} />
         </div>
         {active && (
           <WindowBody
@@ -163,34 +160,23 @@ export default function ViewerWindow({
   )
 }
 
-/** Copy link, full screen (on the window's contents, where the browser allows it on an element)
- * and Close. */
+/** Full screen (on the window's contents, where the browser allows it on an element) and Close. */
 function HeaderButtons({
   frame,
-  href,
   closeButton,
   onClose,
 }: {
   frame: RefObject<HTMLDivElement | null>
-  href: string
   closeButton: RefObject<HTMLButtonElement | null>
   onClose(): void
 }) {
   const [fullscreen, setFullscreen] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const canCopy = typeof navigator.clipboard?.writeText === 'function'
 
   useEffect(() => {
     const onChange = () => setFullscreen(document.fullscreenElement === frame.current)
     document.addEventListener('fullscreenchange', onChange)
     return () => document.removeEventListener('fullscreenchange', onChange)
   }, [frame])
-
-  useEffect(() => {
-    if (!copied) return
-    const timer = setTimeout(() => setCopied(false), 2000)
-    return () => clearTimeout(timer)
-  }, [copied])
 
   // Decided by the document, not the label, in case a `fullscreenchange` is still to come.
   const toggle = () => {
@@ -203,21 +189,8 @@ function HeaderButtons({
     }
   }
 
-  const copy = () => {
-    navigator.clipboard.writeText(href).then(
-      () => setCopied(true),
-      () => {},
-    )
-  }
-
   return (
     <div className="flex gap-1 shrink-0 short:drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-      {canCopy && (
-        <button type="button" aria-label="Copy link" title="Copy link" onClick={copy} className={HEADER_BUTTON}>
-          <Link aria-hidden className="w-4 h-4" />
-          <span className="hidden roomy:inline">{copied ? 'Copied' : 'Copy link'}</span>
-        </button>
-      )}
       {document.fullscreenEnabled && (
         <button
           type="button"
@@ -232,9 +205,6 @@ function HeaderButtons({
       <button ref={closeButton} type="button" aria-label="Close" title="Close" onClick={onClose} className={HEADER_BUTTON}>
         <X aria-hidden className="w-5 h-5" />
       </button>
-      <span role="status" className="sr-only">
-        {copied ? 'Link copied' : ''}
-      </span>
     </div>
   )
 }

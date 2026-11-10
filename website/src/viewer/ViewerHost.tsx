@@ -99,14 +99,12 @@ export function ViewerHost({
     [dispatch],
   )
 
-  const href = combo ? `${window.location.origin}${location.pathname}?${PARAM}=${combo.id}` : ''
-
   return (
     <OpenContext.Provider value={open}>
       {children}
       {combo && (
         <Suspense fallback={null}>
-          <ViewerWindow combo={combo} href={href} onClose={close} onLoaded={onLoaded} />
+          <ViewerWindow combo={combo} onClose={close} onLoaded={onLoaded} />
         </Suspense>
       )}
     </OpenContext.Provider>
