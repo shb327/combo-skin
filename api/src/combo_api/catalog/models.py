@@ -42,7 +42,8 @@ class Finish(Base):
     __table_args__ = (
         CheckConstraint(
             "(float_min IS NULL AND float_max IS NULL) OR "
-            "(float_min >= 0 AND float_min < float_max AND float_max <= 1)",
+            "(float_min IS NOT NULL AND float_max IS NOT NULL AND float_min >= 0 "
+            "AND float_min < float_max AND float_max <= 1)",
             name="float_range",
         ),
         UniqueConstraint("item_type_id", "paint_index"),
