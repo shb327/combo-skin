@@ -1,6 +1,7 @@
-/** The viewer's events, as the page reads them (the viewer's embed contract, protocol version 1),
- * and the page's own text for each failure. Anything that is not a known, well-formed event is
- * ignored; the viewer's own `message` is never shown. */
+/** The viewer's events, as the page reads them (the viewer's embed contract, protocol versions 1
+ * and 2), and the page's own text for each failure. Anything that is not a known, well-formed
+ * event is ignored; the viewer's own `message` is never shown. */
+import { readCapabilities, type Capabilities } from './features'
 
 /** The viewer's origin, checked and defaulted by vite.config.ts. */
 export const VIEWER_ORIGIN = import.meta.env.VITE_VIEWER_ORIGIN
@@ -16,13 +17,25 @@ export function newId(): string {
   return Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('')
 }
 
+/** The game's actions a knife can play in the viewer. */
+export type Action = 'inspect' | 'light' | 'heavy'
+const ACTIONS: readonly Action[] = ['inspect', 'light', 'heavy']
+
 export type ViewerEvent =
-  | { type: 'cs3d:ready'; id: null; webgl2: boolean }
+  | { type: 'cs3d:ready'; id: null; webgl2: boolean; capabilities: Capabilities }
   | { type: 'cs3d:progress'; id: string | null; loaded: number; total: number }
-  | { type: 'cs3d:loaded'; id: string | null; ms: number | null }
-  | { type: 'cs3d:error'; id: string | null; code: string; retryable: boolean }
+  | {
+      type: 'cs3d:loaded'
+      id: string | null
+      ms: number | null
+      /** The actions built for the knife drawn; null from a viewer that does not say. */
+      actions: Action[] | null
+      map: string | null
+    }
+  | { type: 'cs3d:error'; id: string | null; code: string; retryable: boolean; kept: boolean }
   | { type: 'cs3d:recovering'; id: string | null }
   | { type: 'cs3d:state'; id: string | null }
+  | { type: 'cs3d:key'; id: string | null; key: string }
 
 const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 
@@ -35,17 +48,29 @@ export function readEvent(data: unknown): ViewerEvent | null {
   if (id !== null && typeof id !== 'string') return null
   switch (m.type) {
     case 'cs3d:ready':
-      return typeof m.webgl2 === 'boolean' ? { type: m.type, id: null, webgl2: m.webgl2 } : null
+      return typeof m.webgl2 === 'boolean'
+        ? { type: m.type, id: null, webgl2: m.webgl2, capabilities: readCapabilities(m) }
+        : null
     case 'cs3d:progress':
       return isNumber(m.loaded) && isNumber(m.total)
         ? { type: m.type, id, loaded: m.loaded, total: m.total }
         : null
     case 'cs3d:loaded':
-      return { type: m.type, id, ms: isNumber(m.ms) ? m.ms : null }
+      return {
+        type: m.type,
+        id,
+        ms: isNumber(m.ms) ? m.ms : null,
+        actions: Array.isArray(m.actions)
+          ? ACTIONS.filter((action) => (m.actions as unknown[]).includes(action))
+          : null,
+        map: typeof m.map === 'string' ? m.map : null,
+      }
     case 'cs3d:error':
       return typeof m.code === 'string' && typeof m.retryable === 'boolean'
-        ? { type: m.type, id, code: m.code, retryable: m.retryable }
+        ? { type: m.type, id, code: m.code, retryable: m.retryable, kept: m.kept === true }
         : null
+    case 'cs3d:key':
+      return typeof m.key === 'string' ? { type: m.type, id, key: m.key } : null
     case 'cs3d:recovering':
     case 'cs3d:state':
       return { type: m.type, id }
@@ -69,6 +94,11 @@ export function failureFor(code: string, retryable: boolean): Failure {
   if (code === 'no-webgl2') {
     return { kind: 'no-webgl2', text: "3D isn't available in this browser.", retryable: false }
   }
+  // An agent or a map the viewer refuses is the visitor's choice, not the combo: the window
+  // falls back to the default (unavailableText), and the combo stays drawable.
+  if (code === 'unknown-agent' || code === 'unknown-map') {
+    return { kind: 'other', text: NOT_LOADED, retryable: false }
+  }
   if (code === 'bad-params' || code.startsWith('unknown-')) {
     return { kind: 'cannot-draw', text: "This combo can't be shown in 3D.", retryable: false }
   }
@@ -79,4 +109,12 @@ export function failureFor(code: string, retryable: boolean): Failure {
     return { kind: 'other', text: NOT_LOADED, retryable: true }
   }
   return { kind: 'other', text: NOT_LOADED, retryable }
+}
+
+/** The note for an agent or a map the viewer refused, which the window replaces with the
+ * default; null for any other code. */
+export function unavailableText(code: string): string | null {
+  if (code === 'unknown-agent') return "That agent isn't available."
+  if (code === 'unknown-map') return "That map isn't available."
+  return null
 }

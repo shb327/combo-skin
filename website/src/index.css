@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* The 3D window's layouts: "roomy" on desktops and tablets, "short" on a phone held sideways. */
+@custom-variant roomy (@media (min-width: 768px) and (min-height: 500px));
+@custom-variant short (@media (max-height: 499px));
+
 @theme {
   --color-background: #0A0A0C;
   --color-accent: #00DE12;
@@ -17,4 +21,34 @@
 body {
   margin: 0;
   min-height: 100vh;
+}
+
+/* The 3D window on a larger screen: as wide as the page's content column (the same side gutters
+   as the cards behind it), and narrower when that is needed for the name row, the 16:9 view and the
+   controls to fit in 86% of the screen's height. 26px is the window's padding and border. */
+.viewer-window {
+  --page-gutter: 4rem;
+}
+@media (min-width: 1024px) {
+  .viewer-window {
+    --page-gutter: 11rem;
+  }
+}
+@media (min-width: 768px) and (min-height: 500px) {
+  .viewer-window {
+    width: min(100% - 2 * var(--page-gutter), (86dvh - 7.75rem) * 16 / 9 + 26px);
+  }
+}
+
+/* In full screen the window's contents fill the screen: the view takes the space between the name
+   row and the controls, at any shape (the viewer keeps its angles). */
+.viewer-window-frame:fullscreen {
+  padding: 0.75rem;
+  gap: 0.5rem;
+}
+.viewer-window-frame:fullscreen .viewer-window-view {
+  width: 100%;
+  flex: 1 1 0;
+  min-height: 0;
+  aspect-ratio: auto;
 }

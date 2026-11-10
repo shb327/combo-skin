@@ -79,3 +79,47 @@ def test_export_places_new_finishes_last() -> None:
             rest = [f["id"] for f in item_type["finishes"]][len(website_type["finishes"]) :]
             assert len(rest) == unplaced.get(item_type["id"], 0), item_type["id"]
             assert not set(rest) & set(website_type["finishes"])
+
+
+def test_agents_export() -> None:
+    data = json.loads(export.render_agents(SNAPSHOT))
+    assert data["source"] == {"commit": SNAPSHOT.source.commit}
+    agents = data["agents"]
+    assert len(agents) == 63
+    assert [a["team"] for a in agents] == ["ct"] * 29 + ["t"] * 34
+    for team in ("ct", "t"):
+        names = [a["name"] for a in agents if a["team"] == team]
+        assert names == sorted(names, key=str.casefold)
+    assert all(set(a) == {"def_index", "name", "team", "image"} for a in agents)
+    ricksaw = next(a for a in agents if a["def_index"] == 5404)
+    assert ricksaw["name"] == "Lt. Commander Ricksaw | NSWC SEAL"
+    assert ricksaw["team"] == "ct"
+    assert ricksaw["image"].startswith("https://")
+
+
+def test_agents_export_leaves_out_retired_agents() -> None:
+    first = SNAPSHOT.agents[0]
+    retired = SNAPSHOT.model_copy(
+        update={"agents": (first.model_copy(update={"retired": True}), *SNAPSHOT.agents[1:])}
+    )
+    data = json.loads(export.render_agents(retired))
+    assert first.def_index not in [a["def_index"] for a in data["agents"]]
+    assert len(data["agents"]) == 62
+
+
+def test_agents_export_is_up_to_date_and_checked(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert export.AGENTS_EXPORT.read_text() == export.render_agents(SNAPSHOT)
+    stale = tmp_path / "agents.json"
+    stale.write_text(export.AGENTS_EXPORT.read_text().replace("Ricksaw", "Rick"))
+    assert main(["export-website", "--check", "--agents-output", str(stale)]) == 1
+    assert "agents.json is out of date" in capsys.readouterr().err
+    assert main(["export-website", "--agents-output", str(stale)]) == 0
+    assert main(["export-website", "--check", "--agents-output", str(stale)]) == 0
+    assert stale.read_text() == export.AGENTS_EXPORT.read_text()
+
+
+def test_agents_export_is_missing(tmp_path: Path) -> None:
+    missing = tmp_path / "agents.json"
+    assert main(["export-website", "--check", "--agents-output", str(missing)]) == 1

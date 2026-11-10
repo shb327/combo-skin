@@ -108,10 +108,10 @@ Commands, from `api/`:
 ```bash
 uv run python -m combo_api.catalog refresh --commit <sha>    # rewrite snapshot.json (network)
 uv run python -m combo_api.catalog import                   # load snapshot.json into the database
-uv run python -m combo_api.catalog export-website           # write website/src/data/catalog.json
+uv run python -m combo_api.catalog export-website           # write website/src/data/catalog.json and agents.json
 ```
 
-Only `refresh` uses the network. `import` needs the database; `export-website` needs neither. CI runs `export-website --check` and fails if the website's copy is out of date. In Compose, the one-shot `catalog` service runs `import` after `migrate` and before the API starts.
+Only `refresh` uses the network. `import` needs the database; `export-website` needs neither. `export-website` writes two files for the website: `catalog.json` (the glove and knife types and finishes) and, beside it, `agents.json` (each agent's definition index, name, team and picture, Counter-Terrorists first, then Terrorists, each by name), which the website loads only with its 3D window. No API route serves agents publicly: `agents.json` is public game data from the same dataset. CI runs `export-website --check` and fails if either file is out of date. In Compose, the one-shot `catalog` service runs `import` after `migrate` and before the API starts.
 
 **Slugs** come from English names: lowercase, apostrophes removed, other runs of punctuation and spaces turned into `-`; type slugs drop a trailing "Knife" or "Gloves" (`bowie`, `broken-fang`), and phases are part of the finish slug (`doppler-phase-2`). Once assigned, a slug never changes: `refresh` keeps the slug of every finish already in the snapshot, and `import` refuses a snapshot that would change or reuse a stored slug. If two new finishes of one type would get the same slug, `refresh` fails and names both; add an override.
 
@@ -119,7 +119,7 @@ Only `refresh` uses the network. `import` needs the database; `export-website` n
 
 1. Find the dataset's latest commit on GitHub and run `refresh --commit <full sha>`. It fails without writing anything if the data does not validate.
 2. Review the `snapshot.json` diff and what `refresh` printed: the types, finishes and agents retired since the previous snapshot, those back in the game, and the finishes not placed in `display_order.json` yet. Place new finishes in `display_order.json`, or leave them last. Retired ones can stay listed there: they are skipped.
-3. Run `export-website`, then `import`, and commit the three files together.
+3. Run `export-website`, then `import`, and commit `snapshot.json`, `display_order.json` and both exported files together.
 
 **Retired entries.** A type, finish or agent that leaves the game is not removed from `snapshot.json`: `refresh` keeps it as it was last seen, with `"retired": true` (every entry has the flag). Its slug stays taken, so no later finish can take over its URL, and it comes back with the same slug if the game brings it back. Retired entries are left out of the website export, the type lists and the type pages; the single-finish endpoint still returns them, with `active: false`, and says whether their type is still in the game (`item_type.active`).
 
