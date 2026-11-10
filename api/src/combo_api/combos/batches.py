@@ -61,7 +61,10 @@ async def save(
     """Check the whole batch, then write it: the ids created and updated, in request order.
     Nothing is written if any item is refused."""
     problems = rules.Problems()
-    glove = await rules.resolve(db, "glove", batch.glove, ("body", "glove"), problems, new=True)
+    # A retired glove finish refuses new combos only: its existing ones can still be updated.
+    glove = await rules.resolve(
+        db, "glove", batch.glove, ("body", "glove"), problems, new=bool(batch.create)
+    )
     glove_finish = glove[0] if glove else None
     knife_types: set[int] = set()
 
