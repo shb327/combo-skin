@@ -1,6 +1,6 @@
 # 018: View in 3D in a full window
 
-**Status:** Approved
+**Status:** Implemented
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** website, api
@@ -347,7 +347,82 @@ None. On 2026-11-09 the owner accepted every recommendation of the draft: the wi
 
 ## Implementation notes
 
-Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+Built in the order of the acceptance criteria, against the hosted viewer (protocol version 2, with the attack animations built, so criterion 21's swing steps ran). Website test paths are relative to `website/src/`.
+
+**Criterion to check**
+
+| Criterion | Covered by |
+| --- | --- |
+| 1 | `api/tests/catalog/test_export.py:84` `test_agents_export` (commit, 63 agents, `ct` then `t` by name, the four fields, Ricksaw 5404 `ct`), `:100` `test_agents_export_leaves_out_retired_agents`, `:110` `test_agents_export_is_up_to_date_and_checked` (`--check` exits 0, and 1 naming the file after a change), `:123` (the file missing) |
+| 2 | `git diff main... -- api/openapi.json` prints nothing; `api/tests/combos/test_agents.py:267` `test_public_responses_have_no_agent`, unchanged |
+| 3 | `viewer/ViewerWindow.test.tsx:58` (every card, no iframe, no dialog, nothing posted or requested), `:73` (no WebGL2); `viewer/webgl.test.ts` |
+| 4 | `viewer/ViewerWindow.test.tsx:80` (one modal dialog, `showModal`, the label, name and rating, the card's screenshot, the iframe's address, sandbox and title, focus on Close, `overflow: hidden`), `:107` |
+| 5 | `viewer/params.test.ts:42`, `:53` (agent and map after `input=game`, nothing for the defaults), `:62`, `:72`, `:80`, `:88` (no `view`, `debug`, `capture` or combo id), `:119` |
+| 6 | `viewer/ViewerWindow.test.tsx:123` (progress, the 200 ms fade, removal, "3D view ready"), `:143` (reduced motion), `:203` |
+| 7 | `viewer/ViewerWindow.test.tsx:216` (Close), `:250` (`cancel`), `:286` (forwarded Escape, later events ignored), `:315` (full screen), `:325` (Back), `:261`, `:275`, `:179` (another origin, source or key); `viewer/ViewerControls.test.tsx:369` (agent list), `:246` (map list) |
+| 8 | `viewer/ViewerWindow.test.tsx:372`, `:394`, `:406` (not shown when `fullscreenEnabled` is false); full screen is on the window's inner wrapper, see the deviations |
+| 9 | `viewer/ViewerControls.test.tsx:65` (labels, hints, disabled before `loaded`), `:83` (posts to the viewer's origin only), `:98` (F, not in the agent search), `:109` (`["inspect"]`), `:116` (touch-first) |
+| 10 | `viewer/ViewerControls.test.tsx:133` (protocol version 1, and `features` not a list); `viewer/features.test.ts:48` |
+| 11 | `viewer/ViewerControls.test.tsx:160`, `:167` (a new id, the same fields and `map`, earlier events ignored, marked after `loaded`), `:188` (`unknown-map`), `:202` (no studio), `:207` (`<b>x</b>` as text), `:213` (bad id, long name, control character, 33 entries, a string); `:226`, `:238`, `:246` (the map list's keys); `viewer/features.test.ts:54`, `:60`, `:65`, `:78` |
+| 12 | `viewer/ViewerControls.test.tsx:259` (order, groups, pictures with `no-referrer`, none before the list opens), `:281` (both lists), `:288` (type, Down, Enter; Default without `agent`), `:304` (`unknown-agent`), `:320` (`kept: true`, Try again), `:336`, `:354`; `viewer/agents.test.ts:10`, `:27`, `:33`, `:39` |
+| 13 | `viewer/ViewerControls.test.tsx:382` (another card and another finish page, a fresh render, no storage or cookie) |
+| 14 | `viewer/ViewerWindow.test.tsx:415`, `:427` (linked window, also without a small screen), `:442`, `:462`; `:468` replaces the Copy link step, see the deviations |
+| 15 | `viewer/ViewerWindow.test.tsx:477`, `:499`, `:511`; `viewer/webgl.test.ts:36` |
+| 16 | `viewer/ViewerWindow.test.tsx:521` (`assets-unavailable`, `context-lost`), `:543` (the five "can't be shown" codes, the button gone), `:561`, `:570` (the viewer's message never shown), `:594`, `:623` (15 s), `:662` (60 s loading), `:677`, `:692`, `:705`; `viewer/ViewerControls.test.tsx:336` (60 s during an agent change); `viewer/messages.test.ts:87`, `:118` (agent and map codes never hide the button) |
+| 17 | The three greps, below |
+| 18 | Manual, below |
+| 19 | `website/README.md` and `api/README.md` read; `git diff main... -- docs/specs/012-* docs/specs/016-*` prints nothing |
+| 20 | Fresh clone, below |
+| 21 | Manual, below |
+| 22 | gitleaks and the URL command, below; the workflow runs after the push |
+
+**Agreed deviations**
+
+- Full screen (2026-11-09, owner's choice). Criterion 8 says "Full screen" calls `requestFullscreen` on the dialog. Chrome refuses full screen on a modal `<dialog>` (the request is rejected), so it targets the window's inner wrapper, which holds the name row, the view and the controls. The controls stay visible in full screen as Design intends.
+- Copy link removed (2026-11-10, owner's decision). R15 and criterion 14 ask for a "Copy link" button. Opening the window already puts `?3d=<combo id>` in the address bar, so the button repeated what the address bar gives. The window's header has Full screen and Close only. Criterion 14's clipboard step is replaced by `ViewerWindow.test.tsx:468`, and criterion 21's "a copied link" step was run with the address bar's link.
+- Window size (2026-11-10, owner's request after trying it on a laptop). Design gives the desktop view at most 1600 px and 94% of the screen's width, with the window in 92% of its height. The window is now as wide as the page's content column, so its edges line up with the cards behind it (the page's own 64 px and 176 px side gutters), and narrower where the name row, the 16:9 view and the controls must fit in 86% of the screen's height. At 1440 by 900 the window is 1088 px wide from x 176, as the cards are, and the view 1062 by 597 (criterion 18 expected about 1260 px wide).
+- Map menu (2026-11-10, owner's choice). Design has a native `<select>` for "Map". It is now a button and a list styled like the agent list: arrows, Home, End, Enter or Space, and Escape closes the list only. The website has no component library to take a menu from, so it is built in `ViewerControls.tsx` with no new dependency. Choosing the map already drawn loads nothing.
+- Header focus (2026-11-10, owner's request). Focus on Full screen and Close shows as the hover's background instead of an outline, since Close takes focus when the window opens.
+- Agent list (2026-11-10, owner's request). On desktop the list stands 12 px in from the view's right edge and above its bottom edge.
+
+**Details settled while building**
+
+- The desktop window is sized to its content, not the full screen: the first build filled the screen.
+- On a phone the controls wrap so the agent button stays on screen; at 812 by 375 the name row is hidden and its buttons sit over the view.
+- On touch-first devices the agent list opens with focus on the list, not the search box, so the on-screen keyboard does not cover it; Escape still closes it.
+- Chrome sometimes closes the dialog on Escape without a `cancel` event. The window then cleans up the same way (iframe, address, scroll lock, focus): `ViewerWindow.test.tsx:261`.
+- `onLoaded` is passed from `ViewerHost`, which owns the window; the address helpers are in `viewer/open.ts`.
+- The agent button shows the chosen agent's picture. A linked window (`?3d=`) is stripped from the address when the combo is not on the page, the id is malformed, or there is no WebGL2.
+
+**Chunk sizes** (production build, 2026-11-10)
+
+- Main chunk: 409.44 kB (129.95 kB gzipped), against 413.39 kB (130.71 kB gzipped) on `main`: 0.76 kB smaller gzipped, since the window's code moved out of it.
+- Window chunk (`ViewerWindow`): 43.50 kB (13.61 kB gzipped), with the agent list.
+- Catalog chunk unchanged at 214.64 kB (47.48 kB gzipped). No chunk-size warning.
+
+**Manual checks** (2026-11-09 and 2026-11-10, a production build on `localhost:4173` with `VITE_VIEWER_ORIGIN` set to the hosted viewer; the API read from a local stack, read-only)
+
+- Criterion 18, headless Chrome 156 at 1440 by 900: the view is 16:9, 1062 by 597 after the size change (1252 by 704 before it), with the window lined up with the cards, the page dimmed behind, the wheel does not scroll the page. In device mode at 375 by 812 the window fills the screen with the name row on top and the controls at the bottom, nothing overflows and every button is at least 44 px tall; at 812 by 375 the name row is hidden and the controls fit in one row.
+- Criterion 21, Chrome: the window opens; the screenshot fades into the view in about 200 ms with no empty frame; Inspect, Light swing and Heavy swing play by button, F, left click and right click, with no context menu; the mouse does not turn the camera; Map lists Vertigo only; Bloody Darryl The Strapped (4613) changes the arms with the knife and gloves unchanged, and the next combo opens on him; Escape after clicking into the view closes the window; Back closes it; the address bar's link opened in a new tab shows "Load 3D view". No console errors.
+- Criterion 21, Firefox and Safari on desktop: checked by the owner on 2026-11-10, pass.
+- Criterion 21, iOS Simulator (iPhone 17 Pro, iOS 26.3, Safari): the full-screen layout, the 34 MB warning first, Vertigo drawn and the only map (no studio), and the buttons play the actions.
+- Criterion 21, protocol version 1: the viewer of spec 016 (commit `4c96d8c`) built and served locally from a temporary clone, deleted afterwards. It reports version 1; only Inspect, Full screen and Close show, Inspect plays, Close and Escape work, and there are no console errors.
+
+**Results**
+
+On a fresh clone of the branch at `936e2f4`, with no `.env` (2026-11-10):
+
+- `website/`: `npm ci`, `api:types:check` and lint pass; 286 tests in 14 files pass; the build passes with no chunk-size warning.
+- `admin/`: `npm ci` and `api:types:check` pass; 366 tests in 27 files pass.
+- `api/` (with the Compose database of a separate project): ruff format (119 files formatted), ruff check, mypy (111 files) pass; pytest 459 passed, none skipped; the OpenAPI and `export-website` checks pass.
+- Criterion 17: `grep -rn "dangerouslySetInnerHTML" src` prints nothing; `postMessage` outside tests is only `src/viewer/ComboViewer.tsx:84`, to `VIEWER_ORIGIN`; `localStorage` and `sessionStorage` appear only in tests.
+- Criterion 22: `gitleaks git` over the branch's 21 commits finds no leaks. The URL command lists `localhost`, `example.com` placeholders, the game's image host (the agents' pictures) and the viewer's public documentation.
+
+**Follow-ups**
+
+- On iOS 26 a strip of the page shows under Safari's floating toolbar, below the window. It needs `viewport-fit=cover` site-wide, outside this spec.
+- The view's hands sway with the mouse (the viewer's viewmodel sway). The viewer should turn it off with `input=game`; that is a change in the viewer repository.
+- Known limit, not a bug: on a phone held upright Vertigo's background is cropped at the sides, since the view fills a tall screen.
 
 ## Audit
 
