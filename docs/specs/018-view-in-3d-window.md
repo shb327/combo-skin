@@ -1,6 +1,6 @@
 # 018: View in 3D in a full window
 
-**Status:** Implemented
+**Status:** Audited
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** website, api
@@ -426,4 +426,49 @@ On a fresh clone of the branch at `936e2f4`, with no `.env` (2026-11-10):
 
 ## Audit
 
-Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
+**Date:** 2026-11-10 · **Branch:** 018-view-in-3d-window · **Commit:** af693ab
+**Verdict:** Pass with follow-ups
+
+The code is the same as at `936e2f4`; the two commits since change only this spec. Each test named below was read against its criterion and run (`npx vitest run src/viewer src/pages/Combos.test.tsx`: 174 passed).
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | `agents.json` export and its check | Pass | `api/tests/catalog/test_export.py:84`, `:100`, `:110`, `:123`, `uv run pytest`; `export-website --check` exits 0, and 1 with "agents.json is out of date" after a name in the file was changed |
+| 2 | No public API change | Pass | `git diff main... -- api/openapi.json` prints nothing; `api/tests/combos/test_agents.py:267` unchanged and passing |
+| 3 | Button only with WebGL2, nothing before a click | Pass | `website/src/viewer/ViewerWindow.test.tsx:58`, `:73` |
+| 4 | One modal window, label, rating, iframe, focus, overflow | Pass | `ViewerWindow.test.tsx:80` |
+| 5 | Viewer address | Pass | `website/src/viewer/params.test.ts:42`, `:53`, `:62`, `:72`, `:80`, `:88`, `:119` |
+| 6 | Progress, 200 ms fade, reduced motion | Pass | `ViewerWindow.test.tsx:123`, `:143` |
+| 7 | Close, `cancel`, forwarded Escape, Back; ignored keys; full screen; open list | Pass | `ViewerWindow.test.tsx:216`, `:250`, `:286`, `:300`, `:315`, `:325`; `ViewerControls.test.tsx:246`, `:369` |
+| 8 | Full screen | Pass (agreed deviation) | `ViewerWindow.test.tsx:372`, `:394`, `:406`; requested on the window's inner wrapper, not the dialog, as recorded |
+| 9 | Actions, hints, F, `actions` list, touch | Pass | `website/src/viewer/ViewerControls.test.tsx:65`, `:83`, `:98`, `:109`, `:116` |
+| 10 | Version 1 viewer, `features` not a list | Pass | `ViewerControls.test.tsx:133`; `website/src/viewer/features.test.ts` |
+| 11 | Map list, change, fallback, studio, checks on names | Pass | `ViewerControls.test.tsx:160`, `:167`, `:188`, `:202`, `:207`, `:213`, `:226`, `:238`; `features.test.ts:54`, `:60`, `:65` |
+| 12 | Agent list, keyboard, Default, fallback, `kept` | Pass | `ViewerControls.test.tsx:259`, `:281`, `:288`, `:304`, `:320`; `website/src/viewer/agents.test.ts:10`, `:27` |
+| 13 | Choice remembered for the visit, nothing stored | Pass | `ViewerControls.test.tsx:382` |
+| 14 | `?3d=` address, Back, linked window | Pass (agreed deviation) | `ViewerWindow.test.tsx:415`, `:427`, `:442`, `:451`, `:462`; "Copy link" removed by the owner, `:468` checks it is absent |
+| 15 | 34 MB warning | Pass | `ViewerWindow.test.tsx:477`, `:499`, `:511` |
+| 16 | Errors and time limits | Pass | `ViewerWindow.test.tsx:521`, `:543`, `:561`, `:570`, `:579`, `:623`, `:662`; `ViewerControls.test.tsx:304`, `:336`; `website/src/viewer/messages.test.ts:118` |
+| 17 | The three greps | Pass | No `dangerouslySetInnerHTML`; `postMessage` outside tests only at `website/src/viewer/ComboViewer.tsx:84`, to `VIEWER_ORIGIN`; no `localStorage` or `sessionStorage` outside tests |
+| 18 | Layout at 1440 by 900, 375 by 812, 812 by 375 | Pass (agreed deviation) | Implementation notes, Manual checks; the view is 1062 by 597 under the owner's smaller size, not about 1260 px wide |
+| 19 | READMEs; specs 012 and 016 not edited | Pass | `website/README.md` covers the layouts, actions and keys, map and agent, the address, an older viewer and nothing stored; `api/README.md` names `agents.json`; `git diff main... -- docs/specs/012-* docs/specs/016-*` prints nothing |
+| 20 | Fresh clone, every section's commands, chunk sizes | Pass | Table below; main chunk 129.95 kB gzipped, 0.76 kB smaller than on `main`; window chunk 13.61 kB gzipped |
+| 21 | Manual end to end | Pass | Implementation notes, Manual checks: Chrome (headless 156), Firefox and Safari (owner), iOS Simulator, the version 1 viewer at `4c96d8c`; swings run, as the attacks are built |
+| 22 | Workflow runs, gitleaks, URLs | Pass, runs pending | gitleaks below; the URL command lists `localhost`, `127.0.0.1`, `example.com` placeholders, the game's image host and the viewer's public docs; the workflow runs are checked after the push |
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Lint | Fresh clone, no `.env`: `website/` `npm ci`, `api:types:check`, `lint`; `admin/` `npm ci`, `api:types:check`; `api/` `uv sync --locked`, `ruff format --check .` (119 files), `ruff check .`, `mypy` (111 files) | Pass |
+| Tests | `website/` `npm test` 286 passed in 14 files; `admin/` `npm test` 366 passed in 27 files; `api/` `uv run pytest` 459 passed, none skipped; `openapi --check` and `export-website --check` exit 0 | Pass |
+| Build | `website/` `npm run build`, no chunk-size warning | Pass |
+| Secret scan | `gitleaks dir .` on a clean clone; `gitleaks git` over `main..018-view-in-3d-window` (22 commits) | Pass |
+| Public exposure | Manual review of the diff and log: no secrets, hosts, IPs or local paths; 22 commits by the owner, one line each, no trailers; `.claude/` and `CLAUDE.md` ignored and untracked | Pass |
+| Design conformance | Manual review | Pass with follow-ups |
+
+**Findings**
+
+- (follow-up) Four agreed deviations change what Requirements and the criteria say: Copy link removed (R15, criterion 14), full screen on the inner wrapper (criterion 8), the smaller window (Design's size, criterion 18), and the map menu built as a list. All are recorded in Implementation notes with the owner's agreement. The owner may want R15, Design and criteria 8, 14 and 18 brought in line.
+- (follow-up) Criterion 7: only Close checks that the iframe is blanked while still in the page and that later events change nothing; the Escape, `cancel` and Back tests check the result (no iframe, no dialog, `overflow` restored). Back's test does not check focus. All four use the same close path.
+- (follow-up) Criterion 12: the agent button shows the chosen agent's picture before the list opens, as Design's picker button has; the list's pictures load only when it opens.
+- (follow-up) Criterion 21's Chrome steps ran in headless Chrome 156 against the hosted viewer; no step-by-step pass in a headed desktop Chrome is recorded.
+- (follow-up) Recorded in Implementation notes: the iOS 26 toolbar strip (needs `viewport-fit=cover` site-wide), the viewmodel sway (a viewer change), and Vertigo cropped at the sides on an upright phone.
