@@ -149,6 +149,10 @@ async def validation_error(request: Request, error: Exception) -> JSONResponse:
     return JSONResponse({"detail": jsonable_encoder(errors)}, status_code=422, headers=headers)
 
 
+# Fields of FastAPI's ValidationError that `validation_error` leaves out of 422 bodies.
+UNSENT_PROBLEM_FIELDS = ("input", "ctx")
+
+
 def admin_login_route() -> APIRoute:
     return next(
         r for r in admins.router.routes if isinstance(r, APIRoute) and r.name == "admin_login"
@@ -205,6 +209,19 @@ def create_app(
     app.add_middleware(AdminCors)
     app.add_middleware(PublicCors)
     app.add_exception_handler(RequestValidationError, validation_error)
+
+    generated = app.openapi
+
+    def openapi() -> dict[str, Any]:
+        """FastAPI's schema, with 422 problems described as `validation_error` sends them."""
+        schema = generated()
+        problem = schema["components"]["schemas"]["ValidationError"]
+        for field in UNSENT_PROBLEM_FIELDS:
+            problem["properties"].pop(field, None)
+        problem["required"] = [f for f in problem["required"] if f not in UNSENT_PROBLEM_FIELDS]
+        return schema
+
+    app.openapi = openapi  # type: ignore[method-assign]
 
     def require_docs(request: Request) -> None:
         if not request.app.state.settings.docs_enabled:

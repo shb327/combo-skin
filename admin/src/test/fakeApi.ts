@@ -99,8 +99,9 @@ export function json(status: number, body: unknown, headers: Record<string, stri
   })
 }
 
+/** An error body. Any code, also ones the API does not declare, as a newer API could send. */
 export function error(status: number, code: string, headers: Record<string, string> = {}) {
-  const body: ErrorBody = { detail: code }
+  const body = { detail: code } as ErrorBody
   return json(status, body, headers)
 }
 

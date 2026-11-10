@@ -922,8 +922,11 @@ export interface components {
         };
         /** Error */
         Error: {
-            /** Detail */
-            detail: string;
+            /**
+             * Detail
+             * @enum {string}
+             */
+            detail: "claim_expired" | "combo_exists" | "combo_not_found" | "combo_published" | "csrf_failed" | "default_agent_missing" | "inputs_changed" | "invalid_credentials" | "job_not_found" | "not_authenticated" | "origin_not_allowed" | "too_large" | "too_many_attempts" | "unsupported_media_type" | "version_conflict" | "worker_exists" | "worker_not_found";
         };
         /** Existing */
         Existing: {
@@ -1342,10 +1345,6 @@ export interface components {
         };
         /** ValidationError */
         ValidationError: {
-            /** Context */
-            ctx?: Record<string, never>;
-            /** Input */
-            input?: unknown;
             /** Location */
             loc: (string | number)[];
             /** Message */
