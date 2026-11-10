@@ -57,7 +57,7 @@ export default function ViewerWindow({
   const name = `${itemName(combo.glove)} with ${itemName(combo.knife)}`
   // Set by the view while an action can be played: F on the window's own controls.
   const inspect = useRef<(() => void) | null>(null)
-  // The agent list is open: it takes Escape first.
+  // A map or agent list is open: it takes Escape first.
   const listOpen = useRef(false)
   const latestClose = useRef(onClose)
   // Whether the window is still meant to be open, for a close the browser makes by itself.
@@ -106,7 +106,7 @@ export default function ViewerWindow({
       aria-labelledby={titleId}
       onCancel={(event) => {
         // Escape on the window's own controls: the same close as the button, so the viewer is
-        // cleaned up. An open agent list keeps it.
+        // cleaned up. An open map or agent list keeps it.
         event.preventDefault()
         if (!listOpen.current) latestClose.current()
       }}
@@ -395,7 +395,7 @@ function WindowBody({
           onPlay={(action) => viewer.current?.play(action)}
           onMap={(map) => change({ ...drawn, map })}
           onAgent={(agent) => change({ ...drawn, agent })}
-          onAgentList={(open) => {
+          onListOpen={(open) => {
             listOpenRef.current = open
           }}
         />

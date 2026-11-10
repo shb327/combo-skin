@@ -43,7 +43,19 @@ async function drawn(ready: Record<string, unknown> = {}, actions: string[] | un
 }
 
 const action = (name: string) => inWindow().queryByRole('button', { name })
-const mapSelect = () => inWindow().queryByRole('combobox', { name: 'Map' })
+const mapButton = () => inWindow().queryByRole('button', { name: /^Map: / })
+const mapList = () => inWindow().queryByRole('listbox', { name: 'Maps' })
+/** Opens the map menu and returns its entries' names. */
+async function mapNames() {
+  await userEvent.click(mapButton()!)
+  return within(mapList()!).getAllByRole('option').map((o) => o.textContent)
+}
+async function chooseMap(name: string) {
+  await userEvent.click(mapButton()!)
+  await userEvent.click(within(mapList()!).getByRole('option', { name }))
+}
+const loads = (posts: { messages(): Record<string, unknown>[] }) =>
+  posts.messages().filter((message) => message.type === 'cs3d:load')
 const agentButton = () => inWindow().getByRole('button', { name: /^Agent: / })
 /** The item fields of combo A, as `cs3d:load` sends them. */
 const aFields = () =>
@@ -134,7 +146,7 @@ describe('an older viewer', () => {
       .getAllByRole('button')
       .map((button) => button.getAttribute('aria-label'))
     expect(names).toEqual(['Full screen', 'Close', 'Inspect'])
-    expect(mapSelect()).toBeNull()
+    expect(mapButton()).toBeNull()
     expect(inWindow().queryByRole('button', { name: /^Agent/ })).toBeNull()
     await userEvent.click(action('Inspect')!)
     expect(posts.last('cs3d:inspect')).toBeDefined()
@@ -147,14 +159,14 @@ describe('an older viewer', () => {
 describe('the map', () => {
   it('lists Vertigo, marked current', async () => {
     await drawn()
-    const select = mapSelect() as HTMLSelectElement
-    expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(['Vertigo'])
-    expect(select.value).toBe('de_vertigo')
+    expect(mapButton()).toHaveAccessibleName('Map: Vertigo')
+    expect(await mapNames()).toEqual(['Vertigo'])
+    expect(within(mapList()!).getByRole('option', { name: 'Vertigo' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('reloads the same combo on another map, ignoring the earlier load’s events', async () => {
     const { posts } = await drawn({ maps: [VERTIGO, MIRAGE] })
-    await userEvent.selectOptions(mapSelect()!, 'de_mirage')
+    await chooseMap('Mirage')
     const load = posts.last('cs3d:load')!
     expect(load).toEqual({ type: 'cs3d:load', id: expect.stringMatching(/\S{16,}/), combo: aFields(), map: 'de_mirage' })
     expect(inWindow().getByText('Loading the map…')).toBeInTheDocument()
@@ -166,16 +178,16 @@ describe('the map', () => {
     expect(inWindow().getByText('Loading the map…')).toBeInTheDocument()
     viewer.loaded(load.id as string, { map: 'de_mirage', actions: ALL_ACTIONS })
     expect(screen.queryByRole('progressbar')).toBeNull()
-    expect((mapSelect() as HTMLSelectElement).value).toBe('de_mirage')
+    expect(mapButton()).toHaveAccessibleName('Map: Mirage')
     expect(action('Inspect')).toBeEnabled()
     // Back to the default map: no map in the load.
-    await userEvent.selectOptions(mapSelect()!, 'de_vertigo')
+    await chooseMap('Vertigo')
     expect(posts.last('cs3d:load')).toEqual({ type: 'cs3d:load', id: expect.any(String), combo: aFields() })
   })
 
   it('falls back to the default map when the viewer refuses one', async () => {
     const { posts } = await drawn({ maps: [VERTIGO, MIRAGE] })
-    await userEvent.selectOptions(mapSelect()!, 'de_mirage')
+    await chooseMap('Mirage')
     const refused = posts.last('cs3d:load')!
     viewer.error('unknown-map', false, 'No such map.', { id: refused.id as string, kept: true })
     const fallback = posts.last('cs3d:load')!
@@ -183,18 +195,18 @@ describe('the map', () => {
     expect(fallback).toEqual({ type: 'cs3d:load', id: expect.any(String), combo: aFields() })
     viewer.loaded(fallback.id as string, { map: 'de_vertigo', actions: ALL_ACTIONS })
     expect(inWindow().getByText("That map isn't available.", VISIBLE)).toBeInTheDocument()
-    expect((mapSelect() as HTMLSelectElement).value).toBe('de_vertigo')
+    expect(mapButton()).toHaveAccessibleName('Map: Vertigo')
     expect(frames()).toHaveLength(1)
   })
 
   it('never lists the studio', async () => {
     await drawn({ maps: [{ id: 'studio', name: 'Studio' }, VERTIGO] })
-    expect(within(mapSelect()!).getAllByRole('option').map((o) => o.textContent)).toEqual(['Vertigo'])
+    expect(await mapNames()).toEqual(['Vertigo'])
   })
 
   it('shows a map name with markup as plain text', async () => {
     await drawn({ maps: [VERTIGO, { id: 'de_mirage', name: '<b>x</b>' }] })
-    expect(within(mapSelect()!).getByRole('option', { name: '<b>x</b>' })).toBeInTheDocument()
+    expect(await mapNames()).toEqual(['Vertigo', '<b>x</b>'])
     expect(document.querySelector('b')).toBeNull()
   })
 
@@ -206,7 +218,40 @@ describe('the map', () => {
     ['a string instead of a list', 'de_vertigo'],
   ])('has no map menu for %s', async (_, maps) => {
     await drawn({ maps })
-    expect(mapSelect()).toBeNull()
+    expect(mapButton()).toBeNull()
+  })
+})
+
+describe('the map menu', () => {
+  it('opens a list on the current map, moves with the arrows, chooses with Enter', async () => {
+    const { posts } = await drawn({ maps: [VERTIGO, MIRAGE] })
+    await userEvent.click(mapButton()!)
+    const list = mapList()!
+    expect(list).toHaveFocus()
+    expect(list).toHaveAttribute('aria-activedescendant', within(list).getByRole('option', { name: 'Vertigo' }).id)
+    await userEvent.keyboard('{ArrowDown}{Enter}')
+    expect(mapList()).toBeNull()
+    expect(mapButton()).toHaveFocus()
+    expect(posts.last('cs3d:load')).toMatchObject({ map: 'de_mirage' })
+  })
+
+  it('loads nothing when the map drawn is chosen again', async () => {
+    const { posts } = await drawn({ maps: [VERTIGO, MIRAGE] })
+    const before = loads(posts).length
+    await chooseMap('Vertigo')
+    expect(mapList()).toBeNull()
+    expect(loads(posts)).toHaveLength(before)
+  })
+
+  it('closes only the map list on Escape', async () => {
+    await drawn()
+    await userEvent.click(mapButton()!)
+    await userEvent.keyboard('{Escape}')
+    expect(mapList()).toBeNull()
+    expect(document.querySelectorAll('dialog[open]')).toHaveLength(1)
+    expect(mapButton()).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
+    expect(document.querySelectorAll('dialog')).toHaveLength(0)
   })
 })
 

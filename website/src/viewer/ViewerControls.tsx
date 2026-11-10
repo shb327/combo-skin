@@ -5,7 +5,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { Check, ChevronDown, Eye, Sword, Swords } from 'lucide-react'
 import { pictureUrl } from '@/api/images'
 import { agentChoices, agentEntry, matchesAgent, type AgentChoice } from './agents'
-import type { Capabilities } from './features'
+import type { Capabilities, MapChoice } from './features'
 import type { Action } from './messages'
 import type { Choice } from './params'
 
@@ -36,7 +36,7 @@ export function ViewerControls({
   onPlay,
   onMap,
   onAgent,
-  onAgentList,
+  onListOpen,
 }: {
   capabilities: Capabilities | null
   actions: Action[] | null
@@ -49,8 +49,8 @@ export function ViewerControls({
   onPlay(action: Action): void
   onMap(map: string | null): void
   onAgent(agent: number | null): void
-  /** The agent list opened or closed. */
-  onAgentList(open: boolean): void
+  /** The map or agent list opened or closed. */
+  onListOpen(open: boolean): void
 }) {
   const maps = capabilities?.maps ?? null
   const agents = capabilities?.agents ?? null
@@ -83,22 +83,13 @@ export function ViewerControls({
       {(maps || agents) && (
         <div className="relative flex flex-1 min-w-0 roomy:flex-none gap-2">
           {maps && (
-            <label className="flex shrink-0 items-center gap-2 text-sm text-white/60">
-              <span>Map</span>
-              <select
-                aria-label="Map"
-                value={drawn.map ?? capabilities!.defaultMap ?? maps[0].id}
-                disabled={!enabled}
-                onChange={(event) => onMap(event.target.value === capabilities!.defaultMap ? null : event.target.value)}
-                className={`${BUTTON} px-3 gap-1.5 text-sm appearance-auto`}
-              >
-                {maps.map((map) => (
-                  <option key={map.id} value={map.id} className="bg-background">
-                    {map.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <MapPicker
+              maps={maps}
+              current={drawn.map ?? capabilities!.defaultMap ?? maps[0].id}
+              enabled={enabled}
+              onChoose={(map) => onMap(map === capabilities!.defaultMap ? null : map)}
+              onOpenChange={onListOpen}
+            />
           )}
           {agents && (
             <AgentPicker
@@ -108,10 +99,126 @@ export function ViewerControls({
               enabled={enabled}
               focusSearch={hints}
               onChoose={onAgent}
-              onOpenChange={onAgentList}
+              onOpenChange={onListOpen}
             />
           )}
         </div>
+      )}
+    </div>
+  )
+}
+
+/** Where the map and agent lists open: above the controls, inset from the view's edges on a
+ * larger screen. */
+const PANEL = 'absolute bottom-full mb-2 roomy:mb-5 z-10 rounded-lg border border-white/15 bg-background shadow-xl'
+
+/** A button with the current map opening the list of maps, in the agent list's style (full width
+ * above the controls on a phone). Up, Down,
+ * Home and End move, Enter or Space choose, as does a click; Escape closes the list (and not the
+ * window). */
+function MapPicker({
+  maps,
+  current,
+  enabled,
+  onChoose,
+  onOpenChange,
+}: {
+  maps: MapChoice[]
+  current: string
+  enabled: boolean
+  onChoose(map: string): void
+  onOpenChange(open: boolean): void
+}) {
+  const id = useId()
+  const [open, setOpen] = useState(false)
+  const [active, setActive] = useState(0)
+  const button = useRef<HTMLButtonElement>(null)
+  const list = useRef<HTMLUListElement>(null)
+  const currentIndex = Math.max(
+    maps.findIndex((map) => map.id === current),
+    0,
+  )
+
+  useEffect(() => {
+    if (open) list.current?.focus()
+  }, [open])
+
+  const toggle = (next: boolean, refocus = false) => {
+    setOpen(next)
+    setActive(currentIndex)
+    onOpenChange(next)
+    if (!next && refocus) button.current?.focus()
+  }
+  const choose = (map: MapChoice | undefined) => {
+    if (!map) return
+    toggle(false, true)
+    if (map.id !== current) onChoose(map.id)
+  }
+  const optionId = (i: number) => `${id}-option-${i}`
+
+  return (
+    <div
+      className="shrink-0 roomy:relative"
+      onBlur={(event) => {
+        if (open && !event.currentTarget.contains(event.relatedTarget as Node | null)) toggle(false)
+      }}
+    >
+      <button
+        ref={button}
+        type="button"
+        aria-label={`Map: ${maps[currentIndex].name}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        disabled={!enabled}
+        onClick={() => toggle(!open)}
+        className={`${BUTTON} px-3 gap-1.5 text-sm`}
+      >
+        <span className="text-white/60">Map</span>
+        <span>{maps[currentIndex].name}</span>
+        <ChevronDown aria-hidden className="w-4 h-4 shrink-0" />
+      </button>
+      {open && (
+        <ul
+          ref={list}
+          role="listbox"
+          aria-label="Maps"
+          tabIndex={-1}
+          aria-activedescendant={optionId(active)}
+          className={`${PANEL} left-0 right-0 roomy:right-auto roomy:min-w-full roomy:w-max max-h-[50dvh] overflow-auto py-1 focus:outline-none`}
+          onKeyDown={(event) => {
+            const last = maps.length - 1
+            const moves: Record<string, number> = {
+              ArrowDown: Math.min(active + 1, last),
+              ArrowUp: Math.max(active - 1, 0),
+              Home: 0,
+              End: last,
+            }
+            if (event.key in moves) setActive(moves[event.key])
+            else if (event.key === 'Enter' || event.key === ' ') choose(maps[active])
+            else if (event.key === 'Escape') {
+              // The list takes Escape first: the window stays open.
+              event.stopPropagation()
+              toggle(false, true)
+            } else return
+            event.preventDefault()
+          }}
+        >
+          {maps.map((map, i) => (
+            <li
+              key={map.id}
+              id={optionId(i)}
+              role="option"
+              aria-selected={map.id === current}
+              className={`flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-white ${i === active ? 'bg-white/15' : 'hover:bg-white/10'}`}
+              onMouseDown={(event) => event.preventDefault()}
+              onMouseEnter={() => setActive(i)}
+              onClick={() => choose(map)}
+            >
+              <span className="flex-1">{map.name}</span>
+              {map.id === current && <Check aria-hidden className="w-4 h-4 text-white/60" />}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   )
@@ -224,7 +331,7 @@ function AgentPicker({
       </button>
       {open && (
         <div
-          className="absolute bottom-full left-0 right-0 roomy:left-auto roomy:right-3 roomy:w-96 mb-2 roomy:mb-5 z-10 rounded-lg border border-white/15 bg-background shadow-xl"
+          className={`${PANEL} left-0 right-0 roomy:left-auto roomy:right-3 roomy:w-96`}
           onKeyDown={(event) => {
             if (event.key !== 'Escape') return
             // The list takes Escape first: the window stays open.
