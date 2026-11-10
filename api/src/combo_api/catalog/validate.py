@@ -106,7 +106,9 @@ def problems(snapshot: Snapshot, order: DisplayOrder) -> list[str]:
     for def_index in duplicates([t.def_index for t in types]):
         names = " and ".join(t.name for t in types if str(t.def_index) == def_index)
         found.append(f"Duplicate definition index {def_index}: {names}")
-    found += [f"Duplicate type codename {c!r}" for c in duplicates([t.codename for t in types])]
+    for codename in duplicates([t.codename for t in types]):
+        names = " and ".join(f"{t.name} ({t.def_index})" for t in types if t.codename == codename)
+        found.append(f"Duplicate type codename {codename!r}: {names}")
     for kind in {t.kind for t in types}:
         slugs = [t.slug for t in types if t.kind == kind]
         found += [f"Duplicate {kind} type slug {s!r}" for s in duplicates(slugs)]

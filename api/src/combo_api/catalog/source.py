@@ -109,7 +109,8 @@ def normalise(
     """Knives, gloves and agents from the dataset as a snapshot.
 
     A type or finish already in `previous` keeps its slug. A new finish takes its slug from
-    `overrides` (keyed `<def_index>:<paint_index>`) if listed, otherwise from its name. Types
+    `overrides` (keyed `<def_index>:<paint_index>`) if listed, a new type from `overrides`
+    (keyed `type:<def_index>`), otherwise each from its name. Types
     and finishes of `previous` missing from the dataset are kept, retired, so their slugs stay
     taken. Agents missing from the dataset are kept retired too.
     """
@@ -174,7 +175,7 @@ def normalise(
             def_index=def_index,
             codename=codename,
             name=name,
-            slug=old.slug if old else type_slug(name),
+            slug=old.slug if old else overrides.get(type_key(def_index)) or type_slug(name),
             finishes=tuple(sorted(current.values(), key=lambda f: f.paint_index)),
             retired=False,
         )
@@ -237,6 +238,11 @@ def check_finish_slugs(item_type: ItemType) -> None:
             )
 
 
+def type_key(def_index: int) -> str:
+    """A type's key in `slug_overrides.json`."""
+    return f"type:{def_index}"
+
+
 def check_type_slugs(item_types: list[ItemType]) -> None:
     by_slug: dict[tuple[Kind, str], ItemType] = {}
     for item_type in item_types:
@@ -244,7 +250,11 @@ def check_type_slugs(item_types: list[ItemType]) -> None:
         if other is not item_type:
             first = described(other.name, other.def_index, other.retired)
             second = described(item_type.name, item_type.def_index, item_type.retired)
-            raise CatalogError(f"{first} and {second} both have slug {item_type.slug!r}")
+            new = item_type if not item_type.retired else other
+            raise CatalogError(
+                f"{first} and {second} both have slug {item_type.slug!r}; add an override to "
+                f"slug_overrides.json, keyed {type_key(new.def_index)!r}"
+            )
 
 
 def retirement_changes(

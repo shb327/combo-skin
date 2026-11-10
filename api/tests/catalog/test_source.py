@@ -311,3 +311,32 @@ def test_refresh_downloads_agents_from_the_same_commit(
     assert main([*args, str(order)]) == 0
     err = capsys.readouterr().err
     assert f"Retired since {COMMIT[:12]}:\n  Operator | FBI SWAT\n" in err
+
+
+def talon_again() -> bytes:
+    """The dataset with a second Talon Knife under a new definition index and codename."""
+    talon = [e for e in json.loads(RAW) if e["weapon"]["weapon_id"] == 523]
+    for entry in talon:
+        entry["weapon"]["weapon_id"] = 599
+        entry["weapon"]["id"] = "weapon_knife_talon_2"
+    return json.dumps(json.loads(RAW) + talon).encode()
+
+
+def test_a_type_slug_clash_names_the_override_file() -> None:
+    with pytest.raises(CatalogError) as error:
+        normalise(talon_again())
+    message = str(error.value)
+    assert "Talon Knife (523) and Talon Knife (599) both have slug 'talon'" in message
+    assert "slug_overrides.json" in message
+    assert "type:599" in message
+
+
+def test_override_sets_a_new_type_slug() -> None:
+    snapshot = normalise(talon_again(), overrides={"type:599": "talon-2"})
+    slugs = {t.def_index: t.slug for t in snapshot.item_types}
+    assert (slugs[523], slugs[599]) == ("talon", "talon-2")
+
+
+def test_a_type_keeps_its_slug_over_an_override() -> None:
+    snapshot = normalise(overrides={"type:507": "karambit-2"}, previous=normalise())
+    assert {t.def_index: t.slug for t in snapshot.item_types}[507] == "karambit"
