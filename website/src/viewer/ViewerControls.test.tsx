@@ -306,6 +306,21 @@ describe('the agent', () => {
     expect(inWindow().getByRole('button', { name: 'Try again' })).toBeInTheDocument()
   })
 
+  it('opens the list without the on-screen keyboard on a touch-first device, and still closes it on Escape', async () => {
+    stubWebGL2()
+    stubMatchMedia((query) => query.includes('hover: none') || query.includes('prefers-reduced-motion'))
+    await site()
+    await open(0)
+    viewer.ready2()
+    viewer.loaded(null, { actions: ALL_ACTIONS })
+    await userEvent.click(agentButton())
+    expect(inWindow().getByRole('listbox', { name: 'Agents' })).toHaveFocus()
+    expect(inWindow().getByRole('combobox', { name: 'Search agents' })).not.toHaveFocus()
+    await userEvent.keyboard('{Escape}')
+    expect(inWindow().queryByRole('listbox')).toBeNull()
+    expect(document.querySelectorAll('dialog[open]')).toHaveLength(1)
+  })
+
   it('closes only the agent list on Escape', async () => {
     await drawn()
     await userEvent.click(agentButton())

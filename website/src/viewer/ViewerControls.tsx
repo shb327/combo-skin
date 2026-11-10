@@ -106,6 +106,7 @@ export function ViewerControls({
               current={drawn.agent}
               defaultAgent={capabilities!.defaultAgent}
               enabled={enabled}
+              focusSearch={hints}
               onChoose={onAgent}
               onOpenChange={onAgentList}
             />
@@ -124,6 +125,7 @@ function AgentPicker({
   current,
   defaultAgent,
   enabled,
+  focusSearch,
   onChoose,
   onOpenChange,
 }: {
@@ -131,6 +133,9 @@ function AgentPicker({
   current: number | null
   defaultAgent: number
   enabled: boolean
+  /** Put the focus in the search box on opening; not on touch-first devices, where it would
+   * bring up the on-screen keyboard over the list. */
+  focusSearch: boolean
   onChoose(agent: number | null): void
   onOpenChange(open: boolean): void
 }) {
@@ -140,13 +145,14 @@ function AgentPicker({
   const [active, setActive] = useState(-1)
   const button = useRef<HTMLButtonElement>(null)
   const input = useRef<HTMLInputElement>(null)
+  const list = useRef<HTMLUListElement>(null)
   const shown = choices.filter((choice) => matchesAgent(query, choice.label))
   const entry = agentEntry(current ?? defaultAgent)
   const currentName = entry?.name ?? 'Default'
 
   useEffect(() => {
-    if (open) input.current?.focus()
-  }, [open])
+    if (open) (focusSearch ? input.current : list.current)?.focus()
+  }, [open, focusSearch])
 
   const toggle = (next: boolean, refocus = false) => {
     setOpen(next)
@@ -217,7 +223,16 @@ function AgentPicker({
         <ChevronDown aria-hidden className="w-4 h-4 shrink-0" />
       </button>
       {open && (
-        <div className="absolute bottom-full left-0 right-0 roomy:left-auto roomy:w-96 mb-2 z-10 rounded-lg border border-white/15 bg-background shadow-xl">
+        <div
+          className="absolute bottom-full left-0 right-0 roomy:left-auto roomy:w-96 mb-2 z-10 rounded-lg border border-white/15 bg-background shadow-xl"
+          onKeyDown={(event) => {
+            if (event.key !== 'Escape') return
+            // The list takes Escape first: the window stays open.
+            event.preventDefault()
+            event.stopPropagation()
+            toggle(false, true)
+          }}
+        >
           <input
             ref={input}
             type="text"
@@ -245,15 +260,17 @@ function AgentPicker({
               } else if (event.key === 'Enter') {
                 event.preventDefault()
                 if (active >= 0 || query.trim() !== '') choose(shown[Math.max(active, 0)])
-              } else if (event.key === 'Escape') {
-                // The list takes Escape first: the window stays open.
-                event.preventDefault()
-                event.stopPropagation()
-                toggle(false, true)
               }
             }}
           />
-          <ul id={`${id}-list`} role="listbox" aria-label="Agents" className="max-h-[50dvh] overflow-auto py-1">
+          <ul
+            ref={list}
+            id={`${id}-list`}
+            role="listbox"
+            aria-label="Agents"
+            tabIndex={-1}
+            className="max-h-[50dvh] overflow-auto py-1 focus:outline-none"
+          >
             {runs.map((run, r) =>
               run.group ? (
                 <li key={`group-${r}`} role="group" aria-label={run.group}>
