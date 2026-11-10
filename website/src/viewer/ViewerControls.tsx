@@ -16,7 +16,7 @@ const ACTIONS: { action: Action; label: string; hint: string; key?: string; icon
 ]
 
 const BUTTON =
-  'flex items-center justify-center gap-1.5 min-h-11 roomy:min-h-9 px-3 rounded-lg bg-white/10 text-white text-sm ' +
+  'flex items-center justify-center min-h-11 roomy:min-h-9 rounded-lg bg-white/10 text-white ' +
   'hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-white disabled:opacity-40 disabled:cursor-default ' +
   'cursor-pointer transition-colors'
 
@@ -67,7 +67,7 @@ export function ViewerControls({
               title={hints ? `${label} (${hint})` : label}
               disabled={!enabled}
               onClick={() => onPlay(action)}
-              className={`${BUTTON} flex-1 roomy:flex-none`}
+              className={`${BUTTON} flex-1 roomy:flex-none px-2 gap-1 text-xs whitespace-nowrap roomy:px-3 roomy:gap-1.5 roomy:text-sm`}
             >
               {icon}
               <span>{label}</span>
@@ -81,16 +81,16 @@ export function ViewerControls({
         )}
       </div>
       {(maps || agents) && (
-        <div className="relative flex gap-2">
+        <div className="relative flex flex-1 min-w-0 roomy:flex-none gap-2">
           {maps && (
-            <label className="flex flex-1 roomy:flex-none items-center gap-2 text-sm text-white/60">
+            <label className="flex shrink-0 items-center gap-2 text-sm text-white/60">
               <span>Map</span>
               <select
                 aria-label="Map"
                 value={drawn.map ?? capabilities!.defaultMap ?? maps[0].id}
                 disabled={!enabled}
                 onChange={(event) => onMap(event.target.value === capabilities!.defaultMap ? null : event.target.value)}
-                className={`${BUTTON} flex-1 appearance-auto`}
+                className={`${BUTTON} px-3 gap-1.5 text-sm appearance-auto`}
               >
                 {maps.map((map) => (
                   <option key={map.id} value={map.id} className="bg-background">
@@ -196,7 +196,7 @@ function AgentPicker({
   const picture = pictureUrl(entry?.image)
   return (
     <div
-      className="flex-1 roomy:flex-none"
+      className="flex-1 min-w-0 roomy:flex-none"
       onBlur={(event) => {
         if (open && !event.currentTarget.contains(event.relatedTarget as Node | null)) toggle(false)
       }}
@@ -209,11 +209,11 @@ function AgentPicker({
         aria-expanded={open}
         disabled={!enabled}
         onClick={() => toggle(!open)}
-        className={`${BUTTON} w-full roomy:w-auto roomy:max-w-64`}
+        className={`${BUTTON} px-3 gap-1.5 text-sm w-full min-w-0 roomy:w-auto roomy:max-w-64`}
       >
-        <span className="text-white/60">Agent</span>
-        {picture && <img src={picture} alt="" referrerPolicy="no-referrer" className="w-6 h-6 object-contain" />}
-        <span className="truncate">{currentName}</span>
+        <span className="shrink-0 text-white/60">Agent</span>
+        {picture && <img src={picture} alt="" referrerPolicy="no-referrer" className="shrink-0 w-6 h-6 object-contain" />}
+        <span className="min-w-0 truncate">{currentName}</span>
         <ChevronDown aria-hidden className="w-4 h-4 shrink-0" />
       </button>
       {open && (
