@@ -55,13 +55,37 @@ export function viewerCombo(combo: PublicCombo): ViewerCombo {
   }
 }
 
-/** The viewer's address for a combo: `/combo` with the combo's parameters and `ui=0` (the page
- * shows its own progress and messages). No agent: the viewer draws its default for everyone. */
-export function viewerUrl(origin: string, combo: PublicCombo): string {
+/** The visitor's map and agent; null is the viewer's default (Vertigo, Lt. Commander Ricksaw |
+ * NSWC SEAL), which is never sent, so the default address is the same for every visitor. */
+export interface Choice {
+  map: string | null
+  agent: number | null
+}
+
+export const DEFAULT_CHOICE: Choice = { map: null, agent: null }
+
+/** The viewer's address for a combo: `/combo` with the combo's parameters, `ui=0` (the page
+ * shows its own progress and messages) and `input=game` (the game's mouse buttons and keys, no
+ * free camera; an older viewer ignores it), then the chosen agent and map, if any. */
+export function viewerUrl(origin: string, combo: PublicCombo, choice: Choice = DEFAULT_CHOICE): string {
   const params = new URLSearchParams()
   for (const [name, value] of Object.entries(viewerCombo(combo))) {
     if (value !== undefined) params.set(name, value)
   }
   params.set('ui', '0')
+  params.set('input', 'game')
+  if (choice.agent !== null) params.set('agent', String(choice.agent))
+  if (choice.map !== null) params.set('map', choice.map)
   return `${origin}/combo?${params}`
+}
+
+/** The fields of `cs3d:load` for the same combo with another map or agent. Left out, the viewer
+ * draws its default map and agent. */
+export function viewerLoad(combo: PublicCombo, choice: Choice): { combo: Record<string, string>; map?: string } {
+  const fields: Record<string, string> = {}
+  for (const [name, value] of Object.entries(viewerCombo(combo))) {
+    if (value !== undefined) fields[name] = value
+  }
+  if (choice.agent !== null) fields.agent = String(choice.agent)
+  return choice.map === null ? { combo: fields } : { combo: fields, map: choice.map }
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ComboItem } from '@/api/client'
 import { combo, item } from '@/test/fakeApi'
-import { viewerCombo, viewerUrl } from './params'
+import { DEFAULT_CHOICE, viewerCombo, viewerLoad, viewerUrl } from './params'
 
 const ORIGIN = 'https://viewer.example.com'
 
@@ -46,8 +46,17 @@ describe('viewerUrl', () => {
     })
     expect(viewerUrl(ORIGIN, combo)).toBe(
       `${ORIGIN}/combo?knife=507&knife_paint=415&knife_float=0&knife_seed=387` +
-        '&gloves=5034&gloves_paint=10033&gloves_float=0.06&ui=0',
+        '&gloves=5034&gloves_paint=10033&gloves_float=0.06&ui=0&input=game',
     )
+  })
+
+  it('adds a chosen agent and map after the input mode, and nothing for the defaults', () => {
+    const combo = makeCombo({ glove: crimson(), knife: ruby({ float_from: 0, float_to: 0.01, seeds: [387] }) })
+    const base = viewerUrl(ORIGIN, combo)
+    expect(viewerUrl(ORIGIN, combo, DEFAULT_CHOICE)).toBe(base)
+    expect(viewerUrl(ORIGIN, combo, { agent: 4613, map: 'de_vertigo' })).toBe(`${base}&agent=4613&map=de_vertigo`)
+    expect(viewerUrl(ORIGIN, combo, { agent: 4613, map: null })).toBe(`${base}&agent=4613`)
+    expect(viewerUrl(ORIGIN, combo, { agent: null, map: 'de_vertigo' })).toBe(`${base}&map=de_vertigo`)
   })
 
   it('takes the start of the range and the lowest seed, whatever their order', () => {
@@ -76,7 +85,7 @@ describe('viewerUrl', () => {
     expect(params.has('knife_seed')).toBe(false)
   })
 
-  it('sends nothing else: no agent, view, debug or combo id', () => {
+  it('sends nothing else: no agent, view, debug, capture or combo id', () => {
     const combo = makeCombo({ id: 'k3v9x0m2q7ab', glove: crimson({ seeds: [1] }), knife: ruby({ seeds: [2] }) })
     const url = new URL(viewerUrl(ORIGIN, combo))
     expect(url.origin).toBe(ORIGIN)
@@ -91,8 +100,11 @@ describe('viewerUrl', () => {
       'gloves_float',
       'gloves_seed',
       'ui',
+      'input',
     ])
     expect(url.href).not.toContain('k3v9x0m2q7ab')
+    const chosen = new URL(viewerUrl(ORIGIN, combo, { agent: 4613, map: 'de_vertigo' }))
+    for (const name of ['view', 'debug', 'capture']) expect(chosen.searchParams.has(name)).toBe(false)
   })
 })
 
@@ -100,5 +112,16 @@ describe('viewerCombo', () => {
   it('keeps floats in their shortest form', () => {
     const combo = makeCombo({ glove: crimson({ float_from: 0.1234 }), knife: ruby({ float_from: 0.0001 }) })
     expect(viewerCombo(combo)).toMatchObject({ gloves_float: '0.1234', knife_float: '0.0001' })
+  })
+})
+
+describe('viewerLoad', () => {
+  it('sends the same item fields as the address, with the agent and map only when chosen', () => {
+    const combo = makeCombo({ glove: crimson(), knife: ruby({ seeds: [3] }) })
+    expect(viewerLoad(combo, DEFAULT_CHOICE)).toEqual({ combo: viewerCombo(combo) })
+    expect(viewerLoad(combo, { agent: 4613, map: 'de_vertigo' })).toEqual({
+      combo: { ...viewerCombo(combo), agent: '4613' },
+      map: 'de_vertigo',
+    })
   })
 })
