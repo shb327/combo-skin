@@ -454,7 +454,7 @@ The code is the same as at `936e2f4`; the two commits since change only this spe
 | 19 | READMEs; specs 012 and 016 not edited | Pass | `website/README.md` covers the layouts, actions and keys, map and agent, the address, an older viewer and nothing stored; `api/README.md` names `agents.json`; `git diff main... -- docs/specs/012-* docs/specs/016-*` prints nothing |
 | 20 | Fresh clone, every section's commands, chunk sizes | Pass | Table below; main chunk 129.95 kB gzipped, 0.76 kB smaller than on `main`; window chunk 13.61 kB gzipped |
 | 21 | Manual end to end | Pass | Implementation notes, Manual checks: Chrome (headless 156), Firefox and Safari (owner), iOS Simulator, the version 1 viewer at `4c96d8c`; swings run, as the attacks are built |
-| 22 | Workflow runs, gitleaks, URLs | Pass, runs pending | gitleaks below; the URL command lists `localhost`, `127.0.0.1`, `example.com` placeholders, the game's image host and the viewer's public docs; the workflow runs are checked after the push |
+| 22 | Workflow runs, gitleaks, URLs | Pass | For dc28685: push runs `api` 42877054712, `admin` 42877054739, `website` 42877054889, and pull request runs `api` 42877104830, `admin` 42877104515, `website` 42877104629, all successful (8 of 8 checks on the pull request); gitleaks below; the URL command lists `localhost`, `127.0.0.1`, `example.com` placeholders, the game's image host and the viewer's public docs |
 
 | Check | Command | Result |
 | --- | --- | --- |
