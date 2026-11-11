@@ -1819,7 +1819,8 @@
                   "render_failed",
                   "asset_missing",
                   "timeout",
-                  "lease_expired"
+                  "lease_expired",
+                  "abandoned"
                 ],
                 "type": "string"
               },

@@ -91,11 +91,31 @@ async def expire(db: AsyncSession, now: datetime) -> None:
     await db.commit()
 
 
+async def abandon(db: AsyncSession, worker: CurrentWorker, now: datetime) -> None:
+    """Close the worker's live claims as failed attempts (`abandoned`) before it claims again,
+    so a worker holds at most one claim. Counted, as an expired lease is: a worker that
+    restarts because a combo crashed it must not get that combo back for ever."""
+    rows = (
+        await db.execute(
+            select(ScreenshotJob, Combo.public_id)
+            .join(Combo, Combo.id == ScreenshotJob.combo_id)
+            .where(
+                ScreenshotJob.worker_id == worker.id, ScreenshotJob.lease_expires_at.is_not(None)
+            )
+            .with_for_update(of=ScreenshotJob)
+        )
+    ).all()
+    for job, combo_id in rows:
+        count_attempt(job, "abandoned", now)
+        logger.info("job abandoned worker=%s combo=%s job=%s", worker.name, combo_id, job.job_id)
+
+
 async def claim(db: AsyncSession, worker: CurrentWorker, now: datetime) -> Job | None:
     """Give the worker the due combo that has waited longest, published combos first, with a
-    lease; None when nothing is due."""
+    lease; None when nothing is due. Its earlier claims, if any, are abandoned first."""
     await expire(db, now)
     await still_active(db, worker)
+    await abandon(db, worker, now)
     current = inputs.current_inputs()
     effective = Agent.__table__.alias("effective_agent")
     tried: list[int] = []

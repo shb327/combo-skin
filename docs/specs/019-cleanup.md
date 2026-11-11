@@ -313,7 +313,11 @@ None. On 2026-11-10 the owner approved the draft with every recommendation but o
 
 ## Implementation notes
 
-Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+Built on `019-cleanup`, from `main` at the merge of spec 018.
+
+### Agreed deviations
+
+- **R10, an earlier claim is counted (2026-11-11, owner's choice).** R10 and the Design row "One claim per worker" close a worker's earlier live claims "without counting an attempt" when it claims again. A combo that crashes the renderer would then come straight back to the restarted worker, uncounted, for ever; an expired lease counts it today, so such a combo is failed after 3 tries. The owner chose to count it: the earlier claim is closed as a failed attempt with the new reason `abandoned` (the combo waits 1 minute, as after any first failure), and its late answers get 409 `claim_expired`. The dashboard shows "The screenshot worker asked for other work before answering." Concurrent claims from one worker are not serialised, so they can still each get a combo; a worker sends one claim at a time.
 
 ## Audit
 

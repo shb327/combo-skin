@@ -1295,7 +1295,7 @@ export interface components {
             /** Made At */
             made_at: string | null;
             /** Reason */
-            reason: ("render_failed" | "asset_missing" | "timeout" | "lease_expired") | null;
+            reason: ("render_failed" | "asset_missing" | "timeout" | "lease_expired" | "abandoned") | null;
             /** Rendering */
             rendering: boolean;
             /**

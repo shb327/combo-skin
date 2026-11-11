@@ -15,7 +15,9 @@ REPO = API_DIR.parent
 POSTGRES = {"POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"}
 STORAGE = {"RUSTFS_ACCESS_KEY", "RUSTFS_SECRET_KEY"}
 
-pytestmark = pytest.mark.skipif(shutil.which("docker") is None, reason="needs docker compose")
+DOCKER = shutil.which("docker")
+
+pytestmark = pytest.mark.skipif(DOCKER is None, reason="needs docker compose")
 
 
 def config(tmp_path: Path, env: str) -> Any:
@@ -24,8 +26,17 @@ def config(tmp_path: Path, env: str) -> Any:
         shutil.copy(REPO / name, tmp_path / name)
     (tmp_path / "api").mkdir()
     (tmp_path / "api" / ".env").write_text(env)
-    return subprocess.run(
-        ["docker", "compose", "--project-directory", str(tmp_path), "config", "--format", "json"],
+    # Fixed arguments; only the temporary directory varies.
+    return subprocess.run(  # noqa: S603
+        [
+            str(DOCKER),
+            "compose",
+            "--project-directory",
+            str(tmp_path),
+            "config",
+            "--format",
+            "json",
+        ],
         cwd=tmp_path,
         capture_output=True,
         text=True,

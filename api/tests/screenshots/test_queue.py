@@ -549,3 +549,28 @@ async def test_a_request_during_a_render_asks_for_another(setup: Setup) -> None:
     assert state["state"] == "waiting"
     await setup.render(combo["id"])
     assert (await setup.state(combo["id"]))["state"] == "done"
+
+
+async def test_a_worker_holds_one_claim(setup: Setup, db_session: AsyncSession) -> None:
+    """A worker that claims again gives up its earlier claim, counted as an abandoned attempt,
+    so it never holds more than one, and a combo that keeps crashing it still fails."""
+    first_combo = await create(setup.client, setup.headers, glove=MOGUL, knife=FADE)
+    await create(setup.client, setup.headers, glove=MOGUL, knife=("butterfly", "fade"))
+    first = await setup.claim()
+    assert first is not None and first["combo_id"] == first_combo["id"]
+    second = await setup.claim()
+    assert second is not None and second["combo_id"] != first_combo["id"]
+
+    live = (
+        await db_session.scalars(
+            select(ScreenshotJob.job_id).where(ScreenshotJob.lease_expires_at.is_not(None))
+        )
+    ).all()
+    assert live == [second["job_id"]]
+    state = await setup.state(first_combo["id"])
+    assert (state["rendering"], state["attempts"], state["reason"]) == (False, 1, "abandoned")
+    late = await setup.fail(first)
+    assert late.status_code == 409
+    assert late.json() == {"detail": "claim_expired"}
+    stored = await send_png(setup.box, setup.token, first["job_id"], PNG)
+    assert stored.status_code == 409
