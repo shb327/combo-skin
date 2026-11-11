@@ -82,10 +82,14 @@ export default function ViewerWindow({
     const before = { overflow: root.overflow, scrollbarGutter: root.scrollbarGutter }
     root.overflow = 'hidden'
     root.scrollbarGutter = 'stable'
+    // On a phone the page behind is hidden too (index.css): iOS Safari's floating toolbar shows
+    // the page below the viewport, where the window cannot reach.
+    document.documentElement.classList.add('viewer-open')
     if (!element.open) element.showModal()
     closeButton.current?.focus()
     return () => {
       if (element.open) element.close()
+      document.documentElement.classList.remove('viewer-open')
       root.overflow = before.overflow
       root.scrollbarGutter = before.scrollbarGutter
     }

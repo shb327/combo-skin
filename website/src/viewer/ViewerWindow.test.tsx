@@ -269,7 +269,10 @@ describe('closing', () => {
     })
     viewer.ready2()
     viewer.loaded()
+    // While open, the page behind is marked so a phone can hide it (index.css).
+    expect(document.documentElement).toHaveClass('viewer-open')
     await close(navigate)
+    expect(document.documentElement).not.toHaveClass('viewer-open')
     expect(connectedWhenBlanked).toEqual([true])
     expect(iframe.isConnected).toBe(false)
     expect(dialogs()).toHaveLength(0)

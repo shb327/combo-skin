@@ -43,6 +43,18 @@ body {
   }
 }
 
+/* On a phone the 3D window fills the screen, but iOS Safari's floating toolbar overlays the page
+   below the viewport, where no fixed element reaches: hide the page there while the window is open,
+   so only the site's background shows. Larger screens keep the dimmed page behind the window. */
+@media not all and (min-width: 768px) and (min-height: 500px) {
+  html.viewer-open #root {
+    visibility: hidden;
+  }
+  html.viewer-open .viewer-window {
+    visibility: visible;
+  }
+}
+
 /* In full screen the window's contents fill the screen: the view takes the space between the name
    row and the controls, at any shape (the viewer keeps its angles). */
 .viewer-window-frame:fullscreen {
