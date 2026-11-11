@@ -183,10 +183,14 @@ export function EditComboPage() {
     } catch (error) {
       const changed = isCode(error, 'version_conflict')
       setFailure(changed ? COMBO_MESSAGES.deleteConflict : comboErrorMessage(error))
-      setBusy(false)
       setDeleting(false)
-      // Someone changed it: show the stored combo, whose version a second delete then sends.
-      if (changed) await combo.refetch()
+      // Someone changed it: show the stored combo, whose version a second delete then sends. The
+      // buttons wait for it, so a quick second Delete cannot send the old version again.
+      try {
+        if (changed) await combo.refetch()
+      } finally {
+        setBusy(false)
+      }
     }
   }
 
