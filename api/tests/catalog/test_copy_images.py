@@ -1,7 +1,12 @@
 """Copying the catalog's pictures into the public bucket, once each."""
 
+import email.message
+import http.client
 import io
 import re
+import urllib.request
+import urllib.response
+import zlib
 from collections.abc import Callable
 from typing import Any
 
@@ -170,7 +175,7 @@ class FakeOpener:
         self.response = response
         self.requests: list[Any] = []
 
-    def open(self, request: Any, timeout: float) -> FakeResponse:
+    def open(self, request: Any, data: Any = None, timeout: float | None = None) -> FakeResponse:
         self.requests.append((request, timeout))
         return self.response
 
@@ -217,3 +222,129 @@ def test_the_command_copies_into_the_public_bucket(
     assert cli.main(["copy-images"]) == 0
     assert capsys.readouterr().out == "Copied 4, already there 0, failed 0\n"
     assert cli.main(["copy-images", "--check"]) == 0
+
+
+def bomb() -> bytes:
+    """A PNG whose header claims 20000 by 20000, beyond Pillow's decompression bomb limit."""
+    data = bytearray(png(8, 8))
+    # IHDR's width and height follow the signature, the chunk length and its type.
+    data[16:24] = (20000).to_bytes(4, "big") * 2
+    crc = zlib.crc32(bytes(data[12:29]))
+    data[29:33] = crc.to_bytes(4, "big")
+    return bytes(data)
+
+
+def corrupt_image_data() -> bytes:
+    """A PNG with valid chunks whose image data does not inflate."""
+    data = bytearray(png(16, 16))
+    start = data.index(b"IDAT") + 4
+    length = int.from_bytes(data[start - 8 : start - 4], "big")
+    data[start : start + length] = b"\x00" * length
+    crc = zlib.crc32(bytes(data[start - 4 : start + length]))
+    data[start + length : start + length + 4] = crc.to_bytes(4, "big")
+    return bytes(data)
+
+
+@pytest.mark.parametrize(
+    ("answer", "reason"),
+    [
+        (lambda url: bomb(), "larger than 2048 by 2048"),
+        (lambda url: corrupt_image_data(), "not an image"),
+    ],
+)
+async def test_refuses_pictures_that_do_not_decode(
+    answer: Callable[[str], bytes], reason: str
+) -> None:
+    said: list[str] = []
+    code = await copy(
+        small_snapshot(), MemoryStorage(), check=False, fetch=Fetches(answer), say=said.append
+    )
+    assert code == 1
+    assert f"  Karambit | Vanilla: {reason}" in said
+
+
+@pytest.mark.parametrize(
+    "error", [http.client.IncompleteRead(b"x"), http.client.BadStatusLine("x"), ValueError("x")]
+)
+async def test_any_download_error_is_reported_not_raised(error: Exception) -> None:
+    def failing(url: str) -> bytes:
+        raise error
+
+    said: list[str] = []
+    assert (
+        await copy(small_snapshot(), MemoryStorage(), check=False, fetch=failing, say=said.append)
+        == 1
+    )
+    assert said[0] == "Copied 0, already there 0, failed 4"
+    assert any(line.startswith("  Karambit | Vanilla: could not be downloaded") for line in said)
+
+
+async def test_a_storage_error_is_reported_not_raised() -> None:
+    class Failing(MemoryStorage):
+        async def put(self, *args: Any, **kwargs: Any) -> None:
+            raise RuntimeError("storage unavailable")
+
+    said: list[str] = []
+    assert (
+        await copy(small_snapshot(), Failing(), check=False, fetch=Fetches(), say=said.append) == 1
+    )
+    assert said[0] == "Copied 0, already there 0, failed 4"
+    assert "  Karambit | Vanilla: could not be stored (RuntimeError)" in said
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://x.steamstatic.com/economy/image/abc",
+        "https://community.akamai.steamstatic.com:8443/economy/image/abc",
+        "https://user:pass@community.akamai.steamstatic.com/economy/image/abc",
+        "https://evil.example.com\\@community.akamai.steamstatic.com/economy/image/abc",
+    ],
+)
+def test_only_the_game_image_host_itself(url: str) -> None:
+    with pytest.raises(Refused, match="not on the game's image host"):
+        download(url, opener=FakeOpener(FakeResponse(png())))
+
+
+async def test_refused_addresses_and_answers_are_reported_by_name() -> None:
+    snapshot = small_snapshot()
+    vanilla, fade = urls(snapshot)[:2]
+    bodies = {
+        vanilla: FakeResponse(b"0" * (3 * 1024 * 1024)),
+        fade: FakeResponse(png(), "text/html"),
+    }
+
+    def fetch(url: str) -> bytes:
+        if url in bodies:
+            return download(url, opener=FakeOpener(bodies[url]))
+        return download(url.replace("https://", "http://"), opener=FakeOpener(FakeResponse(png())))
+
+    said: list[str] = []
+    assert await copy(snapshot, MemoryStorage(), check=False, fetch=fetch, say=said.append) == 1
+    assert "  Karambit | Vanilla: more than 2 MiB" in said
+    assert "  Karambit | Fade: answered text/html" in said
+    assert f"  {snapshot.agents[0].name}: not https" in said
+
+
+class Redirecting(urllib.request.BaseHandler):
+    """Answers every https request with a redirect, before the real handler is asked."""
+
+    handler_order = 100
+
+    def __init__(self, code: int) -> None:
+        self.code = code
+
+    def https_open(self, request: urllib.request.Request) -> Any:
+        headers = email.message.Message()
+        headers["Location"] = "http://elsewhere.example.com/x.png"
+        response = urllib.response.addinfourl(io.BytesIO(b""), headers, request.full_url, self.code)
+        response.msg = "Redirect"  # type: ignore[attr-defined]
+        return response
+
+
+@pytest.mark.parametrize("code", [301, 302, 303, 307, 308])
+def test_a_redirect_is_refused_by_the_real_opener(code: int) -> None:
+    opener = images.make_opener()
+    opener.add_handler(Redirecting(code))
+    with pytest.raises(Refused, match=f"redirect \\({code}\\)"):
+        download(f"{HOST}/economy/image/abc", opener=opener)

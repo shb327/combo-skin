@@ -18,10 +18,11 @@ import anyio
 from PIL import Image, UnidentifiedImageError
 
 from combo_api.catalog.snapshot import Snapshot
-from combo_api.catalog.validate import IMAGE_HOST_SUFFIX
 from combo_api.screenshots.storage import IMMUTABLE, Storage
 
 PREFIX = "catalog/"
+# The game's image host: the only host pictures are downloaded from.
+GAME_IMAGE_HOST = "community.akamai.steamstatic.com"
 MAX_BYTES = 2 * 1024 * 1024
 MAX_SIDE = 2048
 PARALLEL = 4
@@ -81,7 +82,9 @@ def make_opener() -> urllib.request.OpenerDirector:
 
 
 class Opener(Protocol):
-    def open(self, request: urllib.request.Request, timeout: float) -> Any: ...
+    """What `download` needs of an opener: `urllib`'s own, or a stand-in in tests."""
+
+    def open(self, fullurl: Any, data: Any = None, timeout: float | None = None) -> Any: ...
 
 
 def download(url: str, opener: Opener | None = None) -> bytes:
@@ -90,7 +93,9 @@ def download(url: str, opener: Opener | None = None) -> bytes:
     parts = urlsplit(url)
     if parts.scheme != "https":
         raise Refused("not https")
-    if not (parts.hostname or "").endswith(IMAGE_HOST_SUFFIX):
+    # Exactly the host, on the default port, with no user info: nothing urllib could read as
+    # another host.
+    if parts.netloc != GAME_IMAGE_HOST or "\\" in url:
         raise Refused("not on the game's image host")
     request = urllib.request.Request(url, headers={"User-Agent": CLIENT})  # noqa: S310
     with (opener or make_opener()).open(request, timeout=TIMEOUT) as response:
@@ -104,16 +109,22 @@ def download(url: str, opener: Opener | None = None) -> bytes:
 
 
 def checked(data: bytes) -> bytes:
-    """The bytes, if they are a PNG of at most `MAX_SIDE` on each side."""
+    """The bytes, if they are a PNG of at most `MAX_SIDE` on each side that decodes in full."""
+    too_large = f"larger than {MAX_SIDE} by {MAX_SIDE}"
     try:
         with Image.open(io.BytesIO(data)) as image:
             if image.format != "PNG":
                 raise Refused("not a PNG")
             width, height = image.size
             if width > MAX_SIDE or height > MAX_SIDE:
-                raise Refused(f"larger than {MAX_SIDE} by {MAX_SIDE}")
+                raise Refused(too_large)
             image.verify()
-    except (UnidentifiedImageError, SyntaxError, OSError) as error:
+        # `verify` checks the chunks only; decoding checks the image data itself.
+        with Image.open(io.BytesIO(data)) as image:
+            image.load()
+    except Image.DecompressionBombError as error:
+        raise Refused(too_large) from error
+    except (UnidentifiedImageError, SyntaxError, OSError, ValueError) as error:
         raise Refused("not an image") from error
     return data
 
@@ -138,30 +149,34 @@ async def copy(
             say(f"  {picture.name}")
         return 1 if missing else 0
 
-    failed: dict[str, str] = {}
+    # By key, as names need not be unique: the picture's name and why it was not copied.
+    failed: dict[str, tuple[str, str]] = {}
     copied = 0
     limiter = anyio.CapacityLimiter(PARALLEL)
 
     async def one(picture: Picture) -> None:
         nonlocal copied
         reason = ""
+        # Every error is this picture's alone: it is reported, and the other copies go on.
         for _ in range(TRIES):
             try:
-                data = await anyio.to_thread.run_sync(
-                    fetch or download, picture.url, limiter=limiter
-                )
-                await storage.put(
-                    "public", image_key(picture.url), checked(data), "image/png", IMMUTABLE
+                data = checked(
+                    await anyio.to_thread.run_sync(fetch or download, picture.url, limiter=limiter)
                 )
             except Refused as refused:
                 reason = str(refused)
                 break
-            except OSError as error:
-                reason = f"could not be downloaded ({error})"
+            except Exception as error:
+                reason = f"could not be downloaded ({type(error).__name__})"
                 continue
+            try:
+                await storage.put("public", image_key(picture.url), data, "image/png", IMMUTABLE)
+            except Exception as error:
+                reason = f"could not be stored ({type(error).__name__})"
+                break
             copied += 1
             return
-        failed[picture.name] = reason
+        failed[image_key(picture.url)] = (picture.name, reason)
 
     async with anyio.create_task_group() as group:
         for picture in missing:
@@ -169,6 +184,7 @@ async def copy(
 
     say(f"Copied {copied}, already there {len(wanted) - len(missing)}, failed {len(failed)}")
     for picture in wanted:
-        if picture.name in failed:
-            say(f"  {picture.name}: {failed[picture.name]}")
+        if image_key(picture.url) in failed:
+            name, reason = failed[image_key(picture.url)]
+            say(f"  {name}: {reason}")
     return 1 if failed else 0
