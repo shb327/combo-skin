@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom'
 import type { Kind } from '@/api/client'
 import { finishCount } from '@/api/counts'
 import { useComboCounts } from '@/api/queries'
+import { copyUrl, pictureUrl } from '@/api/images'
+import { CatalogImage } from '@/components/CatalogImage'
 import { comboWord } from '@/components/comboText'
 import { HasCombosControl } from '@/components/HasCombos'
 import { useHasCombos } from '@/components/useHasCombos'
@@ -77,13 +79,13 @@ function FinishCard({
     >
       <div className="absolute inset-0 bg-radial-[circle_at_center] from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
       <div className="aspect-square">
-        <img
-          src={finish.image}
+        <CatalogImage
+          src={copyUrl(finish.image_key)}
+          fallback={pictureUrl(finish.image)}
           alt={alt}
           className="w-full h-full object-contain p-4 select-none transition-transform duration-300 group-hover:scale-110"
           draggable={false}
           loading="lazy"
-          referrerPolicy="no-referrer"
         />
       </div>
       <div className="p-2 md:p-4 pt-0">

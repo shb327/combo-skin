@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_API_ORIGIN,
-  DEFAULT_IMAGE_ORIGIN,
+  DEFAULT_IMAGE_BASE_URL,
   DEFAULT_VIEWER_ORIGIN,
   apiOrigin,
   checkApiOrigin,
-  checkImageOrigin,
+  checkImageBaseUrl,
   checkViewerOrigin,
-  imageOrigin,
+  imageBaseUrl,
   viewerOrigin,
 } from './origin'
 
@@ -43,33 +43,35 @@ describe('checkApiOrigin', () => {
   })
 })
 
-describe('checkImageOrigin', () => {
-  it.each(['http://localhost:9000', 'https://images.example.com', 'http://localhost'])(
-    'accepts %s',
-    (value) => {
-      expect(checkImageOrigin(value)).toBe(value)
-    },
-  )
+describe('checkImageBaseUrl', () => {
+  it.each([
+    ['http://localhost:9000/local-images', 'http://localhost:9000/local-images'],
+    ['https://images.example.com', 'https://images.example.com'],
+    ['https://images.example.com/', 'https://images.example.com'],
+    ['https://example.com/pictures/', 'https://example.com/pictures'],
+  ])('accepts %s', (value, base) => {
+    expect(checkImageBaseUrl(value)).toBe(base)
+  })
 
   it.each([
     'images.example.com',
-    'https://images.example.com/',
-    'https://images.example.com/local-images',
     'https://images.example.com?x=1',
+    'https://images.example.com/#x',
     'http://images.example.com',
+    'http://127.0.0.1:9000',
     'https://user@images.example.com',
     'ftp://images.example.com',
     '*',
   ])('refuses %s, naming the variable', (value) => {
-    expect(() => checkImageOrigin(value)).toThrow(/VITE_IMAGE_ORIGIN/)
-    expect(() => checkImageOrigin(value)).not.toThrow(/VITE_API_BASE_URL/)
+    expect(() => checkImageBaseUrl(value)).toThrow(/VITE_IMAGE_BASE_URL/)
+    expect(() => checkImageBaseUrl(value)).not.toThrow(/VITE_API_BASE_URL/)
   })
 
-  it('defaults to the local storage service', () => {
-    expect(imageOrigin(undefined)).toBe(DEFAULT_IMAGE_ORIGIN)
-    expect(imageOrigin('')).toBe(DEFAULT_IMAGE_ORIGIN)
-    expect(DEFAULT_IMAGE_ORIGIN).toBe('http://localhost:9000')
-    expect(imageOrigin('https://images.example.com')).toBe('https://images.example.com')
+  it('defaults to the local storage service’s public bucket', () => {
+    expect(imageBaseUrl(undefined)).toBe(DEFAULT_IMAGE_BASE_URL)
+    expect(imageBaseUrl('')).toBe(DEFAULT_IMAGE_BASE_URL)
+    expect(DEFAULT_IMAGE_BASE_URL).toBe('http://localhost:9000/local-images')
+    expect(imageBaseUrl('https://images.example.com')).toBe('https://images.example.com')
   })
 })
 
@@ -108,6 +110,5 @@ describe('checkViewerOrigin', () => {
 
   it('still allows plain http on 127.0.0.1 for the viewer only', () => {
     expect(() => checkApiOrigin('http://127.0.0.1:8000')).toThrow(/VITE_API_BASE_URL/)
-    expect(() => checkImageOrigin('http://127.0.0.1:9000')).toThrow(/VITE_IMAGE_ORIGIN/)
   })
 })

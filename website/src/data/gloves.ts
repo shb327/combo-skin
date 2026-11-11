@@ -6,7 +6,10 @@ import catalog from './catalog.json'
 export interface Finish {
   id: string
   name: string
+  /** The game's picture: the fallback for our copy. */
   image: string
+  /** Our copy's key in the image bucket (see `copyUrl`). */
+  image_key: string
 }
 
 export interface GloveType {
@@ -27,6 +30,7 @@ export const getAllGloves = () => {
       fullName: `${type.name} | ${finish.name}`,
       id: `${type.id}-${finish.id}`,
       image: finish.image,
+      imageKey: finish.image_key,
     }))
   )
 }

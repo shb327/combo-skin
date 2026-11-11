@@ -3,6 +3,7 @@
 import json
 from typing import Any
 
+from combo_api.catalog.images import image_key
 from combo_api.catalog.snapshot import (
     DisplayOrder,
     Kind,
@@ -28,7 +29,13 @@ def render(snapshot: Snapshot, order: DisplayOrder) -> str:
                 "id": item_type.slug,
                 "name": item_type.name,
                 "finishes": [
-                    {"id": finish.slug, "name": finish.display_name, "image": finish.image_url}
+                    {
+                        "id": finish.slug,
+                        "name": finish.display_name,
+                        # The game's URL, the fallback; our copy is `image_key` in the bucket.
+                        "image": finish.image_url,
+                        "image_key": image_key(finish.image_url),
+                    }
                     for finish in ordered_finishes(item_type, order)
                 ],
             }
@@ -47,6 +54,7 @@ def render_agents(snapshot: Snapshot) -> str:
                 "name": agent.name,
                 "team": agent.team,
                 "image": agent.image_url,
+                "image_key": image_key(agent.image_url),
             }
             for agent in ordered_agents(snapshot)
         ],

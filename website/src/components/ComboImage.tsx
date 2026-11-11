@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ComboItem, PublicCombo } from '@/api/client'
 import { pictureUrl, screenshotSources } from '@/api/images'
+import { CatalogImage } from './CatalogImage'
 import { itemName } from './comboText'
 
 /** A combo's screenshot, or, without one or when it fails to load, the glove and the knife finish
@@ -34,18 +35,21 @@ export function ComboImage({ combo, alt, sizes }: { combo: PublicCombo; alt: str
   )
 }
 
-/** A catalog picture, or an empty half when it is not on the image host. */
+/** A catalog picture (our copy, then the game's), or an empty half when neither is on an image
+ * host the site loads from. */
 function Picture({ item }: { item: ComboItem }) {
-  const url = pictureUrl(item.image_url)
-  if (!url) return <div />
+  const src = pictureUrl(item.image_url)
+  const fallback = pictureUrl(item.fallback_image_url)
+  if (!src && !fallback) return <div />
   return (
-    <img
-      src={url}
+    <CatalogImage
+      key={item.image_url}
+      src={src}
+      fallback={fallback}
       alt={itemName(item)}
       className="w-full h-full object-contain p-4 select-none"
       draggable={false}
       loading="lazy"
-      referrerPolicy="no-referrer"
     />
   )
 }
