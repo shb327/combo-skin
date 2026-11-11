@@ -53,14 +53,11 @@ export function useFinishCombos(kind: Kind, type: string, finish: string) {
 
 /** The published combo count of every finish with combos, or undefined while they load or when
  * they failed: the pages then show no counts. */
-/** The published combo counts, or undefined while they load, after a failure, or while
- * `enabled` is false (the header search asks only once it has been opened). */
-export function useComboCounts(enabled = true): ComboCounts | undefined {
+export function useComboCounts(): ComboCounts | undefined {
   const api = useApi()
   const query = useQuery({
     queryKey: COUNTS_KEY,
     queryFn: ({ signal }) => api.comboCounts(signal),
-    enabled,
   })
   return query.isError ? undefined : query.data
 }

@@ -3,7 +3,10 @@ import type { Swiper as SwiperType } from 'swiper'
 import { Link } from 'react-router-dom'
 import { typeCount } from '@/api/counts'
 import { useComboCounts } from '@/api/queries'
+import { HasCombosControl } from '@/components/HasCombos'
+import { useHasCombos } from '@/components/useHasCombos'
 import { ItemCard } from '@/components/ItemCard'
+import { Message } from '@/components/Message'
 import { gloveTypes as gloveData } from '@/data/gloves'
 
 import bloodhound1 from '@/assets/gloves/bloodhound/1.png'
@@ -44,6 +47,9 @@ const gloveImages: Record<string, string[]> = {
 
 export function SearchGloves() {
   const counts = useComboCounts()
+  const { filtered, setFiltered } = useHasCombos(counts)
+  const total = (type: (typeof gloveData)[number]) => (counts ? typeCount(counts, 'gloves', type.id, type.finishes) : 0)
+  const shown = (type: (typeof gloveData)[number]) => !filtered || total(type) > 0
   const swipersRef = useRef<(SwiperType | null)[]>([])
 
   useEffect(() => {
@@ -67,15 +73,29 @@ export function SearchGloves() {
   return (
     <div className="px-4 md:px-16 lg:px-44 pt-4 md:pt-8 pb-8 md:pb-16">
       <h1 className="text-2xl md:text-3xl font-semibold text-white mb-1 md:mb-2">Search by gloves</h1>
-      <p className="text-sm md:text-base text-white/60 mb-4 md:mb-8">Pick a glove type to find matching knife combinations</p>
+      <div className="flex items-center justify-between gap-4 mb-4 md:mb-8">
+        <p className="text-sm md:text-base text-white/60">Pick a glove type to find matching knife combinations</p>
+        <HasCombosControl loaded={counts !== undefined} filtered={filtered} onChange={setFiltered} />
+      </div>
+      {!gloveData.some(shown) && (
+        <Message text="No glove types have combos yet.">
+          <button
+            type="button"
+            onClick={() => setFiltered(false)}
+            className="mt-4 px-4 py-2 rounded-lg bg-white/10 text-white text-sm md:text-base hover:bg-white/20 transition-colors cursor-pointer"
+          >
+            Show all
+          </button>
+        </Message>
+      )}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-12">
         {gloveData.map((glove, index) => (
-          <Link key={glove.id} to={`/gloves/${glove.id}`}>
+          <Link key={glove.id} to={`/gloves/${glove.id}`} hidden={!shown(glove)}>
             <ItemCard
               name={glove.name}
               images={gloveImages[glove.id] || []}
               count={glove.finishes.length}
-              comboCount={counts && typeCount(counts, 'gloves', glove.id, glove.finishes)}
+              comboCount={counts && total(glove)}
               onSwiperInit={(swiper) => {
                 swipersRef.current[index] = swiper
               }}

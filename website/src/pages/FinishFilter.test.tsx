@@ -116,3 +116,56 @@ describe('"Has combos" filter', () => {
     expect(site.url()).toBe('/gloves/specialist')
   })
 })
+
+describe('"Has combos" on the type grids', () => {
+  const typeNames = () => screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
+
+  it.each([
+    ['/gloves', gloveTypes, { gloves: { specialist: { [FIRST.id]: 5 } }, knives: {} }, 'Specialist Gloves'],
+    ['/knives', knifeTypes, { gloves: {}, knives: { karambit: { [KARAMBIT.finishes[0].id]: 2 } } }, 'Karambit'],
+  ])('%s hides types without combos, and keeps it in the URL', async (path, types, counts, name) => {
+    const user = userEvent.setup()
+    const site = renderSite(path, { api: withCounts(counts) })
+    const checkbox = await filter()
+    expect(checkbox).not.toBeChecked()
+    expect(typeNames()).toHaveLength(types.length)
+
+    await user.click(checkbox)
+    expect(typeNames()).toEqual([name])
+    expect(site.url()).toBe(`${path}?has=combos`)
+
+    // Kept after a type page and Back, and on a fresh load of the URL.
+    await user.click(screen.getByRole('link', { name: new RegExp(name) }))
+    act(() => void site.navigate(-1))
+    expect(site.url()).toBe(`${path}?has=combos`)
+    expect(await filter()).toBeChecked()
+    expect(typeNames()).toEqual([name])
+    site.unmount()
+    renderSite(`${path}?has=combos`, { api: withCounts(counts) })
+    expect(await filter()).toBeChecked()
+    expect(typeNames()).toEqual([name])
+  })
+
+  it('says so when no type has combos, with a way to show all', async () => {
+    const user = userEvent.setup()
+    const site = renderSite('/knives?has=combos', { api: withCounts({ gloves: {}, knives: {} }) })
+    expect(await screen.findByText('No knife types have combos yet.')).toBeInTheDocument()
+    expect(screen.queryAllByRole('heading', { level: 3 })).toHaveLength(0)
+    await user.click(screen.getByRole('button', { name: 'Show all' }))
+    expect(typeNames()).toHaveLength(knifeTypes.length)
+    expect(site.url()).toBe('/knives')
+  })
+
+  it('is not shown until the counts load, and shows every type if they fail', async () => {
+    const api = fakeApi()
+    const pending = deferred()
+    api.reply(pending.reply)
+    renderSite('/gloves?has=combos', { api })
+    expect(typeNames()).toHaveLength(gloveTypes.length)
+    expectNoControl()
+    await act(async () => pending.resolve(new Response('{}', { status: 500 })))
+    await waitFor(() => expect(api.requests.filter((r) => new URL(r.url).pathname === COUNTS_PATH)).toHaveLength(2))
+    expect(typeNames()).toHaveLength(gloveTypes.length)
+    expectNoControl()
+  })
+})

@@ -1,8 +1,10 @@
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import type { Kind } from '@/api/client'
 import { finishCount } from '@/api/counts'
 import { useComboCounts } from '@/api/queries'
 import { comboWord } from '@/components/comboText'
+import { HasCombosControl } from '@/components/HasCombos'
+import { useHasCombos } from '@/components/useHasCombos'
 import { Message } from '@/components/Message'
 import type { Finish } from '@/data/gloves'
 
@@ -12,50 +14,22 @@ interface FinishGridProps {
   subtitle: string
 }
 
-/** The URL's `has` value that turns the "Has combos" filter on. */
-const HAS_COMBOS = 'combos'
-
 /** A type's finish cards, in catalog order, each with its number of combos once the counts
  * load. The "Has combos" filter, kept in the URL, applies only once they have. */
 export function FinishGrid({ kind, type, subtitle }: FinishGridProps) {
   const counts = useComboCounts()
-  const [searchParams, setSearchParams] = useSearchParams()
-  const filtered = counts !== undefined && searchParams.get('has') === HAS_COMBOS
-  const finishes = filtered
-    ? type.finishes.filter((finish) => finishCount(counts, kind, type.id, finish.id) > 0)
-    : type.finishes
-
-  const setFiltered = (on: boolean) =>
-    setSearchParams(
-      (params) => {
-        const next = new URLSearchParams(params)
-        if (on) next.set('has', HAS_COMBOS)
-        else next.delete('has')
-        return next
-      },
-      { replace: true },
-    )
+  const { filtered, setFiltered } = useHasCombos(counts)
+  const finishes =
+    filtered && counts
+      ? type.finishes.filter((finish) => finishCount(counts, kind, type.id, finish.id) > 0)
+      : type.finishes
 
   return (
     <div className="px-4 md:px-16 lg:px-44 pt-4 md:pt-8 pb-8 md:pb-16">
       <h1 className="text-2xl md:text-3xl font-semibold text-white mb-1 md:mb-2">{type.name}</h1>
       <div className="flex items-center justify-between gap-4 mb-4 md:mb-8">
         <p className="text-sm md:text-base text-white/60">{subtitle}</p>
-        {/* Takes its space before the counts load, so the grid does not move when it appears. */}
-        <label
-          aria-hidden={counts === undefined}
-          style={{ visibility: counts === undefined ? 'hidden' : 'visible' }}
-          className="flex shrink-0 items-center gap-2 text-sm md:text-base text-white/60 cursor-pointer select-none"
-        >
-          <input
-            type="checkbox"
-            checked={filtered}
-            disabled={counts === undefined}
-            onChange={(event) => setFiltered(event.target.checked)}
-            className="h-4 w-4 accent-white cursor-pointer"
-          />
-          Has combos
-        </label>
+        <HasCombosControl loaded={counts !== undefined} filtered={filtered} onChange={setFiltered} />
       </div>
 
       {finishes.length === 0 && (

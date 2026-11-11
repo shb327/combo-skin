@@ -37,9 +37,6 @@ interface SearchItem {
 
 export function Search() {
   const [isOpen, setIsOpen] = useState(false)
-  // Counts are asked for once the search has been opened, not on every page load.
-  const [opened, setOpened] = useState(false)
-  const counts = useComboCounts(opened)
   const [query, setQuery] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -84,17 +81,7 @@ export function Search() {
       .slice(0, 6)
   }, [query, allItems])
 
-  const open = () => {
-    setIsOpen(true)
-    setOpened(true)
-  }
-
-  /** The item's published combos, or null while counts load, fail, or for none. */
-  const countOf = (item: SearchItem): string | null => {
-    if (!counts) return null
-    const count = finishCount(counts, item.type === 'knife' ? 'knives' : 'gloves', item.typeId, item.finishId)
-    return count > 0 ? comboCount(count) : null
-  }
+  const open = () => setIsOpen(true)
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -188,7 +175,7 @@ export function Search() {
                         className="w-full px-4 py-3.5 text-left text-base text-white/80 hover:bg-white/5 hover:text-white transition-colors border-b border-white/5 last:border-0"
                       >
                         {item.fullName}
-                        <ResultCount text={countOf(item)} />
+                        <ResultCount item={item} />
                       </button>
                     </li>
                   ))}
@@ -223,7 +210,7 @@ export function Search() {
                         className="w-full px-4 py-2.5 text-left text-sm text-white/80 hover:bg-white/5 hover:text-white transition-colors"
                       >
                         {item.fullName}
-                        <ResultCount text={countOf(item)} />
+                        <ResultCount item={item} />
                       </button>
                     </li>
                   ))}
@@ -239,14 +226,20 @@ export function Search() {
   )
 }
 
-/** A result's count after its name, in the finish cards' wording. */
-function ResultCount({ text }: { text: string | null }) {
-  if (!text) return null
+/** A result's published combos after its name, in the finish cards' wording; nothing while
+ * counts load, after a failure, or for none. Rendered only while the search is open, so the
+ * counts are asked for once it is opened, not on every page, and a page that leaves the counts
+ * still cancels their request. */
+function ResultCount({ item }: { item: SearchItem }) {
+  const counts = useComboCounts()
+  if (!counts) return null
+  const count = finishCount(counts, item.type === 'knife' ? 'knives' : 'gloves', item.typeId, item.finishId)
+  if (count === 0) return null
   // The space keeps the name and the count apart for screen readers too.
   return (
     <>
       {' '}
-      <span className="ml-1 text-white/40 whitespace-nowrap">{text}</span>
+      <span className="ml-1 text-white/40 whitespace-nowrap">{comboCount(count)}</span>
     </>
   )
 }
