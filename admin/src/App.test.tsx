@@ -391,3 +391,22 @@ describe('shell', () => {
     await waitFor(() => expect(document.title).toBe('Log in · Combo Skin admin'))
   })
 })
+
+describe('the API unreachable on load', () => {
+  it('says so on the login page at once, and Try again asks again', async () => {
+    const fake = new FakeApi().withSession().next('GET /admin/me', 'network-error')
+    const { user } = renderApp('/', fake)
+    expect(await screen.findByRole('alert')).toHaveTextContent(MESSAGES.network)
+    expect(screen.getByLabelText('Username')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByText(USERNAME)).toBeInTheDocument()
+    expect(fake.to('GET /admin/me')).toHaveLength(2)
+  })
+
+  it('shows no message when the API answers that there is no session', async () => {
+    renderApp('/', new FakeApi())
+    expect(await screen.findByLabelText('Username')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
+  })
+})

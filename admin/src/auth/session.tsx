@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { AdminSession, Api } from '../api/client'
+import { ApiError } from '../api/errors'
 import { SessionContext, type SessionState } from './useSession'
 
 /** Hidden for at least this long, a tab re-checks its session when it becomes visible. */
 const HIDDEN_RECHECK_MS = 60_000
 // setTimeout cannot wait longer than this.
 const MAX_TIMEOUT_MS = 2 ** 31 - 1
+
+/** The state after /admin/me failed: no session, or the API could not be reached. */
+function anonymous(failure: unknown): SessionState {
+  const unreachable = failure instanceof ApiError && failure.kind === 'network'
+  return { status: 'anonymous', reason: unreachable ? 'unreachable' : 'none' }
+}
 
 export function SessionProvider({ api, children }: { api: Api; children: ReactNode }) {
   const [state, setState] = useState<SessionState>({ status: 'loading' })
@@ -33,8 +40,13 @@ export function SessionProvider({ api, children }: { api: Api; children: ReactNo
   useEffect(() => {
     if (started.current) return
     started.current = true
-    api.me().then(activate, () => setState({ status: 'anonymous', reason: 'none' }))
+    api.me().then(activate, (failure) => setState(anonymous(failure)))
   }, [api, activate])
+
+  const retry = useCallback(
+    () => api.me().then(activate, (failure) => setState(anonymous(failure))),
+    [api, activate],
+  )
 
   const recheck = useCallback(() => {
     // A 401 ends the session through onSessionChange; other failures leave it as it is.
@@ -94,5 +106,7 @@ export function SessionProvider({ api, children }: { api: Api; children: ReactNo
     )
   }
 
-  return <SessionContext value={{ state, login, logout, shownLogin }}>{children}</SessionContext>
+  return (
+    <SessionContext value={{ state, login, logout, shownLogin, retry }}>{children}</SessionContext>
+  )
 }

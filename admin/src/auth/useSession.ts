@@ -3,7 +3,8 @@ import type { AdminSession } from '../api/client'
 
 export type SessionState =
   | { status: 'loading' }
-  | { status: 'anonymous'; reason: 'none' | 'ended' | 'logout' }
+  // `unreachable`: the first /admin/me got no answer, so whether a session exists is unknown.
+  | { status: 'anonymous'; reason: 'none' | 'ended' | 'logout' | 'unreachable' }
   | { status: 'active'; session: AdminSession }
 
 export interface SessionContextValue {
@@ -13,6 +14,8 @@ export interface SessionContextValue {
   logout(): Promise<void>
   /** The login page is showing: a later page visit should keep its return path again. */
   shownLogin(): void
+  /** Ask /admin/me again, after it got no answer on load. */
+  retry(): Promise<void>
 }
 
 export const SessionContext = createContext<SessionContextValue | null>(null)

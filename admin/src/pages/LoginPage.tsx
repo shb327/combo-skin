@@ -12,7 +12,7 @@ function clock(seconds: number): string {
 
 export function LoginPage() {
   useTitle('Log in')
-  const { state, login, shownLogin } = useSession()
+  const { state, login, shownLogin, retry } = useSession()
   const [params] = useSearchParams()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -73,6 +73,16 @@ export function LoginPage() {
   }
 
   const ended = state.status === 'anonymous' && state.reason === 'ended'
+  const unreachable = state.status === 'anonymous' && state.reason === 'unreachable'
+
+  async function onRetry() {
+    setBusy(true)
+    try {
+      await retry()
+    } finally {
+      setBusy(false)
+    }
+  }
   const message =
     error === MESSAGES.tooManyAttempts && remaining > 0
       ? `${error} Try again in ${clock(remaining)}.`
@@ -96,6 +106,19 @@ export function LoginPage() {
           <p role="alert" className="mt-4 rounded-md bg-red-500/10 px-3 py-2 text-sm">
             {message}
           </p>
+        )}
+        {unreachable && !message && (
+          <div role="alert" className="mt-4 rounded-md bg-red-500/10 px-3 py-2 text-sm">
+            <p>{MESSAGES.network}</p>
+            <button
+              type="button"
+              onClick={onRetry}
+              disabled={busy}
+              className="mt-2 rounded-md border border-white/15 px-3 py-1 font-semibold disabled:opacity-50"
+            >
+              Try again
+            </button>
+          </div>
         )}
         <label className="mt-4 block text-sm" htmlFor="username">
           Username
