@@ -1,6 +1,6 @@
 # 019: Cleanup and our own finish images
 
-**Status:** Approved
+**Status:** Implemented
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api, website, admin, repo
@@ -318,6 +318,86 @@ Built on `019-cleanup`, from `main` at the merge of spec 018.
 ### Agreed deviations
 
 - **R10, an earlier claim is counted (2026-11-11, owner's choice).** R10 and the Design row "One claim per worker" close a worker's earlier live claims "without counting an attempt" when it claims again. A combo that crashes the renderer would then come straight back to the restarted worker, uncounted, for ever; an expired lease counts it today, so such a combo is failed after 3 tries. The owner chose to count it: the earlier claim is closed as a failed attempt with the new reason `abandoned` (the combo waits 1 minute, as after any first failure), and its late answers get 409 `claim_expired`. The dashboard shows "The screenshot worker asked for other work before answering." Concurrent claims from one worker are not serialised, so they can still each get a combo; a worker sends one claim at a time.
+
+- **R13, the page hidden behind the 3D window on phones (2026-11-11, owner's choice).** The Design row "iOS safe areas" sizes the window to `100lvh` so it reaches under Safari's toolbar. In the iOS Simulator (iPhone 17 Pro, iOS 26.3) neither `100lvh` nor `100dvh` reaches under the floating toolbar: a strip of the next combo card still showed below the window. The owner chose to hide the page while the window is open on a phone-sized screen: the window adds `viewer-open` to the root element while open, and `index.css` sets `#root` to `visibility: hidden` and the window back to `visible` below the "roomy" size, so only the site's background shows under the toolbar. Larger screens keep the dimmed page behind the window. The `viewport-fit=cover`, safe-area padding and body background of the Design row stay.
+
+### Details settled while building
+
+- **R1.** The insert runs in a savepoint (`queries.insert`), so a refusal leaves the request's transaction and its locks as they were. The test makes the existence check miss, as it would for a request that ran it before another stored the pairing; a third `public_id` collision in a row is a 500 `internal_error`.
+- **R2.** `queries.lock` locks by `ORDER BY combos.id`; batch updates lock all their rows in that one query before the loop.
+- **R4.** The refusal of a batch with a `create` item on a retired glove finish stays at `["body", "glove"]`, where it was: the glove is the retired item, not the knife item.
+- **R5.** The codes are `combo_api.errors.ErrorCode`. The test collects every literal passed to `refuse` or `HTTPException` in the source and every backticked code in a response description, and compares both with the enumeration both ways. The dashboard's `ApiError.code` is the generated union; the fake API still sends unknown codes in tests, as a newer API could.
+- **R7.** The clash message names the key to add (`type:<def_index>` of the new type).
+- **R8.** `InternalErrors` is a plain ASGI middleware added before both CORS layers. `internal_error` is declared on every route through the app's `responses`, so `api/openapi.json` and both apps' types list a 500 everywhere; the schema tests of specs 007, 005 and 012 now expect it.
+- **R9.** `compose.yaml` keeps the project name and includes `compose.services.yaml` with `env_file: api/.env`; project, volume and network names are unchanged (`docker compose config`). On the next `up` of an existing stack, `db` and `storage` are recreated once with their new environment; their volumes are kept.
+- **R11.** The counts are read inside each result row, which exists only while the search is open, so leaving a type page still cancels its counts request (spec 014's test).
+- **R12.** Filtered type cards are hidden, not removed, so each card's carousel keeps its place in the rotation.
+- **R13.** The site header takes `env(safe-area-inset-left/right)` as a minimum below 768 px; the page gutters are wider than the insets above it.
+- **R20.** The override is scoped: `"overrides": {"@typescript-eslint/typescript-estree": {"minimatch": "^11.0.1"}}`; it resolves to minimatch 11.0.8. Lint and the lint guard tests pass with it.
+- **R21.** `scripts/dependencies.test.ts` lists every dependency and where it is used; tools used without an import are named with the reason.
+- **Part B, website setting.** The old `VITE_IMAGE_ORIGIN` stops the website's dev server and build with a note to use `VITE_IMAGE_BASE_URL`.
+- **Part B, pictures.** `CatalogImage` (website) and `Picture` (dashboard) try our copy, then the game's URL once; the dashboard's shows its empty box after both fail. `pictureUrl` (website) and `catalogPictureUrl` (dashboard) accept only our image origin and the game's host.
+- **Part B, the fake APIs** send our copy as `image_url` and the game's URL as `fallback_image_url`.
+
+### Criterion coverage
+
+| # | Covered by |
+| --- | --- |
+| 1 | `api/tests/combos/test_races.py:42`, `:53`, `:73` and the batch and three-collision cases after them |
+| 2 | `api/tests/combos/test_races.py:220` (a request waiting for a lock holds none, for ids and batches), `:237` (every locking query has `ORDER BY combos.id`) |
+| 3 | `api/tests/combos/test_strict.py:47`, `:95` and the accepted-numbers case |
+| 4 | `api/tests/combos/test_batches.py:205` |
+| 5 | `api/tests/test_error_codes.py:45`, `:55`; `npm run api:types:check` in both apps; `npm run typecheck` in `admin/` |
+| 6 | `api/tests/test_migrations.py:86` (both bounds alone); `test_upgrade_downgrade_upgrade` |
+| 7 | `api/tests/catalog/test_validate.py:194`; `api/tests/catalog/test_source.py:348`, `:357` |
+| 8 | `api/tests/test_errors.py:47` and the admin, worker and log cases after it |
+| 9 | `api/tests/test_compose.py:55`, `:75`; Local checks |
+| 10 | `api/tests/screenshots/test_queue.py:554` (as agreed: the earlier claim counted as `abandoned`) |
+| 11 | `website/src/components/Search.test.tsx:36` and the two cases after it |
+| 12 | `website/src/pages/FinishFilter.test.tsx:126`, `:149` and the loading and failure case |
+| 13 | `website/src/safeArea.test.ts:5`; `website/src/viewer/ViewerWindow.test.tsx:255` (the `viewer-open` class); Local checks (iOS Simulator) |
+| 14 | `website/docs/screenshots/` (Local checks); `website/README.md` |
+| 15 | `admin/src/App.test.tsx:396` |
+| 16 | `admin/src/pages/EditComboPage.test.tsx:143` |
+| 17 | `api/tests/catalog/test_snapshot.py:158`, `:225`; `api/tests/catalog/test_source.py:255`; each failed with its behaviour broken (retired finishes listed, retired types listed, type retirement not reported, a flag that is not a boolean) |
+| 18 | `api/tests/combos/test_guard.py:62` (the sampled routes are the app's own), `:92` (a 204 delete) |
+| 19 | Spec 017: `admin/src/pages/FinishPage.test.tsx:278` (the list is on the page when the position is restored), `:307` (all values, the whole body on Enter, "Order changed."), `:398` (the formatted time; Save disabled during the conflict, enabled after "Keep mine"), `admin/src/combos/order.test.ts:18` (9.95); the four behaviours: `FinishPage.test.tsx:498` (the end-of-list texts), `:361` (the label for screen readers only), `:398` (Save during a conflict), `admin/src/pages/BatchPage.test.tsx:350` (the step). Each failed with its behaviour broken (description and agent dropped from the save, the conflict time hidden, no rating above 9.95). Spec 018 criterion 7: `website/src/viewer/ViewerWindow.test.tsx:255` for Close, Escape, a forwarded Escape and Back; all four fail if the iframe is not blanked |
+| 20 | `npm audit` in both apps: 0 vulnerabilities; lockfiles only upgraded (minimatch and its own dependencies), never downgraded |
+| 21 | `website/scripts/dependencies.test.ts:55`; 22 dependencies removed |
+| 22 | `api/README.md`, OpenAPI snapshot section |
+| 23 | `api/tests/catalog/test_copy_images.py:69`, `:89` |
+| 24 | `api/tests/catalog/test_copy_images.py:108`, `:138`, `:178`, `:197`, and the retry case |
+| 25 | `api/tests/combos/test_image_urls.py:23`, `:31`; OpenAPI check |
+| 26 | `api/tests/catalog/test_export.py:18`; `website/src/pages/FinishCards.test.tsx:273`; `website/src/pages/Combos.test.tsx` (combo pictures); `website/src/viewer/ViewerControls.test.tsx` (agent list) |
+| 27 | `website/src/components/CatalogImage.test.tsx:9`; `admin/src/combos/pictures.test.tsx:170`; `website/src/pages/Combos.test.tsx` (a copy off the host shows the game's picture) |
+| 28 | Local checks |
+| 29 | Results |
+| 30 | Results |
+
+### Local checks
+
+On a separate Compose project, `combo-skin-019`, with its own ports, image tag and volumes, through an override file outside the repository and an `api/.env` made from `api/.env.example` with those ports; the owner's stack was not touched.
+
+- **Criterion 9.** `docker compose up -d --build --wait` from the new files: `db`, `storage` and `api` healthy, `migrate`, `catalog` and `storage-init` exited 0 (both buckets present, the policy unchanged). `docker inspect` lists only `POSTGRES_USER`, `POSTGRES_PASSWORD` and `POSTGRES_DB` (besides the image's own) for `db`, and only `RUSTFS_ACCESS_KEY` and `RUSTFS_SECRET_KEY` (besides the image's own) for `storage`. Against the repository's files `docker compose config` keeps the project `combo-skin`, the volumes `combo-skin_db-data` and `combo-skin_storage-data` and the published ports.
+- **Criterion 28.** `copy-images` copied 733 pictures in 24 s and exited 0; a second run printed "Copied 0, already there 733, failed 0"; `--check` printed "Missing 0" and exited 0. A copy answered 200 anonymously with `image/png`, `public, max-age=31536000, immutable` and 91,643 bytes. `sweep --dry-run` saw no object under `catalog/`. A website build against the stack (`vite preview`) showed all 19 Specialist finishes from the bucket; with Karambit | Fade's copy deleted, its card showed the game's picture and the other 34 cards their copies; `copy-images` then copied the 2 deleted copies back. The dashboard's build carries `img-src 'self' <game host> <the stack's image origin>`; in that page a copy loaded and an image from another host was blocked by the policy.
+- **Criterion 13.** iOS Simulator, iPhone 17 Pro, iOS 26.3, Safari, against a production build: upright, with the 3D window open, only the site's background shows under the floating toolbar, and the window's name row and Inspect row stay clear of the Dynamic Island and the toolbar; sideways, the window's contents and the page's header and cards stay clear of the Dynamic Island and the home indicator, and nothing of the page shows. The first build (Design's `100lvh`) still showed the next card under the toolbar; see Agreed deviations. The header search, opened sideways, showed "3 combos" and "1 combo" beside its results.
+- **Criterion 14.** The four screenshots were taken at 1440 px wide in headless Chrome with a temporary profile, from a production build reading the owner's local API (read only), so they show real combos and screenshots: `home.png` 179,932 bytes, `search-gloves.png` 306,051, `glove-finishes.png` 328,277 and `combos.png` (cropped to its first row of cards, 1440 by 812) 366,525, each re-encoded losslessly.
+
+### Results
+
+On the branch's last code commit, in the worktree (2026-11-11):
+
+- `api/`: `ruff format --check` (129 files formatted), `ruff check`, `mypy` (120 files) pass; `pytest` 504 passed, none skipped; the OpenAPI and `export-website` checks pass; `docker build` 278,240,079 bytes.
+- `admin/`: `npm ci`, `api:types:check`, lint, typecheck pass; 374 tests in 27 files pass; build and `check:bundle` pass; `npm audit` finds 0 vulnerabilities.
+- `website/`: `npm ci`, `api:types:check`, lint pass; 342 tests in 18 files pass; build passes with no chunk-size warning; `npm audit` finds 0 vulnerabilities.
+- `gitleaks dir .` and `gitleaks git` over the branch: no leaks.
+- Criterion 29's CI runs wait for a push.
+
+### Follow-ups
+
+- Picture copies whose URL leaves the snapshot stay in the bucket (Design); a `sweep` of `catalog/` against the snapshot could remove them if they ever add up.
+- The `deploy/` spec runs `copy-images` after each deploy, lists both image origins in the website's `img-src`, and sets `VITE_IMAGE_BASE_URL` for production.
+- In the Simulator, the first tap on "View in 3D" after a page load did nothing and the second opened the window, both times it was tried. Worth a look on a real phone.
 
 ## Audit
 
