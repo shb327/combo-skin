@@ -151,11 +151,18 @@ def test_slug_rule() -> None:
     assert slugify("Lt. Commander") == "lt-commander"
 
 
+# The dataset commit of spec 005, at which nothing had left the game yet.
+FIRST_COMMIT = "cbe5eec1854bf882bf1d79d8d5fd2aac7d80e5bc"
+
+
 def test_every_entry_has_a_retired_flag() -> None:
     data = json.loads(SNAPSHOT_PATH.read_text())
-    for item_type in data["item_types"]:
-        assert item_type["retired"] is False
-        assert all(finish["retired"] is False for finish in item_type["finishes"])
+    flags = [t["retired"] for t in data["item_types"]]
+    flags += [f["retired"] for t in data["item_types"] for f in t["finishes"]]
+    flags += [a["retired"] for a in data["agents"]]
+    assert all(isinstance(flag, bool) for flag in flags)
+    if data["source"]["commit"] == FIRST_COMMIT:
+        assert not any(flags)
 
 
 def with_retired(snapshot: Snapshot) -> Snapshot:
@@ -196,3 +203,37 @@ def test_retired_type_needs_retired_finishes() -> None:
     types = tuple(talon if t.slug == "talon" else t for t in SNAPSHOT.item_types)
     found = problems(SNAPSHOT.model_copy(update={"item_types": types}), ORDER)
     assert found == ["Talon Knife (523): retired type with finishes still in the game"]
+
+
+def retire(snapshot: Snapshot, type_slug: str, finish_slug: str | None = None) -> Snapshot:
+    """One finish retired, or with no finish slug the whole type."""
+    types = []
+    for item_type in snapshot.item_types:
+        if item_type.slug == type_slug:
+            finishes = tuple(
+                f.model_copy(update={"retired": finish_slug in (None, f.slug)})
+                for f in item_type.finishes
+            )
+            update: dict[str, object] = {"finishes": finishes}
+            if finish_slug is None:
+                update["retired"] = True
+            item_type = item_type.model_copy(update=update)
+        types.append(item_type)
+    return snapshot.model_copy(update={"item_types": tuple(types)})
+
+
+def test_retired_unlisted_entries_are_not_reported_as_unplaced() -> None:
+    """A retired finish or type that the display order does not place is not reported."""
+    assert "Driver Gloves | Wave Chaser" in unlisted(SNAPSHOT, ORDER)
+    names = unlisted(retire(SNAPSHOT, "driver", "wave-chaser"), ORDER)
+    assert "Driver Gloves | Wave Chaser" not in names
+    assert len(names) == 21
+
+    knives = tuple(slug for slug in ORDER.types["knife"] if slug != "talon")
+    finishes = {key: slugs for key, slugs in ORDER.finishes.items() if key != "knife/talon"}
+    order = ORDER.model_copy(
+        update={"types": {**ORDER.types, "knife": knives}, "finishes": finishes}
+    )
+    assert "Talon Knife" in unlisted(SNAPSHOT, order)
+    names = unlisted(retire(SNAPSHOT, "talon"), order)
+    assert not any(name.startswith("Talon Knife") for name in names)

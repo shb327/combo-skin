@@ -252,6 +252,29 @@ def test_refresh_reports_retired_and_returning_entries(
     assert "Retired since" not in err
 
 
+def test_refresh_reports_a_whole_type_retired_and_back_before_the_unplaced(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    order = write_order(tmp_path / "order.json", {"types": {}, "finishes": {}})
+    assert run_refresh(tmp_path, monkeypatch, RAW, order) == 0
+    capsys.readouterr()
+    assert run_refresh(tmp_path, monkeypatch, raw_without(523), order) == 0
+    err = capsys.readouterr().err
+    retired = err.index(f"Retired since {COMMIT[:12]}:\n  Talon Knife\n")
+    assert retired < err.index("Not placed in")
+    snapshot = load_snapshot(tmp_path / "snapshot.json")
+    talon = next(t for t in snapshot.item_types if t.def_index == 523)
+    assert talon.retired and all(f.retired for f in talon.finishes)
+    assert run_refresh(tmp_path, monkeypatch, RAW, order) == 0
+    err = capsys.readouterr().err
+    assert err.index(f"Back since {COMMIT[:12]}:\n  Talon Knife\n") < err.index("Not placed in")
+    assert "Retired since" not in err
+    talon = next(
+        t for t in load_snapshot(tmp_path / "snapshot.json").item_types if t.def_index == 523
+    )
+    assert not talon.retired and not any(f.retired for f in talon.finishes)
+
+
 def test_display_order_may_list_retired_finishes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
