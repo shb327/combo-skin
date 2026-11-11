@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { pictureUrl } from '../api/images'
+import { catalogPictureUrl } from '../api/pictures'
 
 const SIZES = {
   sm: 'h-10 w-10',
@@ -7,12 +7,24 @@ const SIZES = {
   lg: 'h-28 w-28',
 } as const
 
-/** A catalog picture from the game's image host, beside a visible name (so its alt text is
- * empty). Anything else, or a picture that fails to load, leaves an empty box of the same size. */
-export function Picture({ url, size = 'md' }: { url: string | null | undefined; size?: keyof typeof SIZES }) {
-  const src = pictureUrl(url)
-  const [failed, setFailed] = useState<string | null>(null)
-  if (!src || failed === src) {
+/** A catalog picture beside a visible name (so its alt text is empty): our copy (`url`) first, and
+ * the game's (`fallback`) if ours fails to load. Anything off those hosts, or a picture whose
+ * every source fails, leaves an empty box of the same size. */
+export function Picture({
+  url,
+  fallback,
+  size = 'md',
+}: {
+  url: string | null | undefined
+  fallback?: string | null
+  size?: keyof typeof SIZES
+}) {
+  const sources = [catalogPictureUrl(url), catalogPictureUrl(fallback)].filter(
+    (source, i, all): source is string => source !== null && all.indexOf(source) === i,
+  )
+  const [failed, setFailed] = useState<string[]>([])
+  const src = sources.find((source) => !failed.includes(source))
+  if (!src) {
     return <span aria-hidden="true" className={`${SIZES[size]} block shrink-0 rounded bg-white/5`} />
   }
   return (
@@ -24,7 +36,7 @@ export function Picture({ url, size = 'md' }: { url: string | null | undefined; 
       referrerPolicy="no-referrer"
       draggable={false}
       className={`${SIZES[size]} shrink-0 object-contain select-none`}
-      onError={() => setFailed(src)}
+      onError={() => setFailed((before) => [...before, src])}
     />
   )
 }

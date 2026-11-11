@@ -97,8 +97,8 @@ export function HomePage() {
   const count = drafts.data ?? 0
   // The same pictures as the type grids: Sport Gloves' fixed finish and Karambit's Vanilla.
   const pictures = [
-    useFinish('glove', 'sport', 'pandoras-box').data?.image_url,
-    useFinish('knife', 'karambit', 'vanilla').data?.image_url,
+    useFinish('glove', 'sport', 'pandoras-box').data,
+    useFinish('knife', 'karambit', 'vanilla').data,
   ]
 
   async function publishAll() {
@@ -129,7 +129,7 @@ export function HomePage() {
               to={direction.to}
               className="flex items-center gap-4 rounded-lg border border-white/10 p-5 hover:border-accent"
             >
-              <Picture url={pictures[i]} size="md" />
+              <Picture url={pictures[i]?.image_url} fallback={pictures[i]?.fallback_image_url} size="md" />
               <span className="min-w-0">
                 <span className="text-lg font-semibold text-accent">{direction.label}</span>
                 <span className="mt-1 block text-sm text-white/70">{direction.text}</span>

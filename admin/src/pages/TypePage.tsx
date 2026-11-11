@@ -61,7 +61,7 @@ export function TypePage({ kind }: { kind: Kind }) {
                 to={finishPath(kind, slug, finish.finishSlug)}
                 className="flex h-full gap-3 rounded-lg border border-white/10 bg-white/5 p-4 hover:border-accent"
               >
-                <Picture url={finish.imageUrl} size="md" />
+                <Picture url={finish.imageUrl} fallback={finish.fallbackUrl} size="md" />
                 <span className="min-w-0">
                 <span className="block font-semibold">{finish.displayName}</span>
                 <span className="mt-1 block text-sm text-white/60">{range ? `Float ${range}` : 'No float range'}</span>

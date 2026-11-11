@@ -14,8 +14,8 @@ const GLOVE_PICTURES: Record<string, string> = {
 }
 
 /** A knife type's Vanilla, a glove type's fixed finish, or else its first finish. */
-export function typePicture(kind: Kind, type: CatalogType): string | null {
+export function typePicture(kind: Kind, type: CatalogType): { url: string; fallback: string } | null {
   const wanted = kind === 'knife' ? 'vanilla' : GLOVE_PICTURES[type.slug]
   const finish = type.finishes.find((f) => f.finishSlug === wanted) ?? type.finishes[0]
-  return finish?.imageUrl ?? null
+  return finish ? { url: finish.imageUrl, fallback: finish.fallbackUrl } : null
 }

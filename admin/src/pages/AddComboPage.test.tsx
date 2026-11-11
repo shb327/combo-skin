@@ -138,7 +138,7 @@ describe('the screenshot agent', () => {
     const { user } = renderApp(ADD, new FakeApi().withSession())
     const agent = await screen.findByRole('group', { name: 'Screenshot agent' })
     await within(agent).findByText('Default')
-    expect(agent.querySelector('img')?.getAttribute('src')).toMatch(/fake\/agent\/5404$/)
+    expect(agent.querySelector('img')?.getAttribute('src')).toMatch(/catalog\/fake-agent-5404\.png$/)
     const search = await within(agent).findByRole('combobox', { name: 'Find a screenshot agent' })
     expect(within(agent).queryByRole('option')).toBeNull()
     await user.click(search)

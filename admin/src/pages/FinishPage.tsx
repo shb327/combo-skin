@@ -37,7 +37,7 @@ export function FinishPage({ kind }: { kind: Kind }) {
         )}
       </p>
       <div className="mt-2 flex items-center gap-4">
-        <Picture url={data.image_url} size="lg" />
+        <Picture url={data.image_url} fallback={data.fallback_image_url} size="lg" />
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold">{detailLabel(data)}</h1>
           <p className="mt-1 text-sm text-white/70">{range ? `Float ${range}` : 'No float range'}</p>
