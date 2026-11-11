@@ -278,7 +278,7 @@ uv run python -m combo_api.screenshots sweep           # delete them
 uv run python -m combo_api.openapi
 ```
 
-CI runs the same command with `--check` and fails if the committed file is out of date. Neither needs a database or an `.env` file. Then regenerate the admin dashboard's types in the same change: `npm run api:types` in `admin/`.
+CI runs the same command with `--check` and fails if the committed file is out of date. Neither needs a database or an `.env` file. Then regenerate both apps' types in the same change: `npm run api:types` in `admin/` and in `website/`.
 
 ## Configuration
 
