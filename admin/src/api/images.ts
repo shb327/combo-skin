@@ -13,8 +13,3 @@ export function onOrigin(url: string | null | undefined, origin: string): string
     return null
   }
 }
-
-/** The URL to show for a catalog picture, or null for one that is not on the image host. */
-export function pictureUrl(url: string | null | undefined): string | null {
-  return onOrigin(url, IMAGE_ORIGIN)
-}
