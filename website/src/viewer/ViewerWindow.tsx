@@ -120,7 +120,10 @@ export default function ViewerWindow({
       }}
       onKeyDown={onKeyDown}
       className={
-        'viewer-window m-0 p-0 w-full max-w-none h-[100dvh] max-h-none bg-background text-white open:flex ' +
+        // On a phone the window fills the large viewport, so nothing of the page shows under a
+        // browser toolbar that floats over it (iOS Safari); its contents keep to the dynamic
+        // viewport and clear of the notch and home indicator.
+        'viewer-window m-0 p-0 w-full max-w-none h-[100lvh] max-h-none bg-background text-white open:flex ' +
         'backdrop:bg-black/70 roomy:m-auto roomy:h-fit roomy:max-h-[100dvh] roomy:max-w-[100vw] ' +
         'roomy:rounded-xl roomy:border roomy:border-white/10'
       }
@@ -128,7 +131,12 @@ export default function ViewerWindow({
       <div
         ref={frame}
         data-window
-        className="viewer-window-frame relative flex flex-col flex-1 min-w-0 min-h-0 bg-background roomy:p-3 roomy:gap-2"
+        className={
+          'viewer-window-frame relative flex flex-col flex-none h-[100dvh] w-full min-w-0 min-h-0 bg-background ' +
+          'pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] ' +
+          'pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] ' +
+          'roomy:flex-1 roomy:h-auto roomy:p-3 roomy:gap-2'
+        }
       >
         <div className="flex items-start gap-2 px-3 pt-2 pb-2 roomy:p-0 short:absolute short:top-1 short:right-1 short:z-20 short:p-0">
           <div className="flex-1 min-w-0 flex items-center gap-2 short:hidden">

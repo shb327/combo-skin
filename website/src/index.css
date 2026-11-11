@@ -21,6 +21,9 @@
 body {
   margin: 0;
   min-height: 100vh;
+  /* With viewport-fit=cover the page reaches under the browser's bars and the notch: whatever
+     shows there is the site's own colour. */
+  background-color: var(--color-background);
 }
 
 /* The 3D window on a larger screen: as wide as the page's content column (the same side gutters
