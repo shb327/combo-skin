@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { FiSearch } from 'react-icons/fi'
 import { getAllKnives } from '@/data/knives'
 import { getAllGloves } from '@/data/gloves'
+import { finishCount } from '@/api/counts'
+import { useComboCounts } from '@/api/queries'
+import { comboCount } from '@/components/comboText'
 
 const ALIASES: Record<string, string[]> = {
   'bfk': ['butterfly'],
@@ -34,6 +37,9 @@ interface SearchItem {
 
 export function Search() {
   const [isOpen, setIsOpen] = useState(false)
+  // Counts are asked for once the search has been opened, not on every page load.
+  const [opened, setOpened] = useState(false)
+  const counts = useComboCounts(opened)
   const [query, setQuery] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -78,6 +84,18 @@ export function Search() {
       .slice(0, 6)
   }, [query, allItems])
 
+  const open = () => {
+    setIsOpen(true)
+    setOpened(true)
+  }
+
+  /** The item's published combos, or null while counts load, fail, or for none. */
+  const countOf = (item: SearchItem): string | null => {
+    if (!counts) return null
+    const count = finishCount(counts, item.type === 'knife' ? 'knives' : 'gloves', item.typeId, item.finishId)
+    return count > 0 ? comboCount(count) : null
+  }
+
   useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus()
@@ -121,14 +139,14 @@ export function Search() {
         <>
           {/* Mobile: icon only */}
           <button
-            onClick={() => setIsOpen(true)}
+            onClick={open}
             className="md:hidden flex items-center justify-center w-10 h-10 text-white/70 hover:text-white transition-colors"
           >
             <FiSearch className="w-5 h-5" />
           </button>
           {/* Desktop: pill button */}
           <button
-            onClick={() => setIsOpen(true)}
+            onClick={open}
             className="hidden md:flex items-center gap-3 px-6 py-2.5 w-72 text-sm text-white/50 bg-[#27272a] rounded-full hover:bg-[#323236] hover:text-white/70 transition-colors"
           >
             <FiSearch className="w-4 h-4" />
@@ -170,6 +188,7 @@ export function Search() {
                         className="w-full px-4 py-3.5 text-left text-base text-white/80 hover:bg-white/5 hover:text-white transition-colors border-b border-white/5 last:border-0"
                       >
                         {item.fullName}
+                        <ResultCount text={countOf(item)} />
                       </button>
                     </li>
                   ))}
@@ -204,6 +223,7 @@ export function Search() {
                         className="w-full px-4 py-2.5 text-left text-sm text-white/80 hover:bg-white/5 hover:text-white transition-colors"
                       >
                         {item.fullName}
+                        <ResultCount text={countOf(item)} />
                       </button>
                     </li>
                   ))}
@@ -216,5 +236,17 @@ export function Search() {
         </>
       )}
     </div>
+  )
+}
+
+/** A result's count after its name, in the finish cards' wording. */
+function ResultCount({ text }: { text: string | null }) {
+  if (!text) return null
+  // The space keeps the name and the count apart for screen readers too.
+  return (
+    <>
+      {' '}
+      <span className="ml-1 text-white/40 whitespace-nowrap">{text}</span>
+    </>
   )
 }
