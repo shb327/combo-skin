@@ -8,8 +8,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from combo_api.catalog import models
+from combo_api.catalog.images import copy_url
 from combo_api.catalog.snapshot import Kind
 from combo_api.db import get_session
+from combo_api.screenshots.shapes import ImageBase
 
 Session = Annotated[AsyncSession, Depends(get_session)]
 NOT_FOUND: dict[int | str, dict[str, Any]] = {
@@ -35,7 +37,9 @@ class Finish(BaseModel):
     rarity: Rarity
     float_min: float | None
     float_max: float | None
+    # Our copy of the picture, and the game's, to show if ours fails to load.
     image_url: str
+    fallback_image_url: str
     active: bool
 
 
@@ -63,7 +67,7 @@ class FinishDetail(Finish):
     item_type: ItemTypeRef
 
 
-def finish_out(row: models.Finish) -> dict[str, Any]:
+def finish_out(row: models.Finish, base_url: str) -> dict[str, Any]:
     return {
         "slug": row.slug,
         "name": row.name,
@@ -74,7 +78,8 @@ def finish_out(row: models.Finish) -> dict[str, Any]:
         "rarity": Rarity(code=row.rarity_code, name=row.rarity_name, color=row.rarity_color),
         "float_min": row.float_min,
         "float_max": row.float_max,
-        "image_url": row.image_url,
+        "image_url": copy_url(base_url, row.image_url),
+        "fallback_image_url": row.image_url,
         "active": row.active,
     }
 
@@ -103,7 +108,7 @@ async def list_types(session: AsyncSession, kind: Kind) -> list[TypeSummary]:
     return [TypeSummary(**summary(row, count)) for row, count in rows]
 
 
-async def get_type(session: AsyncSession, kind: Kind, type_slug: str) -> TypeDetail:
+async def get_type(session: AsyncSession, kind: Kind, type_slug: str, base_url: str) -> TypeDetail:
     row = await session.scalar(
         select(models.ItemType).where(
             models.ItemType.kind == kind, models.ItemType.slug == type_slug, models.ItemType.active
@@ -119,12 +124,13 @@ async def get_type(session: AsyncSession, kind: Kind, type_slug: str) -> TypeDet
         )
     ).all()
     return TypeDetail(
-        **summary(row, len(finishes)), finishes=[Finish(**finish_out(f)) for f in finishes]
+        **summary(row, len(finishes)),
+        finishes=[Finish(**finish_out(f, base_url)) for f in finishes],
     )
 
 
 async def get_finish(
-    session: AsyncSession, kind: Kind, type_slug: str, finish_slug: str
+    session: AsyncSession, kind: Kind, type_slug: str, finish_slug: str, base_url: str
 ) -> FinishDetail:
     result = await session.execute(
         select(models.Finish, models.ItemType)
@@ -146,7 +152,7 @@ async def get_finish(
         kind=kind,
         active=item_type.active,
     )
-    return FinishDetail(**finish_out(finish), item_type=ref)
+    return FinishDetail(**finish_out(finish, base_url), item_type=ref)
 
 
 @router.get("/knives")
@@ -156,16 +162,18 @@ async def list_knife_types(session: Session) -> list[TypeSummary]:
 
 
 @router.get("/knives/{type_slug}", responses=NOT_FOUND)
-async def get_knife_type(type_slug: str, session: Session) -> TypeDetail:
+async def get_knife_type(type_slug: str, session: Session, images: ImageBase) -> TypeDetail:
     """One knife type with its finishes in display order."""
-    return await get_type(session, "knife", type_slug)
+    return await get_type(session, "knife", type_slug, images)
 
 
 @router.get("/knives/{type_slug}/{finish_slug}", responses=NOT_FOUND)
-async def get_knife_finish(type_slug: str, finish_slug: str, session: Session) -> FinishDetail:
+async def get_knife_finish(
+    type_slug: str, finish_slug: str, session: Session, images: ImageBase
+) -> FinishDetail:
     """One knife finish, including one no longer in the game (`active: false`) or whose type
     is not (`item_type.active: false`)."""
-    return await get_finish(session, "knife", type_slug, finish_slug)
+    return await get_finish(session, "knife", type_slug, finish_slug, images)
 
 
 @router.get("/gloves")
@@ -175,13 +183,15 @@ async def list_glove_types(session: Session) -> list[TypeSummary]:
 
 
 @router.get("/gloves/{type_slug}", responses=NOT_FOUND)
-async def get_glove_type(type_slug: str, session: Session) -> TypeDetail:
+async def get_glove_type(type_slug: str, session: Session, images: ImageBase) -> TypeDetail:
     """One glove type with its finishes in display order."""
-    return await get_type(session, "glove", type_slug)
+    return await get_type(session, "glove", type_slug, images)
 
 
 @router.get("/gloves/{type_slug}/{finish_slug}", responses=NOT_FOUND)
-async def get_glove_finish(type_slug: str, finish_slug: str, session: Session) -> FinishDetail:
+async def get_glove_finish(
+    type_slug: str, finish_slug: str, session: Session, images: ImageBase
+) -> FinishDetail:
     """One glove finish, including one no longer in the game (`active: false`) or whose type
     is not (`item_type.active: false`)."""
-    return await get_finish(session, "glove", type_slug, finish_slug)
+    return await get_finish(session, "glove", type_slug, finish_slug, images)

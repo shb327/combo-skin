@@ -162,6 +162,10 @@
             "title": "Def Index",
             "type": "integer"
           },
+          "fallback_image_url": {
+            "title": "Fallback Image Url",
+            "type": "string"
+          },
           "image_url": {
             "title": "Image Url",
             "type": "string"
@@ -187,6 +191,7 @@
           "name",
           "team",
           "image_url",
+          "fallback_image_url",
           "rarity",
           "active"
         ],
@@ -804,6 +809,10 @@
             "title": "Display Name",
             "type": "string"
           },
+          "fallback_image_url": {
+            "title": "Fallback Image Url",
+            "type": "string"
+          },
           "float_max": {
             "anyOf": [
               {
@@ -879,6 +888,7 @@
           "float_min",
           "float_max",
           "image_url",
+          "fallback_image_url",
           "active"
         ],
         "title": "Finish",
@@ -892,6 +902,10 @@
           },
           "display_name": {
             "title": "Display Name",
+            "type": "string"
+          },
+          "fallback_image_url": {
+            "title": "Fallback Image Url",
             "type": "string"
           },
           "float_max": {
@@ -972,6 +986,7 @@
           "float_min",
           "float_max",
           "image_url",
+          "fallback_image_url",
           "active",
           "item_type"
         ],
@@ -1025,6 +1040,10 @@
           },
           "display_name": {
             "title": "Display Name",
+            "type": "string"
+          },
+          "fallback_image_url": {
+            "title": "Fallback Image Url",
             "type": "string"
           },
           "finish_slug": {
@@ -1110,6 +1129,7 @@
           "def_index",
           "paint_index",
           "image_url",
+          "fallback_image_url",
           "rarity",
           "active",
           "float_min",

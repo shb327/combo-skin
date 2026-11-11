@@ -171,7 +171,7 @@ async def claim(db: AsyncSession, worker: CurrentWorker, now: datetime) -> Job |
 def job_item(row: Any, side: str, drawn: dict[str, Any]) -> JobItem:
     combo = row[0]
     finish, item_type = (row[1], row[2]) if side == "glove" else (row[3], row[4])
-    item = queries.combo_item(combo, side, finish, item_type)
+    float_from, float_to, seeds = queries.conditions(combo, side)
     return JobItem(
         def_index=item_type.def_index,
         codename=item_type.codename,
@@ -180,9 +180,9 @@ def job_item(row: Any, side: str, drawn: dict[str, Any]) -> JobItem:
         name=f"{item_type.name} | {finish.display_name}",
         float=drawn["float"],
         seed=drawn["seed"],
-        float_from=item.float_from,
-        float_to=item.float_to,
-        seeds=item.seeds,
+        float_from=float_from,
+        float_to=float_to,
+        seeds=seeds,
     )
 
 

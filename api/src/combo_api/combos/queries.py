@@ -12,6 +12,7 @@ from sqlalchemy.orm import aliased
 from combo_api.admins import clock
 from combo_api.admins.deps import refuse
 from combo_api.admins.models import Admin
+from combo_api.catalog.images import copy_url
 from combo_api.catalog.models import Agent, Finish, ItemType
 from combo_api.catalog.routes import Rarity
 from combo_api.combos.ids import new_public_id
@@ -196,6 +197,7 @@ def stored_float(value: float | None) -> Decimal | None:
 def item(
     finish: Finish,
     item_type: ItemType,
+    base_url: str,
     float_from: float | None = None,
     float_to: float | None = None,
     seeds: list[int] | None = None,
@@ -208,7 +210,8 @@ def item(
         display_name=finish.display_name,
         def_index=item_type.def_index,
         paint_index=finish.paint_index,
-        image_url=finish.image_url,
+        image_url=copy_url(base_url, finish.image_url),
+        fallback_image_url=finish.image_url,
         rarity=Rarity(code=finish.rarity_code, name=finish.rarity_name, color=finish.rarity_color),
         active=finish.active and item_type.active,
         float_min=finish.float_min,
@@ -219,22 +222,26 @@ def item(
     )
 
 
-def combo_item(combo: Combo, side: str, finish: Finish, item_type: ItemType) -> Item:
-    return item(
-        finish,
-        item_type,
+def conditions(combo: Combo, side: str) -> tuple[float | None, float | None, list[int]]:
+    """A side's float range and seeds, as the API sends them."""
+    return (
         number(getattr(combo, f"{side}_float_from")),
         number(getattr(combo, f"{side}_float_to")),
         getattr(combo, f"{side}_seeds"),
     )
 
 
-def agent_out(agent: Agent) -> AgentOut:
+def combo_item(combo: Combo, side: str, finish: Finish, item_type: ItemType, base_url: str) -> Item:
+    return item(finish, item_type, base_url, *conditions(combo, side))
+
+
+def agent_out(agent: Agent, base_url: str) -> AgentOut:
     return AgentOut(
         def_index=agent.def_index,
         name=agent.name,
         team=agent.team,
-        image_url=agent.image_url,
+        image_url=copy_url(base_url, agent.image_url),
+        fallback_image_url=agent.image_url,
         rarity=Rarity(code=agent.rarity_code, name=agent.rarity_name, color=agent.rarity_color),
         active=agent.active,
     )
@@ -249,9 +256,9 @@ def admin_out(row: AdminRow, base_url: str) -> AdminCombo:
         version=combo.version,
         rating=float(combo.rating),
         description=combo.description,
-        glove=combo_item(combo, "glove", glove, glove_type),
-        knife=combo_item(combo, "knife", knife, knife_type),
-        screenshot_agent=None if agent is None else agent_out(agent),
+        glove=combo_item(combo, "glove", glove, glove_type, base_url),
+        knife=combo_item(combo, "knife", knife, knife_type, base_url),
+        screenshot_agent=None if agent is None else agent_out(agent, base_url),
         screenshot=screenshot_out(combo.public_id, shot, base_url),
         screenshot_state=state_out(shot, job, state, attempts, clock.now()),
         created_at=combo.created_at,
@@ -268,8 +275,8 @@ def public_out(row: ComboRow, base_url: str) -> PublicCombo:
         id=combo.public_id,
         rating=float(combo.rating),
         description=combo.description,
-        glove=combo_item(combo, "glove", glove, glove_type),
-        knife=combo_item(combo, "knife", knife, knife_type),
+        glove=combo_item(combo, "glove", glove, glove_type, base_url),
+        knife=combo_item(combo, "knife", knife, knife_type, base_url),
         screenshot=screenshot_out(combo.public_id, shot, base_url),
     )
 

@@ -77,6 +77,7 @@ def test_agent_operations_in_schema() -> None:
         "name",
         "team",
         "image_url",
+        "fallback_image_url",
         "rarity",
         "active",
     }

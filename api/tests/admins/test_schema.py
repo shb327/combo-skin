@@ -4,9 +4,10 @@ from combo_api.main import create_app
 def test_admin_routes_in_schema() -> None:
     paths = create_app().openapi()["paths"]
     expected = {
-        ("/admin/login", "post", "admin_login"): {"200", "401", "403", "415", "422", "429"},
-        ("/admin/me", "get", "admin_me"): {"200", "401"},
-        ("/admin/logout", "post", "admin_logout"): {"204", "403"},
+        # 500 is declared on every route (`internal_error`).
+        ("/admin/login", "post", "admin_login"): {"200", "401", "403", "415", "422", "429", "500"},
+        ("/admin/me", "get", "admin_me"): {"200", "401", "500"},
+        ("/admin/logout", "post", "admin_logout"): {"204", "403", "500"},
     }
     for (path, method, operation_id), statuses in expected.items():
         operation = paths[path][method]

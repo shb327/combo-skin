@@ -1,5 +1,7 @@
 """Screenshots in the public combo lists."""
 
+import re
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
@@ -59,9 +61,10 @@ async def test_public_combos_carry_their_screenshot_only(
 
     shot = await db_session.scalar(select(ComboScreenshot))
     assert shot is not None
+    # Originals are PNGs under combos/; the catalog's pictures are PNGs under catalog/.
+    assert not re.search(r"combos/[^\"]*\.png", response.text)
     for word in (
         shot.original_key,
-        ".png",
         "originals",
         "screenshot_state",
         "state",
@@ -78,7 +81,8 @@ async def test_public_combos_carry_their_screenshot_only(
     knife_list = await public.get("/knives/karambit/fade/combos")
     assert knife_list.status_code == 200
     assert [c["screenshot"] for c in knife_list.json()] == [screenshot]
-    for word in (shot.original_key, ".png", "originals", "state", "agent", "worker"):
+    assert not re.search(r"combos/[^\"]*\.png", knife_list.text)
+    for word in (shot.original_key, "originals", "state", "agent", "worker"):
         assert word not in knife_list.text, word
 
     # Changed render inputs: the old screenshot stays until a new one is stored.

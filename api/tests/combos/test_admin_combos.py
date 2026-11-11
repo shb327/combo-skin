@@ -43,7 +43,8 @@ async def test_create_returns_a_draft(admin_client: AsyncClient) -> None:
     assert set(rarity) == {"code", "name", "color"}
     assert body["knife"].pop("rarity")["name"] == "Covert"
     for side in ("glove", "knife"):
-        assert body[side].pop("image_url").startswith("https://")
+        assert body[side].pop("fallback_image_url").startswith("https://")
+        assert "/catalog/" in body[side].pop("image_url")
     assert body == {
         "id": body["id"],
         "status": "draft",

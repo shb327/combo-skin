@@ -5,6 +5,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from combo_api.catalog.images import image_key
 from combo_api.catalog.importer import import_snapshot
 from combo_api.catalog.snapshot import Snapshot, load_display_order, load_snapshot
 from tests.catalog.support import website_slugs
@@ -66,7 +67,9 @@ async def test_knife_type_with_finishes(client: AsyncClient) -> None:
 async def test_one_finish(client: AsyncClient) -> None:
     finish = await get(client, "/knives/karambit/doppler-phase-2")
     image_url = finish.pop("image_url")
-    assert image_url.startswith("https://")
+    fallback = finish.pop("fallback_image_url")
+    assert fallback.startswith("https://")
+    assert image_url.endswith(image_key(fallback))
     assert finish == {
         "slug": "doppler-phase-2",
         "name": "Doppler",
@@ -198,11 +201,11 @@ def test_schema_lists_404_only_on_slug_routes() -> None:
     schema = json.loads((API_DIR / "openapi.json").read_text())
     paths = schema["paths"]
     for path in ("/knives", "/gloves"):
-        assert set(paths[path]["get"]["responses"]) == {"200"}
+        assert set(paths[path]["get"]["responses"]) == {"200", "500"}
     for path in (
         "/knives/{type_slug}",
         "/gloves/{type_slug}",
         "/knives/{type_slug}/{finish_slug}",
         "/gloves/{type_slug}/{finish_slug}",
     ):
-        assert set(paths[path]["get"]["responses"]) == {"200", "404", "422"}
+        assert set(paths[path]["get"]["responses"]) == {"200", "404", "422", "500"}

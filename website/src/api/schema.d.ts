@@ -740,6 +740,8 @@ export interface components {
             active: boolean;
             /** Def Index */
             def_index: number;
+            /** Fallback Image Url */
+            fallback_image_url: string;
             /** Image Url */
             image_url: string;
             /** Name */
@@ -960,6 +962,8 @@ export interface components {
             active: boolean;
             /** Display Name */
             display_name: string;
+            /** Fallback Image Url */
+            fallback_image_url: string;
             /** Float Max */
             float_max: number | null;
             /** Float Min */
@@ -984,6 +988,8 @@ export interface components {
             active: boolean;
             /** Display Name */
             display_name: string;
+            /** Fallback Image Url */
+            fallback_image_url: string;
             /** Float Max */
             float_max: number | null;
             /** Float Min */
@@ -1023,6 +1029,8 @@ export interface components {
             def_index: number;
             /** Display Name */
             display_name: string;
+            /** Fallback Image Url */
+            fallback_image_url: string;
             /** Finish Slug */
             finish_slug: string;
             /** Float From */

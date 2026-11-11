@@ -60,7 +60,7 @@ async def test_candidates(admin_client: AsyncClient, db_session: AsyncSession) -
     assert (first["float_from"], first["float_to"], first["seeds"]) == (None, None, [])
     assert (first["float_min"], first["float_max"]) == (0.0, 0.08)
     assert (body["glove"]["float_min"], body["glove"]["float_max"]) == (0.06, 0.8)
-    assert first["image_url"].startswith("https://")
+    assert first["fallback_image_url"].startswith("https://")
     assert {c["existing"] for c in body["candidates"]} == {None}
 
     combo = await create(admin_client, headers, rating=9.1, description="Red on red.")

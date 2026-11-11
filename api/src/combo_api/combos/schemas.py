@@ -252,7 +252,9 @@ class Agent(BaseModel):
     def_index: int
     name: str
     team: Literal["ct", "t"]
+    # Our copy of the picture, and the game's, to show if ours fails to load.
     image_url: str
+    fallback_image_url: str
     rarity: Rarity
     active: bool
 
@@ -281,7 +283,9 @@ class Item(BaseModel):
     # the finish's paint index (0 for Vanilla).
     def_index: int
     paint_index: int
+    # Our copy of the picture, and the game's, to show if ours fails to load.
     image_url: str
+    fallback_image_url: str
     rarity: Rarity
     active: bool
     # The finish's own float range from the catalog; null for Vanilla.

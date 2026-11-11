@@ -353,7 +353,12 @@ async def list_batch_finishes(current: AdminDep, db: Session) -> list[BatchFinis
 
 @router.get("/batches/candidates")
 async def get_batch_candidates(
-    current: AdminDep, db: Session, glove_type: Slug, glove_finish: Slug, knife_finish: Slug
+    current: AdminDep,
+    db: Session,
+    images: ImageBase,
+    glove_type: Slug,
+    glove_finish: Slug,
+    knife_finish: Slug,
 ) -> Candidates:
     """For a glove finish and a knife finish name: every active knife type with that finish,
     in knife order, with the combo it already has with these gloves, if any."""
@@ -372,14 +377,14 @@ async def get_batch_candidates(
     knives = await batches.knife_finishes(db, knife_finish)
     combos = await batches.existing(db, finish, [knife for knife, _ in knives])
     return Candidates(
-        glove=queries.item(finish, item_type),
+        glove=queries.item(finish, item_type, images),
         knife_finish=KnifeFinishName(
             slug=knife_finish,
             display_name=knives[0][0].display_name if knives else None,
         ),
         candidates=[
             Candidate(
-                knife=queries.item(knife, knife_type),
+                knife=queries.item(knife, knife_type, images),
                 existing=existing_out(combos.get(knife.id)),
             )
             for knife, knife_type in knives
