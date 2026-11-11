@@ -328,11 +328,17 @@ async def test_an_expired_lease_counts_as_a_failed_attempt(setup: Setup) -> None
     assert job is not None
     state = await setup.state(combo["id"])
     assert (state["state"], state["rendering"]) == ("none", True)
+    # Another worker asks: the same one asking again would abandon its claim.
+    _, other_token = await make_worker(setup.client, setup.headers, "render-box-2")
+
+    async def other() -> dict[str, Any] | None:
+        return await claim(setup.box, other_token)
+
     setup.clock.advance(minutes=4, seconds=59)
-    assert await setup.claim() is None
+    assert await other() is None
 
     setup.clock.advance(seconds=2)
-    assert await setup.claim() is None
+    assert await other() is None
     state = await setup.state(combo["id"])
     assert state == {
         "state": "none",
@@ -347,9 +353,9 @@ async def test_an_expired_lease_counts_as_a_failed_attempt(setup: Setup) -> None
 
     # Due again 1 minute after the lease ran out.
     setup.clock.advance(seconds=58)
-    assert await setup.claim() is None
+    assert await other() is None
     setup.clock.advance(seconds=1)
-    assert await setup.claim() is not None
+    assert await other() is not None
 
 
 async def test_failures_wait_then_fail_the_combo(setup: Setup) -> None:
@@ -574,3 +580,17 @@ async def test_a_worker_holds_one_claim(setup: Setup, db_session: AsyncSession) 
     assert late.json() == {"detail": "claim_expired"}
     stored = await send_png(setup.box, setup.token, first["job_id"], PNG)
     assert stored.status_code == 409
+
+
+async def test_claiming_again_with_nothing_due_still_gives_up_the_earlier_claim(
+    setup: Setup,
+) -> None:
+    combo = await create(setup.client, setup.headers, glove=MOGUL, knife=FADE)
+    first = await setup.claim()
+    assert first is not None and first["combo_id"] == combo["id"]
+    # The only combo is the one held: nothing else is due, and it waits after the abandon.
+    assert await setup.claim() is None
+    state = await setup.state(combo["id"])
+    assert (state["rendering"], state["attempts"], state["reason"]) == (False, 1, "abandoned")
+    late = await setup.fail(first)
+    assert late.status_code == 409

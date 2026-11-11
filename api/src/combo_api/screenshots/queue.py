@@ -136,7 +136,8 @@ async def claim(db: AsyncSession, worker: CurrentWorker, now: datetime) -> Job |
         )
         row = (await db.execute(query)).first()
         if row is None:
-            await db.rollback()
+            # Keeps the abandoned claims closed: nothing else to give does not undo that.
+            await db.commit()
             return None
         combo_id, public_id, claimed = row
         job_id = new_id()
@@ -164,7 +165,7 @@ async def claim(db: AsyncSession, worker: CurrentWorker, now: datetime) -> Job |
         await db.commit()
         logger.info("job claimed worker=%s combo=%s job=%s", worker.name, public_id, job_id)
         return await job_out(db, combo_id, job_id, lease, claimed)
-    await db.rollback()
+    await db.commit()
     return None
 
 
