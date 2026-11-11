@@ -35,14 +35,16 @@ WAITS = (timedelta(minutes=1), timedelta(minutes=10))
 CLAIM_TRIES = 5
 
 
-async def still_active(db: AsyncSession, worker: CurrentWorker) -> None:
-    """401 if the worker was revoked since its token was checked. The row stays share-locked
-    until the transaction ends, so a revoke waits for this claim or answer and then releases
-    it, or wins and this one is refused."""
+async def still_active(db: AsyncSession, worker: CurrentWorker, *, claiming: bool = False) -> None:
+    """401 if the worker was revoked since its token was checked. The row stays locked until
+    the transaction ends (shared by answers, exclusive for a claim), so a revoke waits for this
+    claim or answer and then releases it, or wins and this one is refused."""
     found = await db.scalar(
         select(Worker.id)
         .where(Worker.id == worker.id, Worker.revoked_at.is_(None))
-        .with_for_update(read=True)
+        # A claim locks the row outright, so one worker's claims are taken one at a time and
+        # each sees the claim before it to abandon (R10); answers only share it.
+        .with_for_update(read=not claiming)
     )
     if found is None:
         raise refuse(
@@ -114,7 +116,7 @@ async def claim(db: AsyncSession, worker: CurrentWorker, now: datetime) -> Job |
     """Give the worker the due combo that has waited longest, published combos first, with a
     lease; None when nothing is due. Its earlier claims, if any, are abandoned first."""
     await expire(db, now)
-    await still_active(db, worker)
+    await still_active(db, worker, claiming=True)
     await abandon(db, worker, now)
     current = inputs.current_inputs()
     effective = Agent.__table__.alias("effective_agent")
