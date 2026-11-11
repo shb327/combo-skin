@@ -109,7 +109,16 @@ Commands, from `api/`:
 uv run python -m combo_api.catalog refresh --commit <sha>    # rewrite snapshot.json (network)
 uv run python -m combo_api.catalog import                   # load snapshot.json into the database
 uv run python -m combo_api.catalog export-website           # write website/src/data/catalog.json and agents.json
+uv run python -m combo_api.catalog copy-images [--check]    # copy the pictures into the public bucket
 ```
+
+**Pictures.** Every finish's and agent's picture is shown from our own copy in the public image bucket (the one screenshots use), with the game's image URL kept as the fallback. `copy-images` downloads each picture of `snapshot.json` (retired ones too) that is not in the bucket yet, from the game's image host only (`https`, no redirects, at most 2 MiB, a PNG of at most 2048 by 2048), four at a time, and stores it under `catalog/<first 32 hex characters of the SHA-256 of its URL>.png` with an immutable cache header. A changed picture has a new URL, so it gets a new key. It never overwrites an object, and reports what it copied, skipped and could not copy (exit 1 if any failed); `--check` downloads nothing and exits 1 if any copy is missing. It needs the storage settings, not the database. In the API's answers, `image_url` is our copy (`IMAGE_BASE_URL` plus the key) and `fallback_image_url` is the game's URL; the website's exported files carry `image_key` beside `image`. On a new local stack, run it once in the API container:
+
+```bash
+docker compose run --rm api python -m combo_api.catalog copy-images
+```
+
+`sweep` looks only under `combos/`, so it never removes the copies; a copy whose URL left the snapshot stays (about 75 KB).
 
 Only `refresh` uses the network. `import` needs the database; `export-website` needs neither. `export-website` writes two files for the website: `catalog.json` (the glove and knife types and finishes) and, beside it, `agents.json` (each agent's definition index, name, team and picture, Counter-Terrorists first, then Terrorists, each by name), which the website loads only with its 3D window. No API route serves agents publicly: `agents.json` is public game data from the same dataset. CI runs `export-website --check` and fails if either file is out of date. In Compose, the one-shot `catalog` service runs `import` after `migrate` and before the API starts.
 
@@ -120,6 +129,7 @@ Only `refresh` uses the network. `import` needs the database; `export-website` n
 1. Find the dataset's latest commit on GitHub and run `refresh --commit <full sha>`. It fails without writing anything if the data does not validate.
 2. Review the `snapshot.json` diff and what `refresh` printed: the types, finishes and agents retired since the previous snapshot, those back in the game, and the finishes not placed in `display_order.json` yet. Place new finishes in `display_order.json`, or leave them last. Retired ones can stay listed there: they are skipped.
 3. Run `export-website`, then `import`, and commit `snapshot.json`, `display_order.json` and both exported files together.
+4. Run `copy-images`, so the new or changed pictures are in the bucket; until then they show from the game's image host.
 
 **Retired entries.** A type, finish or agent that leaves the game is not removed from `snapshot.json`: `refresh` keeps it as it was last seen, with `"retired": true` (every entry has the flag). Its slug stays taken, so no later finish can take over its URL, and it comes back with the same slug if the game brings it back. Retired entries are left out of the website export, the type lists and the type pages; the single-finish endpoint still returns them, with `active: false`, and says whether their type is still in the game (`item_type.active`).
 
