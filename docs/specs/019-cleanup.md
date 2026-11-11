@@ -1,6 +1,6 @@
 # 019: Cleanup and our own finish images
 
-**Status:** Implemented
+**Status:** Audited
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api, website, admin, repo
@@ -351,8 +351,8 @@ Built on `019-cleanup`, from `main` at the merge of spec 018.
 | 6 | `api/tests/test_migrations.py:86` (both bounds alone); `test_upgrade_downgrade_upgrade` |
 | 7 | `api/tests/catalog/test_validate.py:194`; `api/tests/catalog/test_source.py:348`, `:357` |
 | 8 | `api/tests/test_errors.py:47` and the admin, worker and log cases after it |
-| 9 | `api/tests/test_compose.py:55`, `:75`; Local checks |
-| 10 | `api/tests/screenshots/test_queue.py:554` (as agreed: the earlier claim counted as `abandoned`) |
+| 9 | `api/tests/test_compose.py:61`, `:81`; Local checks |
+| 10 | `api/tests/screenshots/test_queue.py:560`, `:585` (as agreed: the earlier claim counted as `abandoned`) |
 | 11 | `website/src/components/Search.test.tsx:36` and the two cases after it |
 | 12 | `website/src/pages/FinishFilter.test.tsx:126`, `:149` and the loading and failure case |
 | 13 | `website/src/safeArea.test.ts:5`; `website/src/viewer/ViewerWindow.test.tsx:255` (the `viewer-open` class); Local checks (iOS Simulator) |
@@ -365,8 +365,8 @@ Built on `019-cleanup`, from `main` at the merge of spec 018.
 | 20 | `npm audit` in both apps: 0 vulnerabilities; lockfiles only upgraded (minimatch and its own dependencies), never downgraded |
 | 21 | `website/scripts/dependencies.test.ts:55`; 22 dependencies removed |
 | 22 | `api/README.md`, OpenAPI snapshot section |
-| 23 | `api/tests/catalog/test_copy_images.py:69`, `:89` |
-| 24 | `api/tests/catalog/test_copy_images.py:108`, `:138`, `:178`, `:197`, and the retry case |
+| 23 | `api/tests/catalog/test_copy_images.py:74`, `:94` |
+| 24 | `api/tests/catalog/test_copy_images.py:113`, `:143`, `:255`, `:269`, `:304`, `:309`, `:346`, and the retry case |
 | 25 | `api/tests/combos/test_image_urls.py:23`, `:31`; OpenAPI check |
 | 26 | `api/tests/catalog/test_export.py:18`; `website/src/pages/FinishCards.test.tsx:273`; `website/src/pages/Combos.test.tsx` (combo pictures); `website/src/viewer/ViewerControls.test.tsx` (agent list) |
 | 27 | `website/src/components/CatalogImage.test.tsx:9`; `admin/src/combos/pictures.test.tsx:170`; `website/src/pages/Combos.test.tsx` (a copy off the host shows the game's picture) |
@@ -399,6 +399,83 @@ On the branch's last code commit, in the worktree (2026-11-11):
 - The `deploy/` spec runs `copy-images` after each deploy, lists both image origins in the website's `img-src`, and sets `VITE_IMAGE_BASE_URL` for production.
 - In the Simulator, the first tap on "View in 3D" after a page load did nothing and the second opened the window, both times it was tried. Worth a look on a real phone.
 
+### Changes during the audit (2026-11-11)
+
+The audit (see Audit) found these; each was fixed on the branch with a test, none changes a requirement.
+
+- **The Compose config test** (`api/tests/test_compose.py`) now runs `docker compose config` without the API's settings in its environment: the `api` workflow sets them, and Compose prefers them to `api/.env`, so the missing-value case failed in CI (dacdd39).
+- **`copy-images`** reports every error against its picture and goes on: a header past Pillow's decompression bomb limit is "larger than 2048 by 2048", any download error "could not be downloaded (<error type>)", a storage error "could not be stored (<error type>)". A picture is decoded in full after `verify`, so image data that does not inflate is refused. It downloads only from exactly the game's image host, with no port, user info or backslash. Failures are keyed by image key (07410da).
+- **Criterion 24's tests**: the refusals of an `http` URL, a large body and a wrong content type are also checked as reported by name through `copy`, and 301, 302, 303, 307 and 308 through the real opener (07410da).
+- **R10**: a claim with nothing else due now commits, so the abandoned earlier claim stays closed; the spec 015 lease test probes with a second worker, as the same worker asking again now abandons its claim (7356af6).
+- **R7**: a type slug clash names the override key of the type that is not in the previous snapshot (60e4a70).
+- **`api/README.md`**: `copy-images` loads the API's settings and connects only to storage (9584b05).
+- **Dashboard**: the unused `pictureUrl` is removed; its refusal cases test `catalogPictureUrl` in `admin/src/api/pictures.test.ts` (14f7723).
+- **`website/src/pages/ImageClicks.test.tsx`**: the card-by-card press test, about 1.6 s locally (as on `main`), has a 20 s limit; it passed the 5 s default on one CI run (8d67e70).
+
 ## Audit
 
-Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
+**Date:** 2026-11-11 · **Branch:** 019-cleanup · **Commit:** 8d67e70 (code; the audit commit changes only this spec)
+**Verdict:** Pass with follow-ups
+
+The first pass, on commit e7ff670, found three blocking defects and some smaller ones, all fixed on the branch with tests before this verdict (Implementation notes, Changes during the audit): the Compose config test depended on the runner's environment and failed in CI; `copy-images` let errors other than `OSError` (a decompression bomb header, `http.client` errors, storage errors) end the whole run with no report (R24); and a PNG was only checked chunk by chunk, so one whose image data does not decode was stored (S1). This table is for commit 8d67e70.
+
+All checks ran in the branch's worktree from a clean install (`uv sync --locked` into a new environment, `npm ci` in both apps), the API tests against a separate Compose project with its own ports and volumes, removed afterwards; no `.env` was read. The code was read against Requirements, Design, API / data model and Security a second time by a reviewer who had not written it. Where a manual step is listed, it was repeated for this audit, not taken from Implementation notes.
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | Pairing race 409, batch 409, `public_id` collision retried | Pass | `api/tests/combos/test_races.py:42` and the batch, collision and three-collision cases after it; the race is simulated by making the existence check miss (follow-up) |
+| 2 | Concurrent publishes in opposite orders; locking queries ordered | Pass | `test_races.py:220` (a waiting request holds no lock, for ids and batches), `:237` (`ORDER BY combos.id` on every combo lock); locks tested at the function level (follow-up) |
+| 3 | Numbers as text refused, integers and decimals accepted, `version` bound | Pass | `api/tests/combos/test_strict.py:47`, `:95` and the accepted-numbers case |
+| 4 | Update-only batch on a retired glove accepted; with a create refused | Pass | `api/tests/combos/test_batches.py:205`; the refusal stays at `["body", "glove"]` (recorded) |
+| 5 | `ValidationError` fields, `Error.detail` enumeration, types | Pass | `api/tests/test_error_codes.py:45`, `:55`; `npm run api:types:check` in both apps; `npm run typecheck` in `admin/` |
+| 6 | One float bound refused; migration round trip | Pass | `api/tests/test_migrations.py:86`; `test_upgrade_downgrade_upgrade` |
+| 7 | Codename message, clash message, type override | Pass | `api/tests/catalog/test_validate.py:194`; `test_source.py:348`, `:368` (the new type's key, whatever the order; fixed in the audit), `:357` |
+| 8 | Unhandled exception: 500 `internal_error`, CORS, `no-store`, log | Pass | `api/tests/test_errors.py:47` and the admin, worker and log cases |
+| 9 | `db` and `storage` get only their settings; stack healthy; missing value stops `up` | Pass | `api/tests/test_compose.py:61`, `:81` (now independent of the runner's environment; fixed in the audit); `docker compose config` on the `combo-skin` project name: volumes `combo-skin_db-data` and `combo-skin_storage-data`, `db` gets `POSTGRES_DB`, `POSTGRES_PASSWORD`, `POSTGRES_USER` only, `storage` gets `RUSTFS_ACCESS_KEY`, `RUSTFS_SECRET_KEY` only, the API containers all of `api/.env`; a separate project came up healthy with `migrate`, `catalog` and `storage-init` exiting 0 |
+| 10 | One live claim per worker | Pass | As agreed (recorded): `api/tests/screenshots/test_queue.py:560`, and `:585` (with nothing else due the earlier claim is still abandoned; fixed in the audit) |
+| 11 | Search counts: requested on open, wording, none while loading or failed | Pass | `website/src/components/Search.test.tsx:36` and the two cases after it |
+| 12 | "Has combos" on `/gloves` and `/knives` | Pass | `website/src/pages/FinishFilter.test.tsx:126` and the empty and loading cases |
+| 13 | `viewport-fit=cover`; iOS window and page | Pass | `website/src/safeArea.test.ts:5`; `website/src/viewer/ViewerWindow.test.tsx:255` (`viewer-open` on open, gone after every close); iOS Simulator (iPhone 17 Pro, iOS 26.3, Safari, a dev server on port 4173 reading the local API): upright, the window open shows only the site's background under the toolbar and its rows clear of the toolbar and Dynamic Island; sideways, the window clears the Dynamic Island and nothing of the page shows. The agreed deviation (the page hidden on phones) is recorded |
+| 14 | README screenshots | Pass | `website/docs/screenshots/`: four PNGs at 1440 px wide, 179,932 to 366,525 bytes; alt texts in `website/README.md:42` to `:48` describe them |
+| 15 | API unreachable on load | Pass | `admin/src/App.test.tsx:396` and the no-session case |
+| 16 | Delete disabled until the combo is read again | Pass | `admin/src/pages/EditComboPage.test.tsx:143` |
+| 17 | Catalog retirement tests can fail | Pass | `api/tests/catalog/test_snapshot.py:158`, `:225`; `test_source.py:255` |
+| 18 | `no-store` on every admin route, from the app's list, a 204 delete | Pass | `api/tests/combos/test_guard.py:62`, `:92`; login, logout and `/admin/me` are covered by `api/tests/admins/test_require_admin.py:283` (follow-up) |
+| 19 | Spec 017 criteria 14 to 17 and the four behaviours; spec 018 criterion 7 | Pass | `admin/src/pages/FinishPage.test.tsx:278`, `:307`, `:361`, `:398`, `:498`; `admin/src/combos/order.test.ts:18`; `admin/src/pages/BatchPage.test.tsx:350`; `website/src/viewer/ViewerWindow.test.tsx:255` |
+| 20 | `npm audit` clean, nothing downgraded | Pass | `npm audit` in both apps: 0 vulnerabilities; the lockfile diff only removes packages or raises `minimatch` and its own dependencies |
+| 21 | Every website dependency used | Pass | `website/scripts/dependencies.test.ts:55` |
+| 22 | API README names both apps' `api:types` | Pass | `api/README.md`, OpenAPI snapshot section |
+| 23 | Copies of every picture once, key from the URL | Pass | `api/tests/catalog/test_copy_images.py:74`, `:94` |
+| 24 | Refusals reported by name; no overwrite; `--check` | Pass | `test_copy_images.py:113`, `:255` (bomb header, image data that does not decode), `:269` (any download error reported, not raised), `:304` (only the game's host itself), `:309` (http, size and content type reported by name through `copy`), `:346` (301, 302, 303, 307 and 308 refused by the real opener), `:143`; all added or tightened in the audit |
+| 25 | API `image_url` and `fallback_image_url` | Pass | `api/tests/combos/test_image_urls.py:23`, `:31`; OpenAPI check |
+| 26 | Export keys, website requests our copy | Pass | `api/tests/catalog/test_export.py:46`; `export-website --check`; `website/src/pages/FinishCards.test.tsx:273` |
+| 27 | One fallback, no loop, other hosts refused | Pass | `website/src/components/CatalogImage.test.tsx:9`; `admin/src/combos/pictures.test.tsx:170`; `admin/src/api/pictures.test.ts:29` |
+| 28 | Local copy, check, headers, apps, fallback, `sweep` | Pass | On the audit's Compose project: `copy-images` copied 733 and exited 0, a second run copied none, `--check` printed "Missing 0"; a copy answered 200 with `image/png` and `public, max-age=31536000, immutable`; `sweep --dry-run` saw no `catalog/` key. A website build against it loaded all 19 Specialist finishes from the bucket; with Mogul's copy deleted its card loaded the game's picture and the other 18 their copies. The dashboard build's policy is `img-src 'self' <game host> <the project's image origin>`; under it a copy loaded and an image from another host was blocked. All 733 snapshot URLs pass the tightened host rule |
+| 29 | Lint, tests, build in all apps; CI | Pass | Table below; CI on the pull request (see below) |
+| 30 | No leaks; no new hosts | Pass | gitleaks below; added URLs are `localhost`, `127.0.0.1`, placeholder `example.com` hosts, the game's public image host and public documentation |
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Lint | `api/`: `uv run ruff format --check .`, `uv run ruff check .`, `uv run mypy`; `admin/`: `npm run lint`, `npm run typecheck`; `website/`: `npm run lint` | Pass |
+| Tests | `api/`: `uv run pytest` (522 passed); `admin/`: `npm test` (379 passed in 27 files); `website/`: `npm test` (342 passed in 18 files) | Pass |
+| Build | `api/`: `docker build` (278,313,352 bytes, under 300 MB), `python -m combo_api.openapi --check`, `python -m combo_api.catalog export-website --check`; `admin/`: `npm run build`, `npm run check:bundle`, `npm run api:types:check`; `website/`: `npm run build` (no chunk-size warning), `npm run api:types:check` | Pass |
+| CI | `api`, `admin` and `website` workflows on the pull request | Pass on 8d67e70: `api` (jobs `check` and `docker`), `admin` and `website` (job `build`) succeeded on both the push and the pull request runs (43024203392, 43024208322; 43024203281, 43024208215; 43024203165, 43024208294). Before the audit's fixes, the `api` job `check` failed on e7ff670 (the Compose test) and one `website` run on dacdd39 (the press test's time limit) |
+| Secret scan | `gitleaks git --log-opts="origin/main..HEAD"`, `gitleaks dir .` | Pass |
+| Public exposure | manual review of `git diff origin/main...HEAD` and `git log`; `git check-ignore -v` on the local configuration paths; tracked-file check | Pass: no secrets, private hosts or paths; every commit authored by the owner with a one-line message and no trailers; local configuration ignored, no `.env` tracked |
+| Design conformance | manual review, and an independent reading | Pass: the two agreed deviations (R10, R13) are recorded; the details found are fixed or listed below |
+
+**Findings**
+- (blocking, fixed) `api/tests/test_compose.py` ran `docker compose config` with the runner's environment; the `api` workflow sets the API's settings there and Compose prefers them to `api/.env`, so the missing-value case passed `config` and the job failed. The test now leaves those variables out (dacdd39).
+- (blocking, fixed) `copy-images` (R24): a PNG header past Pillow's decompression bomb limit, `http.client` errors (a broken chunked body, a bad status line, an invalid URL) and storage errors were not caught per picture, so the task group ended the whole run with a traceback and no summary. Every error is now reported against its picture and the other copies go on (07410da).
+- (blocking, fixed) S1, "stores only bytes that decode as a PNG": `checked` only ran `verify`, which checks chunk checksums but never inflates the image data, so a PNG with corrupt data was stored. The picture is now decoded in full after `verify` (07410da).
+- (fixed) S1, "the game's image host": the download accepted any `*.steamstatic.com` host, any port and user info, and a backslash that `urlsplit` and `urllib` read differently. It now requires exactly the game's host (07410da). The snapshot's validation still accepts any host under that domain; a URL elsewhere would be reported by `copy-images` as refused.
+- (fixed) Criterion 24's refusals of an `http` URL, another host, a redirect and a large body were tested on `download` only, and the redirect only through `redirect_request` with 302. They are now also reported by name through `copy`, and 301, 302, 303, 307 and 308 are refused through the real opener (07410da).
+- (fixed) R10: when nothing else was due, the claim's rollback undid the abandon, so the earlier claim stayed live until its lease expired. It is now committed (7356af6); the spec 015 lease test now probes with a second worker.
+- (fixed) R7: in a clash between an existing and a new type listed first, the message named the existing type's override key, which has no effect. It now names the new type's (60e4a70).
+- (fixed) `copy-images` keyed failures by display name, so two pictures with one name would merge in the report; keyed by image key now (07410da). `api/README.md` said the command needs storage settings and not the database settings; it loads the API's settings and connects only to storage (9584b05). The dashboard's `pictureUrl` was unused after Part B; removed, and its refusal cases moved to `catalogPictureUrl`, which had none (14f7723).
+- (fixed, older than this branch) `website/src/pages/ImageClicks.test.tsx`'s card-by-card press test takes about 1.6 s locally, on `main` as here, and passed the 5 s limit on one of four CI runs, failing the five tests after it. It has a 20 s limit now (8d67e70).
+- (follow-up) `copy-images` lists the bucket, then writes: two runs at the same moment could write the same key twice, with the same picture. A conditional write (`If-None-Match: *`) would make "never overwrites" hold across runs, once R2 and RustFS are both checked for it.
+- (follow-up) Criterion 1's race is simulated by making the existence check miss, and criterion 2's by locking through the lock functions on two connections, not by two concurrent HTTP requests; the paths and the lock order are covered.
+- (follow-up) The 500 from `InternalErrors` also carries `no-store` on public routes; R8 names admin and worker routes. Harmless, not recorded.
+- (follow-up) First tap on "View in 3D" in the iOS Simulator: it does open the window, after a delay with nothing on screen while the window's code (a lazily loaded chunk) arrives; `main` behaves the same, so this branch is not the cause. Some feedback on that first open, or loading the chunk earlier, would help on a phone.
+
