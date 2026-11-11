@@ -186,7 +186,7 @@ def normalise(
 
     for item_type in item_types.values():
         check_finish_slugs(item_type)
-    check_type_slugs(list(item_types.values()))
+    check_type_slugs(list(item_types.values()), set(old_types))
     return Snapshot(
         source=Source(
             repository=REPOSITORY,
@@ -243,14 +243,17 @@ def type_key(def_index: int) -> str:
     return f"type:{def_index}"
 
 
-def check_type_slugs(item_types: list[ItemType]) -> None:
+def check_type_slugs(item_types: list[ItemType], known: set[int] | None = None) -> None:
+    """Fail on two types of one kind with one slug, naming the override key of the new one:
+    a type already in the previous snapshot (`known`) keeps its slug whatever is listed."""
     by_slug: dict[tuple[Kind, str], ItemType] = {}
     for item_type in item_types:
         other = by_slug.setdefault((item_type.kind, item_type.slug), item_type)
         if other is not item_type:
             first = described(other.name, other.def_index, other.retired)
             second = described(item_type.name, item_type.def_index, item_type.retired)
-            new = item_type if not item_type.retired else other
+            fresh = [t for t in (other, item_type) if t.def_index not in (known or set())]
+            new = fresh[-1] if fresh else item_type
             raise CatalogError(
                 f"{first} and {second} both have slug {item_type.slug!r}; add an override to "
                 f"slug_overrides.json, keyed {type_key(new.def_index)!r}"

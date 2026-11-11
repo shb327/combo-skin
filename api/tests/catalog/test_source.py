@@ -363,3 +363,16 @@ def test_override_sets_a_new_type_slug() -> None:
 def test_a_type_keeps_its_slug_over_an_override() -> None:
     snapshot = normalise(overrides={"type:507": "karambit-2"}, previous=normalise())
     assert {t.def_index: t.slug for t in snapshot.item_types}[507] == "karambit"
+
+
+def test_a_type_slug_clash_names_the_new_type_whatever_the_order() -> None:
+    """The override must be for the new type: an existing type keeps its slug regardless."""
+    talon = [e for e in json.loads(RAW) if e["weapon"]["weapon_id"] == 523]
+    for entry in talon:
+        entry["weapon"]["weapon_id"] = 599
+        entry["weapon"]["id"] = "weapon_knife_talon_2"
+    first = json.dumps(talon + json.loads(RAW)).encode()
+    with pytest.raises(CatalogError) as error:
+        normalise(first, previous=normalise())
+    assert "type:599" in str(error.value)
+    assert "type:523" not in str(error.value)
