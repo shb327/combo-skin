@@ -41,9 +41,11 @@ The viewer and its message contract live in their own public repository; see its
 
 ![Home page with the "Find your perfect combo" heading and search-by-gloves and search-by-knives cards](docs/screenshots/home.png)
 
-![Search by gloves: a grid of the eight glove types with the number of finishes for each](docs/screenshots/search-gloves.png)
+![Search by gloves: a grid of the glove types, each with its number of finishes and of combos, and a "Has combos" filter](docs/screenshots/search-gloves.png)
 
-![Combos for Specialist Gloves | Crimson Kimono: "18 combos" under the finish name, then cards for Karambit and M9 Bayonet | Doppler (Ruby), each with the glove and knife pictures side by side, a score, and glove and knife pattern and float rows reading "Any"](docs/screenshots/combos.png)
+![Specialist Gloves: a grid of its finishes with their pictures, "18 combos" on Crimson Kimono, and a "Has combos" filter](docs/screenshots/glove-finishes.png)
+
+![Combos for Specialist Gloves | Crimson Kimono: "18 combos" under the finish name, then cards for Karambit and M9 Bayonet | Doppler (Ruby), each with its in-game screenshot, "View in 3D", a score, and glove and knife pattern and float rows reading "Any"](docs/screenshots/combos.png)
 
 ## Getting started
 
