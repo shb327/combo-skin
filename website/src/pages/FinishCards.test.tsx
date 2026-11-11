@@ -268,3 +268,18 @@ describe('pages without counts', () => {
     ])
   })
 })
+
+describe('finish pictures', () => {
+  it('load our copy, keyed from the catalog, on finish cards and the combos page header', async () => {
+    const site = renderSite('/gloves/specialist')
+    const kimono = SPECIALIST.finishes.find((f) => f.id === 'crimson-kimono')!
+    const picture = within(card('Crimson Kimono')).getByRole('img')
+    expect(picture).toHaveAttribute('src', `http://localhost:9000/local-images/${kimono.image_key}`)
+    expect(kimono.image_key).toMatch(/^catalog\/[0-9a-f]{32}\.png$/)
+
+    act(() => void site.navigate('/gloves/specialist/crimson-kimono/combos'))
+    const header = await screen.findByRole('img', { name: 'Specialist Gloves | Crimson Kimono' })
+    expect(header).toHaveAttribute('src', `http://localhost:9000/local-images/${kimono.image_key}`)
+    expect(header).toHaveAttribute('referrerpolicy', 'no-referrer')
+  })
+})

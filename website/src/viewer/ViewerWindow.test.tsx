@@ -247,6 +247,51 @@ describe('closing', () => {
     expect(screen.queryByText(/graphics card/)).toBeNull()
   })
 
+  it.each([
+    ['Close', async () => userEvent.click(inWindow().getByRole('button', { name: 'Close' }))],
+    ['Escape on its own controls', async () => userEvent.keyboard('{Escape}')],
+    ['an Escape forwarded from the view', async () => viewer.key('Escape')],
+    ['Back', async (navigate: (to: number) => void) => act(() => navigate(-1))],
+  ] as const)('%s blanks the iframe while it is in the page, and later events change nothing', async (_, close) => {
+    stubWebGL2()
+    const { navigate, url } = await site()
+    await open(0)
+    const iframe = frame()
+    const connectedWhenBlanked: boolean[] = []
+    const setter = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'src')!.set!
+    Object.defineProperty(iframe, 'src', {
+      configurable: true,
+      get: () => iframe.getAttribute('src') ?? '',
+      set(value: string) {
+        if (value === 'about:blank') connectedWhenBlanked.push(iframe.isConnected)
+        setter.call(iframe, value)
+      },
+    })
+    viewer.ready2()
+    viewer.loaded()
+    // While open, the page behind is marked so a phone can hide it (index.css).
+    expect(document.documentElement).toHaveClass('viewer-open')
+    await close(navigate)
+    expect(document.documentElement).not.toHaveClass('viewer-open')
+    expect(connectedWhenBlanked).toEqual([true])
+    expect(iframe.isConnected).toBe(false)
+    expect(dialogs()).toHaveLength(0)
+    expect(url()).toBe(PATH)
+    expect(document.documentElement.style.overflow).toBe('')
+    await waitFor(() => expect(inCard(0).getByRole('button', { name: 'View in 3D' })).toHaveFocus())
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: { type: 'cs3d:error', id: null, code: 'context-lost', retryable: true },
+          origin: VIEWER_ORIGIN,
+          source: iframe.contentWindow,
+        }),
+      )
+    })
+    expect(screen.queryByText(/graphics card/)).toBeNull()
+    expect(dialogs()).toHaveLength(0)
+  })
+
   it('closes on Escape from its own controls', async () => {
     stubWebGL2()
     await site()

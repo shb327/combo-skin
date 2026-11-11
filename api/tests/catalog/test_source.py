@@ -252,6 +252,29 @@ def test_refresh_reports_retired_and_returning_entries(
     assert "Retired since" not in err
 
 
+def test_refresh_reports_a_whole_type_retired_and_back_before_the_unplaced(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    order = write_order(tmp_path / "order.json", {"types": {}, "finishes": {}})
+    assert run_refresh(tmp_path, monkeypatch, RAW, order) == 0
+    capsys.readouterr()
+    assert run_refresh(tmp_path, monkeypatch, raw_without(523), order) == 0
+    err = capsys.readouterr().err
+    retired = err.index(f"Retired since {COMMIT[:12]}:\n  Talon Knife\n")
+    assert retired < err.index("Not placed in")
+    snapshot = load_snapshot(tmp_path / "snapshot.json")
+    talon = next(t for t in snapshot.item_types if t.def_index == 523)
+    assert talon.retired and all(f.retired for f in talon.finishes)
+    assert run_refresh(tmp_path, monkeypatch, RAW, order) == 0
+    err = capsys.readouterr().err
+    assert err.index(f"Back since {COMMIT[:12]}:\n  Talon Knife\n") < err.index("Not placed in")
+    assert "Retired since" not in err
+    talon = next(
+        t for t in load_snapshot(tmp_path / "snapshot.json").item_types if t.def_index == 523
+    )
+    assert not talon.retired and not any(f.retired for f in talon.finishes)
+
+
 def test_display_order_may_list_retired_finishes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -311,3 +334,45 @@ def test_refresh_downloads_agents_from_the_same_commit(
     assert main([*args, str(order)]) == 0
     err = capsys.readouterr().err
     assert f"Retired since {COMMIT[:12]}:\n  Operator | FBI SWAT\n" in err
+
+
+def talon_again() -> bytes:
+    """The dataset with a second Talon Knife under a new definition index and codename."""
+    talon = [e for e in json.loads(RAW) if e["weapon"]["weapon_id"] == 523]
+    for entry in talon:
+        entry["weapon"]["weapon_id"] = 599
+        entry["weapon"]["id"] = "weapon_knife_talon_2"
+    return json.dumps(json.loads(RAW) + talon).encode()
+
+
+def test_a_type_slug_clash_names_the_override_file() -> None:
+    with pytest.raises(CatalogError) as error:
+        normalise(talon_again())
+    message = str(error.value)
+    assert "Talon Knife (523) and Talon Knife (599) both have slug 'talon'" in message
+    assert "slug_overrides.json" in message
+    assert "type:599" in message
+
+
+def test_override_sets_a_new_type_slug() -> None:
+    snapshot = normalise(talon_again(), overrides={"type:599": "talon-2"})
+    slugs = {t.def_index: t.slug for t in snapshot.item_types}
+    assert (slugs[523], slugs[599]) == ("talon", "talon-2")
+
+
+def test_a_type_keeps_its_slug_over_an_override() -> None:
+    snapshot = normalise(overrides={"type:507": "karambit-2"}, previous=normalise())
+    assert {t.def_index: t.slug for t in snapshot.item_types}[507] == "karambit"
+
+
+def test_a_type_slug_clash_names_the_new_type_whatever_the_order() -> None:
+    """The override must be for the new type: an existing type keeps its slug regardless."""
+    talon = [e for e in json.loads(RAW) if e["weapon"]["weapon_id"] == 523]
+    for entry in talon:
+        entry["weapon"]["weapon_id"] = 599
+        entry["weapon"]["id"] = "weapon_knife_talon_2"
+    first = json.dumps(talon + json.loads(RAW)).encode()
+    with pytest.raises(CatalogError) as error:
+        normalise(first, previous=normalise())
+    assert "type:599" in str(error.value)
+    assert "type:523" not in str(error.value)

@@ -1,7 +1,12 @@
 /** Errors from the API, and the fixed messages the app shows for them. Server text is never
  * shown: only the error code is read from a response. */
 
+import type { components } from './schema'
+
 export type ApiErrorKind = 'network' | 'http'
+
+/** Every code the API declares for an error's `detail` (422 aside), from `api/openapi.json`. */
+export type ErrorCode = components['schemas']['Error']['detail']
 
 /** One entry of a 422 body: where the problem is and its code. The server's text, the echoed
  * input and its context are dropped. */
@@ -13,7 +18,9 @@ export interface Problem {
 export class ApiError extends Error {
   readonly kind: ApiErrorKind
   readonly status: number
-  readonly code: string | null
+  /** The error's code. A newer API could send one this build does not list, so every switch
+   * over it keeps a default. */
+  readonly code: ErrorCode | null
   /** Seconds from a valid `Retry-After` header, or null. */
   readonly retryAfter: number | null
   /** The entries of a 422 body; empty otherwise. */
@@ -22,7 +29,7 @@ export class ApiError extends Error {
   constructor(
     kind: ApiErrorKind,
     status = 0,
-    code: string | null = null,
+    code: ErrorCode | null = null,
     retryAfter: number | null = null,
     problems: Problem[] = [],
   ) {
@@ -50,7 +57,7 @@ function problems(detail: unknown): Problem[] {
 export function httpError(response: Response, body: unknown): ApiError {
   const detail =
     typeof body === 'object' && body !== null && 'detail' in body ? body.detail : undefined
-  const code = typeof detail === 'string' ? detail : null
+  const code = typeof detail === 'string' ? (detail as ErrorCode) : null
   const header = response.headers.get('Retry-After') ?? ''
   const retryAfter = /^\d{1,6}$/.test(header) ? Number(header) : null
   return new ApiError('http', response.status, code, retryAfter, problems(detail))

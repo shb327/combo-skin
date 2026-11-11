@@ -392,7 +392,7 @@ export function ComboList({ side, filters }: { side: Kind; filters: ComboFilters
                 const label = labels.get(combo.id) ?? ''
                 return (
                   <ComboRow key={combo.id} id={combo.id} label={label} draggable={sort === 'rating'} canDrag={canDrag}>
-                    <Picture url={other(combo).image_url} size="sm" />
+                    <Picture url={other(combo).image_url} fallback={other(combo).fallback_image_url} size="sm" />
                     <input
                       type="checkbox"
                       aria-label={`Select ${label}`}

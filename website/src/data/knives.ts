@@ -21,6 +21,7 @@ export const getAllKnives = () => {
       fullName: `${type.name} | ${finish.name}`,
       id: `${type.id}-${finish.id}`,
       image: finish.image,
+      imageKey: finish.image_key,
     }))
   )
 }

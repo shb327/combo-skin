@@ -35,14 +35,16 @@ WAITS = (timedelta(minutes=1), timedelta(minutes=10))
 CLAIM_TRIES = 5
 
 
-async def still_active(db: AsyncSession, worker: CurrentWorker) -> None:
-    """401 if the worker was revoked since its token was checked. The row stays share-locked
-    until the transaction ends, so a revoke waits for this claim or answer and then releases
-    it, or wins and this one is refused."""
+async def still_active(db: AsyncSession, worker: CurrentWorker, *, claiming: bool = False) -> None:
+    """401 if the worker was revoked since its token was checked. The row stays locked until
+    the transaction ends (shared by answers, exclusive for a claim), so a revoke waits for this
+    claim or answer and then releases it, or wins and this one is refused."""
     found = await db.scalar(
         select(Worker.id)
         .where(Worker.id == worker.id, Worker.revoked_at.is_(None))
-        .with_for_update(read=True)
+        # A claim locks the row outright, so one worker's claims are taken one at a time and
+        # each sees the claim before it to abandon (R10); answers only share it.
+        .with_for_update(read=not claiming)
     )
     if found is None:
         raise refuse(
@@ -91,11 +93,31 @@ async def expire(db: AsyncSession, now: datetime) -> None:
     await db.commit()
 
 
+async def abandon(db: AsyncSession, worker: CurrentWorker, now: datetime) -> None:
+    """Close the worker's live claims as failed attempts (`abandoned`) before it claims again,
+    so a worker holds at most one claim. Counted, as an expired lease is: a worker that
+    restarts because a combo crashed it must not get that combo back for ever."""
+    rows = (
+        await db.execute(
+            select(ScreenshotJob, Combo.public_id)
+            .join(Combo, Combo.id == ScreenshotJob.combo_id)
+            .where(
+                ScreenshotJob.worker_id == worker.id, ScreenshotJob.lease_expires_at.is_not(None)
+            )
+            .with_for_update(of=ScreenshotJob)
+        )
+    ).all()
+    for job, combo_id in rows:
+        count_attempt(job, "abandoned", now)
+        logger.info("job abandoned worker=%s combo=%s job=%s", worker.name, combo_id, job.job_id)
+
+
 async def claim(db: AsyncSession, worker: CurrentWorker, now: datetime) -> Job | None:
     """Give the worker the due combo that has waited longest, published combos first, with a
-    lease; None when nothing is due."""
+    lease; None when nothing is due. Its earlier claims, if any, are abandoned first."""
     await expire(db, now)
-    await still_active(db, worker)
+    await still_active(db, worker, claiming=True)
+    await abandon(db, worker, now)
     current = inputs.current_inputs()
     effective = Agent.__table__.alias("effective_agent")
     tried: list[int] = []
@@ -116,7 +138,8 @@ async def claim(db: AsyncSession, worker: CurrentWorker, now: datetime) -> Job |
         )
         row = (await db.execute(query)).first()
         if row is None:
-            await db.rollback()
+            # Keeps the abandoned claims closed: nothing else to give does not undo that.
+            await db.commit()
             return None
         combo_id, public_id, claimed = row
         job_id = new_id()
@@ -144,14 +167,14 @@ async def claim(db: AsyncSession, worker: CurrentWorker, now: datetime) -> Job |
         await db.commit()
         logger.info("job claimed worker=%s combo=%s job=%s", worker.name, public_id, job_id)
         return await job_out(db, combo_id, job_id, lease, claimed)
-    await db.rollback()
+    await db.commit()
     return None
 
 
 def job_item(row: Any, side: str, drawn: dict[str, Any]) -> JobItem:
     combo = row[0]
     finish, item_type = (row[1], row[2]) if side == "glove" else (row[3], row[4])
-    item = queries.combo_item(combo, side, finish, item_type)
+    float_from, float_to, seeds = queries.conditions(combo, side)
     return JobItem(
         def_index=item_type.def_index,
         codename=item_type.codename,
@@ -160,9 +183,9 @@ def job_item(row: Any, side: str, drawn: dict[str, Any]) -> JobItem:
         name=f"{item_type.name} | {finish.display_name}",
         float=drawn["float"],
         seed=drawn["seed"],
-        float_from=item.float_from,
-        float_to=item.float_to,
-        seeds=item.seeds,
+        float_from=float_from,
+        float_to=float_to,
+        seeds=seeds,
     )
 
 

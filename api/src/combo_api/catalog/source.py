@@ -109,7 +109,8 @@ def normalise(
     """Knives, gloves and agents from the dataset as a snapshot.
 
     A type or finish already in `previous` keeps its slug. A new finish takes its slug from
-    `overrides` (keyed `<def_index>:<paint_index>`) if listed, otherwise from its name. Types
+    `overrides` (keyed `<def_index>:<paint_index>`) if listed, a new type from `overrides`
+    (keyed `type:<def_index>`), otherwise each from its name. Types
     and finishes of `previous` missing from the dataset are kept, retired, so their slugs stay
     taken. Agents missing from the dataset are kept retired too.
     """
@@ -174,7 +175,7 @@ def normalise(
             def_index=def_index,
             codename=codename,
             name=name,
-            slug=old.slug if old else type_slug(name),
+            slug=old.slug if old else overrides.get(type_key(def_index)) or type_slug(name),
             finishes=tuple(sorted(current.values(), key=lambda f: f.paint_index)),
             retired=False,
         )
@@ -185,7 +186,7 @@ def normalise(
 
     for item_type in item_types.values():
         check_finish_slugs(item_type)
-    check_type_slugs(list(item_types.values()))
+    check_type_slugs(list(item_types.values()), set(old_types))
     return Snapshot(
         source=Source(
             repository=REPOSITORY,
@@ -237,14 +238,26 @@ def check_finish_slugs(item_type: ItemType) -> None:
             )
 
 
-def check_type_slugs(item_types: list[ItemType]) -> None:
+def type_key(def_index: int) -> str:
+    """A type's key in `slug_overrides.json`."""
+    return f"type:{def_index}"
+
+
+def check_type_slugs(item_types: list[ItemType], known: set[int] | None = None) -> None:
+    """Fail on two types of one kind with one slug, naming the override key of the new one:
+    a type already in the previous snapshot (`known`) keeps its slug whatever is listed."""
     by_slug: dict[tuple[Kind, str], ItemType] = {}
     for item_type in item_types:
         other = by_slug.setdefault((item_type.kind, item_type.slug), item_type)
         if other is not item_type:
             first = described(other.name, other.def_index, other.retired)
             second = described(item_type.name, item_type.def_index, item_type.retired)
-            raise CatalogError(f"{first} and {second} both have slug {item_type.slug!r}")
+            fresh = [t for t in (other, item_type) if t.def_index not in (known or set())]
+            new = fresh[-1] if fresh else item_type
+            raise CatalogError(
+                f"{first} and {second} both have slug {item_type.slug!r}; add an override to "
+                f"slug_overrides.json, keyed {type_key(new.def_index)!r}"
+            )
 
 
 def retirement_changes(

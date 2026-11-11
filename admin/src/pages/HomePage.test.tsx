@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { FakeApi, error } from '../test/fakeApi'
-import { picture } from '../test/fakeCatalog'
+import { copyOf } from '../test/fakeCatalog'
 import { renderApp } from '../test/render'
 
 function withDrafts() {
@@ -43,8 +43,8 @@ describe('home', () => {
     const main = await screen.findByRole('main')
     const gloves = within(main).getByRole('link', { name: /By gloves/ })
     const knives = within(main).getByRole('link', { name: /By knife/ })
-    await waitFor(() => expect(gloves.querySelector('img')?.getAttribute('src')).toBe(picture('sport', 'pandoras-box')))
-    await waitFor(() => expect(knives.querySelector('img')?.getAttribute('src')).toBe(picture('karambit', 'vanilla')))
+    await waitFor(() => expect(gloves.querySelector('img')?.getAttribute('src')).toBe(copyOf('sport', 'pandoras-box')))
+    await waitFor(() => expect(knives.querySelector('img')?.getAttribute('src')).toBe(copyOf('karambit', 'vanilla')))
     expect(fake.to('GET /gloves/{type}/{finish}')).toHaveLength(1)
     expect(fake.to('GET /knives/{type}/{finish}')).toHaveLength(1)
     const headings = within(main).getAllByRole('heading').map((h) => h.textContent)

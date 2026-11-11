@@ -7,7 +7,10 @@ export interface AgentCatalogEntry {
   def_index: number
   name: string
   team: string
+  /** The game's picture: the fallback for our copy. */
   image: string
+  /** Our copy's key in the image bucket. */
+  image_key: string
 }
 
 export interface AgentChoice {

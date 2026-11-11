@@ -56,7 +56,7 @@ describe('the screenshots page', () => {
     const current = await screen.findByRole('group', { name: 'Default agent' })
     expect(await within(current).findByText('Operator | FBI SWAT')).toBeInTheDocument()
     expect(within(current).getByText('No longer in the game')).toBeInTheDocument()
-    expect(current.querySelector('img')?.getAttribute('src')).toMatch(/fake\/agent\/5305$/)
+    expect(current.querySelector('img')?.getAttribute('src')).toMatch(/catalog\/fake-agent-5305\.png$/)
   })
 })
 

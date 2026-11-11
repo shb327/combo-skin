@@ -2,8 +2,10 @@ import logging
 from typing import Any
 
 import pytest
+from fastapi.routing import iter_route_contexts
 from httpx import AsyncClient
 
+from combo_api.main import create_app
 from tests.admins.support import USERNAME
 from tests.combos.support import combo_body, create, logged_in
 from tests.support import ADMIN_ORIGIN
@@ -12,24 +14,40 @@ pytestmark = [pytest.mark.anyio, pytest.mark.usefixtures("catalog", "admin")]
 
 ID = "zzzzzzzzzzzz"
 QUERY = {"glove_type": "specialist", "glove_finish": "mogul", "knife_finish": "fade"}
-# Every admin combo, batch, knife order, agent and screenshot settings route: method, path,
-# query, body.
+# A request to every admin route behind a session, by method and path as the app declares it:
+# path, query, body. Login, logout and /admin/me have their own tests in tests/admins.
+SAMPLES: dict[tuple[str, str], tuple[str, dict[str, Any], Any]] = {
+    ("GET", "/admin/combos"): ("/admin/combos", {}, None),
+    ("POST", "/admin/combos"): ("/admin/combos", {}, combo_body()),
+    ("GET", "/admin/combos/{combo_id}"): (f"/admin/combos/{ID}", {}, None),
+    ("PUT", "/admin/combos/{combo_id}"): (f"/admin/combos/{ID}", {}, {"version": 1}),
+    ("DELETE", "/admin/combos/{combo_id}"): (f"/admin/combos/{ID}", {"version": 1}, None),
+    ("POST", "/admin/combos/publish"): ("/admin/combos/publish", {}, {"ids": [ID]}),
+    ("POST", "/admin/combos/unpublish"): ("/admin/combos/unpublish", {}, {"ids": [ID]}),
+    ("GET", "/admin/batches/finishes"): ("/admin/batches/finishes", {}, None),
+    ("GET", "/admin/batches/candidates"): ("/admin/batches/candidates", QUERY, None),
+    ("POST", "/admin/batches"): ("/admin/batches", {}, {}),
+    ("GET", "/admin/knife-order"): ("/admin/knife-order", {}, None),
+    ("PUT", "/admin/knife-order"): ("/admin/knife-order", {}, {"slugs": []}),
+    ("GET", "/admin/agents"): ("/admin/agents", {}, None),
+    ("GET", "/admin/screenshot-settings"): ("/admin/screenshot-settings", {}, None),
+    ("PUT", "/admin/screenshot-settings"): (
+        "/admin/screenshot-settings",
+        {},
+        {"default_agent": 5404},
+    ),
+    ("GET", "/admin/workers"): ("/admin/workers", {}, None),
+    ("POST", "/admin/workers"): ("/admin/workers", {}, {"name": "guard-test-box"}),
+    ("POST", "/admin/workers/{worker_id}/revoke"): ("/admin/workers/999999/revoke", {}, None),
+    ("POST", "/admin/screenshots/request"): ("/admin/screenshots/request", {}, {"ids": [ID]}),
+}
+SESSION_ROUTES = {
+    ("POST", "/admin/login"),
+    ("POST", "/admin/logout"),
+    ("GET", "/admin/me"),
+}
 ROUTES: list[tuple[str, str, dict[str, Any], Any]] = [
-    ("GET", "/admin/combos", {}, None),
-    ("POST", "/admin/combos", {}, combo_body()),
-    ("GET", f"/admin/combos/{ID}", {}, None),
-    ("PUT", f"/admin/combos/{ID}", {}, {"version": 1}),
-    ("DELETE", f"/admin/combos/{ID}", {"version": 1}, None),
-    ("POST", "/admin/combos/publish", {}, {"ids": [ID]}),
-    ("POST", "/admin/combos/unpublish", {}, {"ids": [ID]}),
-    ("GET", "/admin/batches/finishes", {}, None),
-    ("GET", "/admin/batches/candidates", QUERY, None),
-    ("POST", "/admin/batches", {}, {}),
-    ("GET", "/admin/knife-order", {}, None),
-    ("PUT", "/admin/knife-order", {}, {"slugs": []}),
-    ("GET", "/admin/agents", {}, None),
-    ("GET", "/admin/screenshot-settings", {}, None),
-    ("PUT", "/admin/screenshot-settings", {}, {"default_agent": 5404}),
+    (method, *sample) for (method, _), sample in SAMPLES.items()
 ]
 WRITES = {"POST", "PUT", "PATCH", "DELETE"}
 
@@ -39,6 +57,17 @@ async def send(
 ) -> Any:
     method, path, params, body = route
     return await client.request(method, path, params=params, json=body, headers=headers)
+
+
+async def test_every_admin_route_is_sampled() -> None:
+    """The lists below come from the app: an admin route added later must be added here."""
+    declared = {
+        (method, route.path)
+        for route in iter_route_contexts(create_app().routes)
+        if route.path is not None and route.path.startswith("/admin")
+        for method in route.methods or ()
+    }
+    assert declared - SESSION_ROUTES == set(SAMPLES)
 
 
 async def test_admin_routes_refuse_without_a_session(clients: Any) -> None:
@@ -63,15 +92,21 @@ async def test_admin_writes_need_the_csrf_token(admin_client: AsyncClient) -> No
 async def test_admin_responses_are_not_cached(admin_client: AsyncClient) -> None:
     headers = await logged_in(admin_client)
     combo = await create(admin_client, headers)
+    draft = await create(admin_client, headers, knife=("butterfly", "fade"))
     routes = [
         *ROUTES,
         ("GET", f"/admin/combos/{combo['id']}", {}, None),
         ("POST", "/admin/combos/publish", {}, {"ids": [combo["id"]]}),
+        # A successful delete: 204 with no body.
+        ("DELETE", f"/admin/combos/{draft['id']}", {"version": draft["version"]}, None),
     ]
+    statuses = set()
     for route in routes:
         response = await send(admin_client, route, headers)
         assert response.status_code < 500, route
         assert response.headers["cache-control"] == "no-store", (route, response.status_code)
+        statuses.add(response.status_code)
+    assert 204 in statuses
 
 
 async def test_log_events(admin_client: AsyncClient, caplog: pytest.LogCaptureFixture) -> None:

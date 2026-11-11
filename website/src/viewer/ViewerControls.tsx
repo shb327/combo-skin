@@ -3,7 +3,8 @@
  * gets "Inspect" alone. */
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { Check, ChevronDown, Eye, Sword, Swords } from 'lucide-react'
-import { pictureUrl } from '@/api/images'
+import { copyUrl, pictureUrl } from '@/api/images'
+import { CatalogImage } from '@/components/CatalogImage'
 import { agentChoices, agentEntry, matchesAgent, type AgentChoice } from './agents'
 import type { Capabilities, MapChoice } from './features'
 import type { Action } from './messages'
@@ -284,7 +285,8 @@ function AgentPicker({
   })
 
   const option = (choice: AgentChoice, i: number) => {
-    const url = pictureUrl(choice.agent?.image)
+    const src = copyUrl(choice.agent?.image_key)
+    const fallback = pictureUrl(choice.agent?.image)
     return (
       <li
         key={choice.value ?? 'default'}
@@ -295,8 +297,8 @@ function AgentPicker({
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => choose(choice)}
       >
-        {url ? (
-          <img src={url} alt="" loading="lazy" referrerPolicy="no-referrer" className="w-8 h-8 object-contain" />
+        {src || fallback ? (
+          <CatalogImage src={src} fallback={fallback} loading="lazy" className="w-8 h-8 object-contain" />
         ) : (
           <span className="w-8 h-8" />
         )}
@@ -306,7 +308,8 @@ function AgentPicker({
     )
   }
 
-  const picture = pictureUrl(entry?.image)
+  const picture = copyUrl(entry?.image_key)
+  const pictureFallback = pictureUrl(entry?.image)
   return (
     <div
       className="flex-1 min-w-0 roomy:flex-none"
@@ -325,7 +328,12 @@ function AgentPicker({
         className={`${BUTTON} px-3 gap-1.5 text-sm w-full min-w-0 roomy:w-auto roomy:max-w-64`}
       >
         <span className="shrink-0 text-white/60">Agent</span>
-        {picture && <img src={picture} alt="" referrerPolicy="no-referrer" className="shrink-0 w-6 h-6 object-contain" />}
+        <CatalogImage
+          key={entry?.def_index}
+          src={picture}
+          fallback={pictureFallback}
+          className="shrink-0 w-6 h-6 object-contain"
+        />
         <span className="min-w-0 truncate">{currentName}</span>
         <ChevronDown aria-hidden className="w-4 h-4 shrink-0" />
       </button>

@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from combo_api.admins import sessions
 from combo_api.admins.sessions import LiveSession
 from combo_api.db import get_session
+from combo_api.errors import ErrorCode
 
 Session = Annotated[AsyncSession, Depends(get_session)]
 
@@ -20,7 +21,7 @@ NO_STORE = {"Cache-Control": "no-store"}
 
 
 class Error(BaseModel):
-    detail: str
+    detail: ErrorCode
 
 
 def error_response(description: str) -> dict[str, Any]:

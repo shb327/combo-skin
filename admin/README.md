@@ -77,7 +77,7 @@ The app reads two settings, at build time:
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `VITE_API_BASE_URL` | `http://localhost:8000` | The API origin: `http` or `https`, a host and an optional port, with no path or trailing slash. Plain `http` only for `localhost`. An invalid value stops `npm run dev` and `npm run build` with an error naming the variable |
-| `VITE_IMAGE_ORIGIN` | `http://localhost:9000` | Where combo screenshots load from: the public bucket's origin, with the same rules. The default is the local storage service of the Compose stack. Screenshots on any other origin are not shown |
+| `VITE_IMAGE_ORIGIN` | `http://localhost:9000` | Where combo screenshots and our copies of the catalog's pictures load from: the public bucket's origin, with the same rules. The default is the local storage service of the Compose stack. Screenshots on any other origin are not shown; a picture whose copy fails to load shows the game's picture instead |
 
 Set it in the environment or in `admin/.env.local` (see [`.env.example`](.env.example)). Every `VITE_` variable is public: Vite writes its value into the built JavaScript. Never put a secret in one.
 

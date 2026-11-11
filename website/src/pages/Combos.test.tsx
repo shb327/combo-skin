@@ -177,12 +177,17 @@ describe('a glove finish page', () => {
     const api = fakeApi()
     api.combos(MOGUL_PATH, [
       combo('a', 8, MOGUL, KARAMBIT_RUBY),
-      combo('b', 7, MOGUL, { ...M9, image_url: 'https://example.com/m9.png' }),
+      combo('b', 7, MOGUL, {
+        ...M9,
+        image_url: 'https://example.com/m9.png',
+        fallback_image_url: 'https://example.com/m9-game.png',
+      }),
+      combo('c', 6, MOGUL, { ...M9, image_url: 'https://example.com/m9.png' }),
     ])
     renderSite(MOGUL_PATH, { api })
     await loaded()
 
-    const [first, second] = cards()
+    const [first, second, third] = cards()
     const pictures = within(first).getAllByRole('img')
     expect(pictures.map((p) => p.getAttribute('alt'))).toEqual([
       'Specialist Gloves | Mogul',
@@ -193,9 +198,15 @@ describe('a glove finish page', () => {
       expect(picture).toHaveAttribute('loading', 'lazy')
       expect(picture).toHaveAttribute('referrerpolicy', 'no-referrer')
     }
-    // A picture off the image host is not shown; its half stays empty.
+    // A picture with neither URL on an image host the site loads from is not shown; its half
+    // stays empty.
     expect(within(second).getAllByRole('img').map((p) => p.getAttribute('alt'))).toEqual([
       'Specialist Gloves | Mogul',
+    ])
+    // With our copy off the host but the game's picture on it, the game's is shown.
+    expect(within(third).getAllByRole('img').map((p) => p.getAttribute('src'))).toEqual([
+      MOGUL.image_url,
+      M9.fallback_image_url,
     ])
   })
 

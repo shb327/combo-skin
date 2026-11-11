@@ -21,6 +21,9 @@
 body {
   margin: 0;
   min-height: 100vh;
+  /* With viewport-fit=cover the page reaches under the browser's bars and the notch: whatever
+     shows there is the site's own colour. */
+  background-color: var(--color-background);
 }
 
 /* The 3D window on a larger screen: as wide as the page's content column (the same side gutters
@@ -37,6 +40,18 @@ body {
 @media (min-width: 768px) and (min-height: 500px) {
   .viewer-window {
     width: min(100% - 2 * var(--page-gutter), (86dvh - 7.75rem) * 16 / 9 + 26px);
+  }
+}
+
+/* On a phone the 3D window fills the screen, but iOS Safari's floating toolbar overlays the page
+   below the viewport, where no fixed element reaches: hide the page there while the window is open,
+   so only the site's background shows. Larger screens keep the dimmed page behind the window. */
+@media not all and (min-width: 768px) and (min-height: 500px) {
+  html.viewer-open #root {
+    visibility: hidden;
+  }
+  html.viewer-open .viewer-window {
+    visibility: visible;
   }
 }
 

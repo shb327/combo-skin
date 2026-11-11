@@ -1,5 +1,5 @@
 /** Fixed messages for refusals of combo requests. Server text is never shown. */
-import { ApiError, errorMessage } from '../api/errors'
+import { ApiError, errorMessage, type ErrorCode } from '../api/errors'
 import { problemMessage } from './problems'
 
 export const COMBO_MESSAGES = {
@@ -16,7 +16,7 @@ export const COMBO_MESSAGES = {
   retired: 'No longer in the game.',
 } as const
 
-export function isCode(failure: unknown, code: string): boolean {
+export function isCode(failure: unknown, code: ErrorCode): boolean {
   return failure instanceof ApiError && failure.code === code
 }
 

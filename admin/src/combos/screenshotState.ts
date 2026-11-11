@@ -15,6 +15,7 @@ export const REASONS: Record<NonNullable<ScreenshotState['reason']>, string> = {
   asset_missing: 'An item or agent is missing from the viewer’s files.',
   timeout: 'Drawing this combo took too long.',
   lease_expired: 'The screenshot worker stopped answering.',
+  abandoned: 'The screenshot worker asked for other work before answering.',
 }
 
 /** The 1280 version, or the version nearest it, when every URL is on our image host. */

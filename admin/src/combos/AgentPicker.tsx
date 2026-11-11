@@ -9,6 +9,7 @@ interface AgentEntry {
   id: string
   label: string
   imageUrl: string
+  fallbackUrl: string
   group?: string
   value: number | null
 }
@@ -59,12 +60,13 @@ export function AgentPicker({
               error={error}
               entries={[
                 ...(allowDefault
-                  ? [{ id: 'default', label: `Default (${fallback.name})`, imageUrl: fallback.image_url, value: null }]
+                  ? [{ id: 'default', label: `Default (${fallback.name})`, imageUrl: fallback.image_url, fallbackUrl: fallback.fallback_image_url, value: null }]
                   : []),
                 ...agents.data.map((agent) => ({
                   id: String(agent.def_index),
                   label: agent.name,
                   imageUrl: agent.image_url,
+                  fallbackUrl: agent.fallback_image_url,
                   group: TEAMS[agent.team],
                   value: agent.def_index,
                 })),
@@ -103,7 +105,7 @@ function Chosen({
       : (agents.find((a) => a.def_index === value) ?? (known?.def_index === value ? known : null))
   return (
     <p className="mt-1 flex flex-wrap items-center gap-3">
-      <Picture url={agent?.image_url} size="md" />
+      <Picture url={agent?.image_url} fallback={agent?.fallback_image_url} size="md" />
       <span className="font-semibold">{agent ? agent.name : `Agent ${value}`}</span>
       {value === null && <span className="rounded border border-white/30 px-2 py-0.5 text-xs">Default</span>}
       {agent && !agent.active && <span className="text-xs text-white/60">No longer in the game</span>}

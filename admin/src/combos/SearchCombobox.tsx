@@ -7,6 +7,8 @@ export interface SearchEntry {
   id: string
   label: string
   imageUrl?: string
+  /** The game's picture, if our copy fails to load. */
+  fallbackUrl?: string
   /** Entries of one group are listed under its name; consecutive entries share a group. */
   group?: string
 }
@@ -63,7 +65,7 @@ export function SearchCombobox<T extends SearchEntry>({
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => choose(entry)}
       >
-        {entry.imageUrl && <Picture url={entry.imageUrl} size="sm" />}
+        {entry.imageUrl && <Picture url={entry.imageUrl} fallback={entry.fallbackUrl} size="sm" />}
         {entry.label}
       </li>
     )

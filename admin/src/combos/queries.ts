@@ -28,7 +28,9 @@ export interface CatalogEntry {
   label: string
   floatMin: number | null
   floatMax: number | null
+  /** Our copy of the picture, and the game's as the fallback. */
   imageUrl: string
+  fallbackUrl: string
 }
 
 export interface ComboFilters {
@@ -101,6 +103,7 @@ async function loadCatalog(api: Api, kind: Kind): Promise<Catalog> {
       floatMin: finish.float_min,
       floatMax: finish.float_max,
       imageUrl: finish.image_url,
+      fallbackUrl: finish.fallback_image_url,
     })),
   )
   return { types: (types ?? []).map(({ slug, name }) => ({ slug, name })), entries }

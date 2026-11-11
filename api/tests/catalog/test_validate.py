@@ -189,3 +189,10 @@ def test_agent_image_host(url: str) -> None:
         "Lt. Commander Ricksaw | NSWC SEAL (5404): image URL is not HTTPS on a "
         ".steamstatic.com host",
     )
+
+
+def test_duplicate_type_codename_names_both_types() -> None:
+    fails(
+        replace_type(SNAPSHOT, "talon", codename="weapon_knife_karambit"),
+        "Duplicate type codename 'weapon_knife_karambit': Karambit (507) and Talon Knife (523)",
+    )

@@ -60,7 +60,7 @@ async def test_candidates(admin_client: AsyncClient, db_session: AsyncSession) -
     assert (first["float_from"], first["float_to"], first["seeds"]) == (None, None, [])
     assert (first["float_min"], first["float_max"]) == (0.0, 0.08)
     assert (body["glove"]["float_min"], body["glove"]["float_max"]) == (0.06, 0.8)
-    assert first["image_url"].startswith("https://")
+    assert first["fallback_image_url"].startswith("https://")
     assert {c["existing"] for c in body["candidates"]} == {None}
 
     combo = await create(admin_client, headers, rating=9.1, description="Red on red.")
@@ -200,3 +200,27 @@ async def test_batch_refusals(admin_client: AsyncClient, db_session: AsyncSessio
                 assert errors[0]["type"] == code
         assert await combo_count(db_session) == before
         assert (await admin_client.get("/admin/combos")).json() == snapshot
+
+
+async def test_update_only_batch_on_a_retired_glove_finish(
+    admin_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Existing combos on a retired finish can still be updated (spec 009 R18), in a batch as
+    by a single update; a batch that would create one is still refused."""
+    headers = await logged_in(admin_client)
+    combo = await create(admin_client, headers)
+    await retire_finish(db_session, "glove", "specialist", "crimson-kimono")
+    change = {"id": combo["id"], "version": 1, "rating": 7.5, "description": None}
+    response = await admin_client.post(
+        "/admin/batches", json=batch(update=[change]), headers=headers
+    )
+    assert response.status_code == 200, response.text
+    assert [c["rating"] for c in response.json()["updated"]] == [7.5]
+    change["version"] = 2
+    response = await admin_client.post(
+        "/admin/batches", json=batch(create=[new("butterfly")], update=[change]), headers=headers
+    )
+    assert response.status_code == 422
+    assert [(e["loc"], e["type"]) for e in response.json()["detail"]] == [
+        (["body", "glove"], "finish_retired")
+    ]

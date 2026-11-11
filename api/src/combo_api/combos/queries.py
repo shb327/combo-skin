@@ -5,11 +5,14 @@ from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import Row, Select, select, true
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from combo_api.admins import clock
+from combo_api.admins.deps import refuse
 from combo_api.admins.models import Admin
+from combo_api.catalog.images import copy_url
 from combo_api.catalog.models import Agent, Finish, ItemType
 from combo_api.catalog.routes import Rarity
 from combo_api.combos.ids import new_public_id
@@ -128,6 +131,49 @@ def new_combo(
     )
 
 
+# The constraints a new combo can meet when another request wrote first.
+PAIRING_CONSTRAINT = "uq_combos_glove_finish_id_knife_finish_id"
+PUBLIC_ID_CONSTRAINT = "uq_combos_public_id"
+# Draws of public ids before a collision is an error: one is already about one in 10^18.
+ID_DRAWS = 3
+
+
+def violated(error: IntegrityError) -> str | None:
+    """The name of the constraint a database error is about, if it names one."""
+    name = getattr(getattr(error.orig, "diag", None), "constraint_name", None)
+    return name if isinstance(name, str) else None
+
+
+async def insert(db: AsyncSession, rows: list[Combo]) -> None:
+    """Insert new combos in a savepoint, so a refusal leaves the request's transaction (and its
+    locks) as it was. A pairing another request stored after this one's existence check is 409
+    `combo_exists`; a public id that is already taken is drawn again."""
+    for draw in range(1, ID_DRAWS + 1):
+        try:
+            async with db.begin_nested():
+                db.add_all(rows)
+        except IntegrityError as error:
+            constraint = violated(error)
+            if constraint == PAIRING_CONSTRAINT:
+                raise refuse(409, "combo_exists") from None
+            if constraint != PUBLIC_ID_CONSTRAINT or draw == ID_DRAWS:
+                raise
+            for row in rows:
+                row.public_id = new_public_id()
+        else:
+            return
+
+
+async def lock(db: AsyncSession, public_ids: list[str]) -> dict[str, Combo]:
+    """The combos with these ids, by id, locked until the transaction ends. Rows are locked in
+    the table's id order, whatever the request's order, so two requests over the same combos
+    cannot each hold a row the other waits for."""
+    rows = await db.scalars(
+        select(Combo).where(Combo.public_id.in_(public_ids)).order_by(Combo.id).with_for_update()
+    )
+    return {row.public_id: row for row in rows}
+
+
 async def pairing_exists(db: AsyncSession, glove: Finish, knife: Finish) -> bool:
     found = await db.scalar(
         select(Combo.id).where(Combo.glove_finish_id == glove.id, Combo.knife_finish_id == knife.id)
@@ -151,6 +197,7 @@ def stored_float(value: float | None) -> Decimal | None:
 def item(
     finish: Finish,
     item_type: ItemType,
+    base_url: str,
     float_from: float | None = None,
     float_to: float | None = None,
     seeds: list[int] | None = None,
@@ -163,7 +210,8 @@ def item(
         display_name=finish.display_name,
         def_index=item_type.def_index,
         paint_index=finish.paint_index,
-        image_url=finish.image_url,
+        image_url=copy_url(base_url, finish.image_url),
+        fallback_image_url=finish.image_url,
         rarity=Rarity(code=finish.rarity_code, name=finish.rarity_name, color=finish.rarity_color),
         active=finish.active and item_type.active,
         float_min=finish.float_min,
@@ -174,22 +222,26 @@ def item(
     )
 
 
-def combo_item(combo: Combo, side: str, finish: Finish, item_type: ItemType) -> Item:
-    return item(
-        finish,
-        item_type,
+def conditions(combo: Combo, side: str) -> tuple[float | None, float | None, list[int]]:
+    """A side's float range and seeds, as the API sends them."""
+    return (
         number(getattr(combo, f"{side}_float_from")),
         number(getattr(combo, f"{side}_float_to")),
         getattr(combo, f"{side}_seeds"),
     )
 
 
-def agent_out(agent: Agent) -> AgentOut:
+def combo_item(combo: Combo, side: str, finish: Finish, item_type: ItemType, base_url: str) -> Item:
+    return item(finish, item_type, base_url, *conditions(combo, side))
+
+
+def agent_out(agent: Agent, base_url: str) -> AgentOut:
     return AgentOut(
         def_index=agent.def_index,
         name=agent.name,
         team=agent.team,
-        image_url=agent.image_url,
+        image_url=copy_url(base_url, agent.image_url),
+        fallback_image_url=agent.image_url,
         rarity=Rarity(code=agent.rarity_code, name=agent.rarity_name, color=agent.rarity_color),
         active=agent.active,
     )
@@ -204,9 +256,9 @@ def admin_out(row: AdminRow, base_url: str) -> AdminCombo:
         version=combo.version,
         rating=float(combo.rating),
         description=combo.description,
-        glove=combo_item(combo, "glove", glove, glove_type),
-        knife=combo_item(combo, "knife", knife, knife_type),
-        screenshot_agent=None if agent is None else agent_out(agent),
+        glove=combo_item(combo, "glove", glove, glove_type, base_url),
+        knife=combo_item(combo, "knife", knife, knife_type, base_url),
+        screenshot_agent=None if agent is None else agent_out(agent, base_url),
         screenshot=screenshot_out(combo.public_id, shot, base_url),
         screenshot_state=state_out(shot, job, state, attempts, clock.now()),
         created_at=combo.created_at,
@@ -223,8 +275,8 @@ def public_out(row: ComboRow, base_url: str) -> PublicCombo:
         id=combo.public_id,
         rating=float(combo.rating),
         description=combo.description,
-        glove=combo_item(combo, "glove", glove, glove_type),
-        knife=combo_item(combo, "knife", knife, knife_type),
+        glove=combo_item(combo, "glove", glove, glove_type, base_url),
+        knife=combo_item(combo, "knife", knife, knife_type, base_url),
         screenshot=screenshot_out(combo.public_id, shot, base_url),
     )
 

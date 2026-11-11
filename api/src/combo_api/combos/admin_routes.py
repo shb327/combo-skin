@@ -21,6 +21,7 @@ from combo_api.catalog.snapshot import Kind
 from combo_api.combos import batches, order, queries, rules
 from combo_api.combos.models import Combo, Status
 from combo_api.combos.schemas import (
+    VERSION_MAX,
     AdminCombo,
     BatchFinish,
     BatchIn,
@@ -122,7 +123,7 @@ async def create_combo(
         current.id,
         clock.now(),
     )
-    db.add(row)
+    await queries.insert(db, [row])
     await db.commit()
     logger.info(
         "combo created admin=%s id=%s glove=%s/%s knife=%s/%s",
@@ -270,7 +271,7 @@ async def update_combo(
 )
 async def remove_combo(
     combo_id: PublicId,
-    version: Annotated[int, Query(ge=1)],
+    version: Annotated[int, Query(ge=1, le=VERSION_MAX)],
     current: AdminDep,
     db: Session,
     images: ImageBase,
@@ -293,16 +294,16 @@ async def remove_combo(
 
 
 async def locked_ids(db: AsyncSession, ids: list[str]) -> list[Combo]:
-    """The combos with these ids, locked; 422 naming each unknown id."""
-    rows = (await db.scalars(select(Combo).where(Combo.public_id.in_(ids)).with_for_update())).all()
-    known = {row.public_id for row in rows}
+    """The combos with these ids, locked in id order; 422 naming each unknown id."""
+    rows = await queries.lock(db, ids)
+    known = set(rows)
     problems = rules.Problems()
     for index, public_id in enumerate(ids):
         if public_id not in known:
             problems.add(("body", "ids", index), "combo_not_found", "No combo has this id")
     if problems.errors:
         raise problems.error()
-    return list(rows)
+    return list(rows.values())
 
 
 async def set_status(
@@ -328,7 +329,7 @@ async def publish_combos(request: PublishRequest, current: AdminDep, db: Session
     if request.ids is not None:
         rows = await locked_ids(db, request.ids)
     else:
-        query = select(Combo).where(Combo.status == "draft").with_for_update()
+        query = select(Combo).where(Combo.status == "draft").order_by(Combo.id).with_for_update()
         rows = list((await db.scalars(query)).all())
     changed = await set_status(db, rows, "published", current)
     logger.info("combos published admin=%s ids=%s", current.username, ",".join(changed))
@@ -352,7 +353,12 @@ async def list_batch_finishes(current: AdminDep, db: Session) -> list[BatchFinis
 
 @router.get("/batches/candidates")
 async def get_batch_candidates(
-    current: AdminDep, db: Session, glove_type: Slug, glove_finish: Slug, knife_finish: Slug
+    current: AdminDep,
+    db: Session,
+    images: ImageBase,
+    glove_type: Slug,
+    glove_finish: Slug,
+    knife_finish: Slug,
 ) -> Candidates:
     """For a glove finish and a knife finish name: every active knife type with that finish,
     in knife order, with the combo it already has with these gloves, if any."""
@@ -371,14 +377,14 @@ async def get_batch_candidates(
     knives = await batches.knife_finishes(db, knife_finish)
     combos = await batches.existing(db, finish, [knife for knife, _ in knives])
     return Candidates(
-        glove=queries.item(finish, item_type),
+        glove=queries.item(finish, item_type, images),
         knife_finish=KnifeFinishName(
             slug=knife_finish,
             display_name=knives[0][0].display_name if knives else None,
         ),
         candidates=[
             Candidate(
-                knife=queries.item(knife, knife_type),
+                knife=queries.item(knife, knife_type, images),
                 existing=existing_out(combos.get(knife.id)),
             )
             for knife, knife_type in knives

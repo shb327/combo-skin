@@ -58,8 +58,12 @@ def clean_description(value: str | None) -> str | None:
     return text or None
 
 
-Rating = Annotated[float, Field(ge=0, le=10), at_most(2)]
-FloatBound = Annotated[float, Field(ge=0, le=1), at_most(4)]
+# A combo's version: the `version` column's integer range.
+VERSION_MAX = 2_147_483_647
+Version = Annotated[int, Field(ge=1, le=VERSION_MAX)]
+# Strict: a JSON number (whole or not), never a string such as "8.88".
+Rating = Annotated[float, Field(strict=True, ge=0, le=10), at_most(2)]
+FloatBound = Annotated[float, Field(strict=True, ge=0, le=1), at_most(4)]
 Seed = Annotated[int, Field(strict=True, ge=0, le=SEED_MAX)]
 Seeds = Annotated[list[Seed], Field(max_length=SEEDS_MAX), AfterValidator(sorted_unique)]
 Description = Annotated[
@@ -115,7 +119,7 @@ class ComboIn(BaseModel):
 
 
 class ComboUpdate(BaseModel):
-    version: int = Field(ge=1)
+    version: Version
     rating: Rating
     description: Description
     glove: Conditions
@@ -199,7 +203,7 @@ class BatchCreate(BaseModel):
 
 class BatchUpdate(BaseModel):
     id: PublicId
-    version: int = Field(ge=1)
+    version: Version
     rating: Rating
     description: Description
 
@@ -248,7 +252,9 @@ class Agent(BaseModel):
     def_index: int
     name: str
     team: Literal["ct", "t"]
+    # Our copy of the picture, and the game's, to show if ours fails to load.
     image_url: str
+    fallback_image_url: str
     rarity: Rarity
     active: bool
 
@@ -277,7 +283,9 @@ class Item(BaseModel):
     # the finish's paint index (0 for Vanilla).
     def_index: int
     paint_index: int
+    # Our copy of the picture, and the game's, to show if ours fails to load.
     image_url: str
+    fallback_image_url: str
     rarity: Rarity
     active: bool
     # The finish's own float range from the catalog; null for Vanilla.

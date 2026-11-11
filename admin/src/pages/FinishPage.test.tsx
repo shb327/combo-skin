@@ -2,6 +2,7 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { COMBO_MESSAGES } from '../combos/messages'
 import { FakeApi, error, json, routeOf } from '../test/fakeApi'
+import { AGENTS } from '../test/fakeCatalog'
 import { renderApp, where } from '../test/render'
 
 const GLOVES = '/gloves/specialist/crimson-kimono'
@@ -275,7 +276,11 @@ describe('the list view state', () => {
   })
 
   it.each(['the Back link', "the browser's Back"])('returns to the scroll position with %s', async (how) => {
-    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    // Whether the list was on the page when the position was restored.
+    const listShown: boolean[] = []
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(((_: number, y: number) => {
+      if (y === 640) listShown.push(screen.queryByRole('listitem', { name: 'Butterfly Knife | Doppler (Ruby)' }) !== null)
+    }) as typeof window.scrollTo)
     const fake = withCombos()
     const { user } = renderApp(`${GLOVES}?sort=updated`, fake)
     const butterfly = await screen.findByRole('listitem', { name: 'Butterfly Knife | Doppler (Ruby)' })
@@ -290,6 +295,7 @@ describe('the list view state', () => {
     await waitFor(() => expect(where()).toBe(`${GLOVES}?sort=updated`))
     await screen.findByRole('listitem', { name: 'Butterfly Knife | Doppler (Ruby)' })
     await waitFor(() => expect(scrollTo).toHaveBeenCalledWith(0, 640))
+    expect(listShown).toEqual([true])
   })
 })
 
@@ -300,6 +306,12 @@ const BUTTERFLY = 'Butterfly Knife | Doppler (Ruby)'
 describe('editing a rating in the list', () => {
   it('saves a changed rating with its Save button or Enter, and nothing else', async () => {
     const fake = withCombos()
+    // Every other value set, so a request built from defaults would not pass.
+    const butterfly = fake.store.combos[1]
+    butterfly.description = 'Blue and red.'
+    butterfly.glove = { ...butterfly.glove, float_from: 0.1, float_to: 0.2, seeds: [7, 12] }
+    butterfly.knife = { ...butterfly.knife, float_from: 0, float_to: 0.03, seeds: [3] }
+    butterfly.screenshot_agent = AGENTS[0]
     const { user } = renderApp(GLOVES, fake)
     await screen.findByRole('listitem', { name: BUTTERFLY })
     expect(ratingBox(BUTTERFLY)).toHaveValue('9.45')
@@ -314,10 +326,10 @@ describe('editing a rating in the list', () => {
     expect(JSON.parse(fake.to('PUT /admin/combos/{id}')[0].body)).toEqual({
       version: 1,
       rating: 8.7,
-      description: null,
-      glove: { float_from: null, float_to: null, seeds: [] },
-      knife: { float_from: null, float_to: null, seeds: [] },
-      screenshot_agent: null,
+      description: 'Blue and red.',
+      glove: { float_from: 0.1, float_to: 0.2, seeds: [7, 12] },
+      knife: { float_from: 0, float_to: 0.03, seeds: [3] },
+      screenshot_agent: AGENTS[0].def_index,
     })
     expect(routeOf('PUT', new URL(fake.to('PUT /admin/combos/{id}')[0].url).pathname).params).toEqual([stored.id])
     expect(await within(screen.getByRole('listitem', { name: BUTTERFLY })).findByText('Saved')).toBeInTheDocument()
@@ -325,7 +337,9 @@ describe('editing a rating in the list', () => {
     // The edited combo keeps its place until the list is sorted again.
     await waitFor(() => expect(ratingBox(BUTTERFLY)).toHaveValue('8.70'))
     expect(listed()[1]).toBe(BUTTERFLY)
+    expect(screen.getByText('Order changed.')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Sort again' }))
+    expect(screen.queryByText('Order changed.')).toBeNull()
     expect(listed()).toEqual(['Karambit | Doppler (Ruby)', 'M9 Bayonet | Doppler (Ruby)', 'Karambit | Blue Steel', BUTTERFLY])
     expect(screen.queryByRole('button', { name: 'Sort again' })).toBeNull()
 
@@ -334,7 +348,22 @@ describe('editing a rating in the list', () => {
     await user.clear(ratingBox(m9))
     await user.type(ratingBox(m9), '9.3{Enter}')
     await waitFor(() => expect(fake.to('PUT /admin/combos/{id}')).toHaveLength(2))
-    expect(JSON.parse(fake.to('PUT /admin/combos/{id}')[1].body).rating).toBe(9.3)
+    expect(JSON.parse(fake.to('PUT /admin/combos/{id}')[1].body)).toEqual({
+      version: 1,
+      rating: 9.3,
+      description: null,
+      glove: { float_from: null, float_to: null, seeds: [] },
+      knife: { float_from: null, float_to: null, seeds: [] },
+      screenshot_agent: null,
+    })
+  })
+
+  it('names each rating field for screen readers only, as the column header names it', async () => {
+    renderApp(GLOVES, withCombos())
+    await screen.findByRole('listitem', { name: BUTTERFLY })
+    const label = document.querySelector(`label[for="${ratingBox(BUTTERFLY).id}"]`)
+    expect(label).toHaveTextContent(`Rating for ${BUTTERFLY}`)
+    expect(label).toHaveClass('sr-only')
   })
 
   it('saves nothing on leaving the field, and restores the stored rating with Escape', async () => {
@@ -375,7 +404,8 @@ describe('editing a rating in the list', () => {
     await user.type(ratingBox(BUTTERFLY), '8.7')
     await user.click(saveButton(BUTTERFLY))
     const item = screen.getByRole('listitem', { name: BUTTERFLY })
-    expect(await within(item).findByText(/Changed by another-admin at .* to 9\.46\./)).toBeInTheDocument()
+    const at = new Date(fake.store.combos[1].updated_at).toLocaleString()
+    expect(await within(item).findByText(`Changed by another-admin at ${at} to 9.46.`)).toBeInTheDocument()
     expect(saveButton(BUTTERFLY)).toBeDisabled()
 
     await user.click(within(item).getByRole('button', { name: 'Use theirs' }))
@@ -386,8 +416,10 @@ describe('editing a rating in the list', () => {
     await user.clear(ratingBox(BUTTERFLY))
     await user.type(ratingBox(BUTTERFLY), '8.7')
     await user.click(saveButton(BUTTERFLY))
+    expect(saveButton(BUTTERFLY)).toBeDisabled()
     await user.click(await within(item).findByRole('button', { name: 'Keep mine' }))
     expect(ratingBox(BUTTERFLY)).toHaveValue('8.70')
+    expect(saveButton(BUTTERFLY)).toBeEnabled()
     await user.click(saveButton(BUTTERFLY))
     await waitFor(() => expect(fake.to('PUT /admin/combos/{id}')).toHaveLength(3))
     const last = JSON.parse(fake.to('PUT /admin/combos/{id}')[2].body)
@@ -458,6 +490,24 @@ describe('dragging a combo to a new place', () => {
     await user.keyboard('[Space]')
     expect(screen.queryByText(/^No rating fits/)).toBeNull()
     await user.keyboard('[Escape]')
+  })
+
+  it.each([
+    ['above the first', [10, 9], 'Butterfly Knife | Doppler (Ruby)', '[ArrowUp]', 'No rating fits above 10.00. Change a rating first.'],
+    ['below the last', [0.04, 0], 'Karambit | Doppler (Ruby)', '[ArrowDown]', 'No rating fits below 0.00. Change a rating first.'],
+  ])('names the end of the list when no rating fits %s', async (_, [first, second], dragged, key, message) => {
+    layOutCombos()
+    const fake = new FakeApi().withSession()
+    fake.store.add({ glove: 'specialist/crimson-kimono', knife: 'karambit/doppler-ruby', rating: first })
+    fake.store.add({ glove: 'specialist/crimson-kimono', knife: 'butterfly/doppler-ruby', rating: second })
+    const { user } = renderApp(GLOVES, fake)
+    await screen.findByRole('listitem', { name: BUTTERFLY })
+    screen.getByRole('button', { name: `Drag ${dragged}` }).focus()
+    await user.keyboard('[Space]')
+    await user.keyboard(key)
+    await user.keyboard('[Space]')
+    expect(await screen.findByText(message)).toBeInTheDocument()
+    expect(fake.to('PUT /admin/combos/{id}')).toHaveLength(0)
   })
 
   it('shows the combo in its new place after a rating saved in place kept the order', async () => {

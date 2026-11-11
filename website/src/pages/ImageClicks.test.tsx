@@ -50,7 +50,9 @@ describe('images inside links', () => {
       await waitFor(() => expect(site.url()).toBe(page))
       await settle()
     }
-  })
+    // One page load per card (20 knife types): about 1.6 s here, near the default 5 s on a
+    // busy CI runner.
+  }, 20_000)
 })
 
 describe('images in links and buttons', () => {

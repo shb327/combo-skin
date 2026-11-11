@@ -449,7 +449,7 @@ function BatchRow({
   return (
     <li className="rounded-lg border border-white/10 p-3" aria-label={name}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <Picture url={row.candidate.knife.image_url} size="sm" />
+        <Picture url={row.candidate.knife.image_url} fallback={row.candidate.knife.fallback_image_url} size="sm" />
         <input
           id={id}
           type="checkbox"

@@ -8,7 +8,7 @@ type ComboCounts = components['schemas']['ComboCounts']
 type Screenshot = components['schemas']['Screenshot']
 
 export const ORIGIN = 'http://localhost:8000'
-/** The storage service's origin, VITE_IMAGE_ORIGIN's default. */
+/** The storage service's origin, the origin of VITE_IMAGE_BASE_URL's default. */
 export const SCREENSHOT_ORIGIN = 'http://localhost:9000'
 export const COUNTS_PATH = '/combo-counts'
 const IMAGE = 'https://community.akamai.steamstatic.com/economy/image'
@@ -91,7 +91,9 @@ export function item(overrides: Partial<Item> & Pick<Item, 'type_slug' | 'finish
     display_name: overrides.finish_slug,
     def_index: 500,
     paint_index: 1,
-    image_url: `${IMAGE}/${overrides.type_slug}-${overrides.finish_slug}`,
+    // Our copy in the bucket, and the game's picture as the API sends it.
+    image_url: `${SCREENSHOT_ORIGIN}/local-images/catalog/${overrides.type_slug}-${overrides.finish_slug}.png`,
+    fallback_image_url: `${IMAGE}/${overrides.type_slug}-${overrides.finish_slug}`,
     rarity: { code: 'rarity_ancient_weapon', name: 'Covert', color: '#eb4b4b' },
     active: true,
     float_min: 0,

@@ -20,6 +20,7 @@ ITEM_KEYS = {
     "def_index",
     "paint_index",
     "image_url",
+    "fallback_image_url",
     "rarity",
     "active",
     "float_min",

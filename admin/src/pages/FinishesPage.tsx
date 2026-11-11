@@ -43,7 +43,7 @@ export function FinishesPage({ kind }: { kind: Kind }) {
                     className="block h-full rounded-lg border border-white/10 bg-white/5 p-4 hover:border-accent"
                   >
                     <span className="flex justify-center">
-                      <Picture url={typePicture(kind, type)} size="lg" />
+                      <Picture url={typePicture(kind, type)?.url} fallback={typePicture(kind, type)?.fallback} size="lg" />
                     </span>
                     <span className="mt-2 block font-semibold">{type.name}</span>
                     <span className="mt-1 block text-sm text-white/60">

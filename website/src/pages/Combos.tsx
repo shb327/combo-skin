@@ -8,6 +8,8 @@ import { scoreColor } from '@/components/score'
 import { getAllGloves } from '@/data/gloves'
 import { getAllKnives } from '@/data/knives'
 import { ViewerHost } from '@/viewer/ViewerHost'
+import { copyUrl, pictureUrl } from '@/api/images'
+import { CatalogImage } from '@/components/CatalogImage'
 
 type CatalogItem = ReturnType<typeof getAllGloves>[number]
 
@@ -41,12 +43,13 @@ function FinishCombos({ kind, item }: { kind: Kind; item: CatalogItem }) {
     <ViewerHost combos={combos}>
       <div className="px-4 md:px-16 lg:px-44 pt-4 md:pt-8 pb-8 md:pb-16">
         <div className="bg-white/5 rounded-lg p-3 md:p-4 flex items-center gap-3 md:gap-6">
-          <img
-            src={item.image}
+          <CatalogImage
+            key={item.id}
+            src={copyUrl(item.imageKey)}
+            fallback={pictureUrl(item.image)}
             alt={item.fullName}
             className="h-16 w-16 md:h-24 md:w-24 object-contain"
             draggable={false}
-            referrerPolicy="no-referrer"
           />
           <div className="flex-1 min-w-0">
             <h1 className="text-lg md:text-2xl font-semibold text-white truncate">{item.fullName}</h1>

@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { FiSearch } from 'react-icons/fi'
 import { getAllKnives } from '@/data/knives'
 import { getAllGloves } from '@/data/gloves'
+import { finishCount } from '@/api/counts'
+import { useComboCounts } from '@/api/queries'
+import { comboCount } from '@/components/comboText'
 
 const ALIASES: Record<string, string[]> = {
   'bfk': ['butterfly'],
@@ -78,6 +81,8 @@ export function Search() {
       .slice(0, 6)
   }, [query, allItems])
 
+  const open = () => setIsOpen(true)
+
   useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus()
@@ -121,14 +126,14 @@ export function Search() {
         <>
           {/* Mobile: icon only */}
           <button
-            onClick={() => setIsOpen(true)}
+            onClick={open}
             className="md:hidden flex items-center justify-center w-10 h-10 text-white/70 hover:text-white transition-colors"
           >
             <FiSearch className="w-5 h-5" />
           </button>
           {/* Desktop: pill button */}
           <button
-            onClick={() => setIsOpen(true)}
+            onClick={open}
             className="hidden md:flex items-center gap-3 px-6 py-2.5 w-72 text-sm text-white/50 bg-[#27272a] rounded-full hover:bg-[#323236] hover:text-white/70 transition-colors"
           >
             <FiSearch className="w-4 h-4" />
@@ -170,6 +175,7 @@ export function Search() {
                         className="w-full px-4 py-3.5 text-left text-base text-white/80 hover:bg-white/5 hover:text-white transition-colors border-b border-white/5 last:border-0"
                       >
                         {item.fullName}
+                        <ResultCount item={item} />
                       </button>
                     </li>
                   ))}
@@ -204,6 +210,7 @@ export function Search() {
                         className="w-full px-4 py-2.5 text-left text-sm text-white/80 hover:bg-white/5 hover:text-white transition-colors"
                       >
                         {item.fullName}
+                        <ResultCount item={item} />
                       </button>
                     </li>
                   ))}
@@ -216,5 +223,23 @@ export function Search() {
         </>
       )}
     </div>
+  )
+}
+
+/** A result's published combos after its name, in the finish cards' wording; nothing while
+ * counts load, after a failure, or for none. Rendered only while the search is open, so the
+ * counts are asked for once it is opened, not on every page, and a page that leaves the counts
+ * still cancels their request. */
+function ResultCount({ item }: { item: SearchItem }) {
+  const counts = useComboCounts()
+  if (!counts) return null
+  const count = finishCount(counts, item.type === 'knife' ? 'knives' : 'gloves', item.typeId, item.finishId)
+  if (count === 0) return null
+  // The space keeps the name and the count apart for screen readers too.
+  return (
+    <>
+      {' '}
+      <span className="ml-1 text-white/40 whitespace-nowrap">{comboCount(count)}</span>
+    </>
   )
 }

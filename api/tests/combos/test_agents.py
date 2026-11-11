@@ -16,7 +16,15 @@ pytestmark = [pytest.mark.anyio, pytest.mark.usefixtures("catalog", "admin")]
 RICKSAW = 5404
 DARRYL = 4613
 OPERATOR = 5305
-AGENT_FIELDS = {"def_index", "name", "team", "image_url", "rarity", "active"}
+AGENT_FIELDS = {
+    "def_index",
+    "name",
+    "team",
+    "image_url",
+    "fallback_image_url",
+    "rarity",
+    "active",
+}
 
 
 async def retire_agent(db: AsyncSession, def_index: int) -> None:
@@ -54,7 +62,7 @@ async def test_list_agents(admin_client: AsyncClient, db_session: AsyncSession) 
     assert ricksaw["name"] == "Lt. Commander Ricksaw | NSWC SEAL"
     assert (ricksaw["team"], ricksaw["active"]) == ("ct", True)
     assert ricksaw["rarity"]["name"] == "Master"
-    assert ricksaw["image_url"].startswith("https://")
+    assert ricksaw["fallback_image_url"].startswith("https://")
 
 
 async def test_create_with_and_without_an_agent(

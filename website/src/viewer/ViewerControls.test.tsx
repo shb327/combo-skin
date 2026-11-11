@@ -273,7 +273,8 @@ describe('the agent', () => {
     expect(within(groups[1]).getAllByRole('option')).toHaveLength(34)
     expect(within(groups[1]).getByRole('option', { name: DARRYL })).toBeInTheDocument()
     for (const img of list.querySelectorAll('img')) {
-      expect(img.getAttribute('src')).toMatch(/^https:\/\/community\.akamai\.steamstatic\.com\//)
+      // Our copies, from the image bucket.
+      expect(img.getAttribute('src')).toMatch(/^http:\/\/localhost:9000\/local-images\/catalog\/[0-9a-f]{32}\.png$/)
       expect(img).toHaveAttribute('referrerpolicy', 'no-referrer')
     }
   })

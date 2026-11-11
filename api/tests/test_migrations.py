@@ -2,9 +2,11 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
-from sqlalchemy import text
+from sqlalchemy import insert, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from combo_api.catalog.models import Finish, ItemType
 from combo_api.db import Base
 from tests.support import API_DIR, rolled_back_session
 
@@ -19,6 +21,7 @@ def test_revision_history() -> None:
         "0004": "0003",
         "0005": "0004",
         "0006": "0005",
+        "0007": "0006",
     }
 
 
@@ -76,3 +79,38 @@ async def test_default_agent_is_seeded(engine: AsyncEngine) -> None:
             text("SELECT id, default_agent_def_index, updated_by FROM screenshot_settings")
         )
         assert rows.all() == [(1, 5404, None)]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("bounds", [(0.1, None), (None, 0.9)])
+async def test_a_finish_with_one_float_bound_is_refused(
+    engine: AsyncEngine, bounds: tuple[float | None, float | None]
+) -> None:
+    async with rolled_back_session(engine) as db:
+        type_id = await db.scalar(
+            insert(ItemType)
+            .values(
+                kind="knife",
+                def_index=99100,
+                codename="one_bound",
+                slug="one-bound",
+                name="One Bound",
+                position=1,
+            )
+            .returning(ItemType.id)
+        )
+        row = {
+            "item_type_id": type_id,
+            "paint_index": 1,
+            "slug": "one-bound",
+            "name": "One Bound",
+            "rarity_code": "r",
+            "rarity_name": "R",
+            "rarity_color": "#fff",
+            "image_url": "https://example.com/i.png",
+            "position": 1,
+            "float_min": bounds[0],
+            "float_max": bounds[1],
+        }
+        with pytest.raises(IntegrityError, match="ck_finishes_float_range"):
+            await db.execute(insert(Finish).values(**row))

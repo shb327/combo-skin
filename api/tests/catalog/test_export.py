@@ -6,6 +6,7 @@ import pytest
 
 from combo_api.catalog import export
 from combo_api.catalog.__main__ import main
+from combo_api.catalog.images import image_key
 from combo_api.catalog.snapshot import SNAPSHOT as SNAPSHOT_PATH
 from combo_api.catalog.snapshot import load_display_order, load_snapshot
 from tests.catalog.support import website_slugs
@@ -41,6 +42,8 @@ def test_export_keeps_website_slugs_and_order() -> None:
     phase_2 = next(f for f in karambit["finishes"] if f["id"] == "doppler-phase-2")
     assert phase_2["name"] == "Doppler (Phase 2)"
     assert phase_2["image"].startswith("https://")
+    # Our copy's key in the public bucket; the game's URL stays as the fallback.
+    assert phase_2["image_key"] == image_key(phase_2["image"])
 
 
 def test_export_lists_unplaced_finishes(capsys: pytest.CaptureFixture[str]) -> None:
@@ -90,7 +93,8 @@ def test_agents_export() -> None:
     for team in ("ct", "t"):
         names = [a["name"] for a in agents if a["team"] == team]
         assert names == sorted(names, key=str.casefold)
-    assert all(set(a) == {"def_index", "name", "team", "image"} for a in agents)
+    assert all(set(a) == {"def_index", "name", "team", "image", "image_key"} for a in agents)
+    assert all(a["image_key"] == image_key(a["image"]) for a in agents)
     ricksaw = next(a for a in agents if a["def_index"] == 5404)
     assert ricksaw["name"] == "Lt. Commander Ricksaw | NSWC SEAL"
     assert ricksaw["team"] == "ct"

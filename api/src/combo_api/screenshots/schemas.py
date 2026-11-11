@@ -13,8 +13,9 @@ from combo_api.screenshots.models import NAME_MAX
 State = Literal["none", "waiting", "done", "failed"]
 FailReason = Literal["render_failed", "asset_missing", "timeout"]
 ReleaseReason = Literal["shutting_down", "gpu_unavailable"]
-# Every reason an attempt can fail with: a worker's report or an expired lease.
-AttemptReason = Literal["render_failed", "asset_missing", "timeout", "lease_expired"]
+# Every reason an attempt can fail with: a worker's report, an expired lease, or a new claim by
+# the same worker before it answered.
+AttemptReason = Literal["render_failed", "asset_missing", "timeout", "lease_expired", "abandoned"]
 DETAIL_MAX = 300
 
 

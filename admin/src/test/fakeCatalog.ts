@@ -17,6 +17,10 @@ export type Screenshot = Schemas['Screenshot']
 /** Where the fake's screenshots are: VITE_IMAGE_ORIGIN's default, the local storage service. */
 export const SCREENSHOT_ORIGIN = 'http://localhost:9000'
 
+/** Our copy of a picture in the image bucket, as the API sends `image_url`; never fetched. */
+export const copyOf = (type: string, finish: string) =>
+  `${SCREENSHOT_ORIGIN}/local-images/catalog/fake-${type}-${finish}.png`
+
 /** A screenshot's three public versions. */
 export function screenshotOf(id: string, origin = SCREENSHOT_ORIGIN): Screenshot {
   return {
@@ -123,7 +127,8 @@ const agent = (def_index: number, name: string, team: 'ct' | 't', active = true)
   def_index,
   name,
   team,
-  image_url: `${IMAGE_ORIGIN}/economy/image/fake/agent/${def_index}`,
+  image_url: copyOf('agent', String(def_index)),
+  fallback_image_url: `${IMAGE_ORIGIN}/economy/image/fake/agent/${def_index}`,
   rarity: { code: 'rarity_ancient_character', name: 'Master', color: '#eb4b4b' },
   active,
 })
@@ -137,7 +142,7 @@ export const RICKSAW = 5404
 const agentOf = (defIndex: number | null | undefined) =>
   defIndex == null ? null : ([...AGENTS, RETIRED_AGENT].find((a) => a.def_index === defIndex) ?? null)
 
-/** A picture URL on the game's image host; never fetched in tests. */
+/** A picture URL on the game's image host, the fallback; never fetched in tests. */
 export const picture = (type: string, finish: string) => `${IMAGE_ORIGIN}/economy/image/fake/${type}/${finish}`
 
 function catalogFinish(kind: Kind, type: string, f: FakeFinish, paintIndex: number): Schemas['Finish'] {
@@ -151,7 +156,8 @@ function catalogFinish(kind: Kind, type: string, f: FakeFinish, paintIndex: numb
     rarity: RARITY[kind],
     float_min: f.float_min,
     float_max: f.float_max,
-    image_url: picture(type, f.slug),
+    image_url: copyOf(type, f.slug),
+    fallback_image_url: picture(type, f.slug),
     active: f.active,
   }
 }
@@ -198,7 +204,8 @@ function item(kind: Kind, typeSlug: string, finishSlug: string, conditions: Part
     // The same indexes the fake catalog routes give.
     def_index: 500 + found.typeIndex,
     paint_index: found.finishIndex,
-    image_url: picture(typeSlug, finishSlug),
+    image_url: copyOf(typeSlug, finishSlug),
+    fallback_image_url: picture(typeSlug, finishSlug),
     rarity: RARITY[kind],
     active: found.finish.active,
     float_min: found.finish.float_min,

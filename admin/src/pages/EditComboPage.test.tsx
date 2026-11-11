@@ -140,6 +140,32 @@ describe('editing a combo', () => {
     await waitFor(() => expect(fake.store.combos).toHaveLength(0))
   })
 
+  it('keeps Delete disabled after a refused delete until the combo has been read again', async () => {
+    const { fake, combo, path } = withCombo()
+    const { user } = renderApp(path, fake)
+    await user.click(await screen.findByRole('button', { name: 'Delete' }))
+    fake.store.changeAsAnother(combo.id, { rating: 7.5 })
+    let reread!: () => void
+    const url = fake.to('GET /admin/combos/{id}')[0].url
+    fake.next(
+      'GET /admin/combos/{id}',
+      new Promise<Response>((resolve) => {
+        reread = () => resolve(fake.respond(new Request(url, { credentials: 'include' })))
+      }),
+    )
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(COMBO_MESSAGES.deleteConflict)
+    await waitFor(() => expect(fake.to('GET /admin/combos/{id}')).toHaveLength(2))
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled()
+    reread()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled())
+    expect(screen.getByRole('main')).toHaveTextContent('Version 2')
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(fake.store.combos).toHaveLength(0))
+    expect(new URL(fake.to('DELETE /admin/combos/{id}').at(-1)!.url).searchParams.get('version')).toBe('2')
+  })
+
   it('offers delete on an unpublished combo, and keeps it when delete is refused', async () => {
     const { fake, path } = withCombo()
     fake.store.combos[0].status = 'unpublished'

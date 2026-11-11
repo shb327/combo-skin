@@ -15,6 +15,7 @@ describe('ratingBetween', () => {
 
   it('goes 0.05 above the first combo, at most 10.00', () => {
     expect(ratingBetween(null, 900)).toBe(905)
+    expect(ratingBetween(null, 995)).toBe(1000)
     expect(ratingBetween(null, 996)).toBe(1000)
     expect(ratingBetween(null, 1000)).toBeNull()
   })

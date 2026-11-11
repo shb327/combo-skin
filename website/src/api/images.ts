@@ -1,11 +1,17 @@
 import type { PublicCombo } from '@/api/client'
 
-/** Pictures of catalog items come from the game's public image host. The same host and rule as
- * the admin dashboard's (admin/src/api/images.ts). */
-export const IMAGE_ORIGIN = 'https://community.akamai.steamstatic.com'
+/** The game's public image host: the catalog's pictures as the game publishes them, kept as the
+ * fallback for our copies. The same host and rule as the admin dashboard's
+ * (admin/src/api/images.ts). */
+export const GAME_IMAGE_ORIGIN = 'https://community.akamai.steamstatic.com'
 
-/** Screenshots come from our image host, VITE_IMAGE_ORIGIN. */
-export const SCREENSHOT_ORIGIN = import.meta.env.VITE_IMAGE_ORIGIN
+/** Our public image bucket, VITE_IMAGE_BASE_URL: screenshots, and our copies of the catalog's
+ * pictures under `catalog/`. */
+export const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_BASE_URL
+export const IMAGE_ORIGIN = new URL(IMAGE_BASE_URL).origin
+
+/** A catalog picture's key in the bucket, as `api/src/combo_api/catalog/images.py` makes it. */
+const COPY_KEY = /^catalog\/[0-9a-f]{32}\.png$/
 
 function onOrigin(url: string | null | undefined, origin: string): string | null {
   if (!url) return null
@@ -16,14 +22,20 @@ function onOrigin(url: string | null | undefined, origin: string): string | null
   }
 }
 
-/** The URL to show for a catalog picture, or null for one that is not on the image host. */
+/** The URL to show for a catalog picture: on our bucket or on the game's host, else null. */
 export function pictureUrl(url: string | null | undefined): string | null {
-  return onOrigin(url, IMAGE_ORIGIN)
+  return onOrigin(url, IMAGE_ORIGIN) ?? onOrigin(url, GAME_IMAGE_ORIGIN)
+}
+
+/** Our copy of a catalog picture, from its key in the bundled catalog, or null for a key that is
+ * not one. */
+export function copyUrl(key: string | null | undefined): string | null {
+  return key && COPY_KEY.test(key) ? `${IMAGE_BASE_URL}/${key}` : null
 }
 
 /** The URL to show for a screenshot version, or null for one that is not on our image host. */
 export function screenshotUrl(url: string | null | undefined): string | null {
-  return onOrigin(url, SCREENSHOT_ORIGIN)
+  return onOrigin(url, IMAGE_ORIGIN)
 }
 
 export interface ScreenshotSources {

@@ -183,10 +183,14 @@ export function EditComboPage() {
     } catch (error) {
       const changed = isCode(error, 'version_conflict')
       setFailure(changed ? COMBO_MESSAGES.deleteConflict : comboErrorMessage(error))
-      setBusy(false)
       setDeleting(false)
-      // Someone changed it: show the stored combo, whose version a second delete then sends.
-      if (changed) await combo.refetch()
+      // Someone changed it: show the stored combo, whose version a second delete then sends. The
+      // buttons wait for it, so a quick second Delete cannot send the old version again.
+      try {
+        if (changed) await combo.refetch()
+      } finally {
+        setBusy(false)
+      }
     }
   }
 
@@ -208,14 +212,14 @@ export function EditComboPage() {
       <h1 className="mt-1 text-2xl font-semibold">Edit combo</h1>
       <div className="mt-2 flex flex-wrap items-center gap-3 text-lg">
         <span className="inline-flex items-center gap-3">
-          <Picture url={stored.glove.image_url} size="md" />
+          <Picture url={stored.glove.image_url} fallback={stored.glove.fallback_image_url} size="md" />
           <Link to={finishPath('glove', stored.glove.type_slug, stored.glove.finish_slug)} className={LINK}>
             {finishLabel(stored.glove)}
           </Link>
         </span>{' '}
         <span>with</span>{' '}
         <span className="inline-flex items-center gap-3">
-          <Picture url={stored.knife.image_url} size="md" />
+          <Picture url={stored.knife.image_url} fallback={stored.knife.fallback_image_url} size="md" />
           <Link to={finishPath('knife', stored.knife.type_slug, stored.knife.finish_slug)} className={LINK}>
             {finishLabel(stored.knife)}
           </Link>

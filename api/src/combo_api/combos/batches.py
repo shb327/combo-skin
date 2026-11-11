@@ -61,7 +61,10 @@ async def save(
     """Check the whole batch, then write it: the ids created and updated, in request order.
     Nothing is written if any item is refused."""
     problems = rules.Problems()
-    glove = await rules.resolve(db, "glove", batch.glove, ("body", "glove"), problems, new=True)
+    # A retired glove finish refuses new combos only: its existing ones can still be updated.
+    glove = await rules.resolve(
+        db, "glove", batch.glove, ("body", "glove"), problems, new=bool(batch.create)
+    )
     glove_finish = glove[0] if glove else None
     knife_types: set[int] = set()
 
@@ -92,9 +95,10 @@ async def save(
         creates.append((entry, finish, agent))
 
     updates: list[tuple[BatchUpdate, Combo]] = []
+    rows = await queries.lock(db, [change.id for change in batch.update])
     for index, change in enumerate(batch.update):
         id_loc: rules.Loc = ("body", "update", index, "id")
-        row = await db.scalar(select(Combo).where(Combo.public_id == change.id).with_for_update())
+        row = rows.get(change.id)
         if row is None:
             problems.add(id_loc, "combo_not_found", "No combo has this id")
             continue
@@ -133,7 +137,7 @@ async def save(
         )
         for entry, finish, agent in creates
     ]
-    db.add_all(created)
+    await queries.insert(db, created)
     for change, row in updates:
         row.rating = decimal(change.rating)
         row.description = change.description

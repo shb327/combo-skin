@@ -3,6 +3,7 @@
 uv run python -m combo_api.catalog refresh --commit <sha>    # rewrite snapshot.json
 uv run python -m combo_api.catalog import                   # load snapshot.json into the database
 uv run python -m combo_api.catalog export-website [--check] # write or check the website's copies
+uv run python -m combo_api.catalog copy-images [--check]    # copy the pictures to our bucket
 """
 
 import argparse
@@ -12,7 +13,7 @@ from pathlib import Path
 
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from combo_api.catalog import export, source
+from combo_api.catalog import export, images, source
 from combo_api.catalog.importer import import_snapshot
 from combo_api.catalog.snapshot import (
     DISPLAY_ORDER,
@@ -29,7 +30,8 @@ from combo_api.catalog.snapshot import (
 )
 from combo_api.catalog.validate import validate
 from combo_api.db import create_engine
-from combo_api.settings import load_settings
+from combo_api.screenshots.storage import S3Storage
+from combo_api.settings import SettingsError, load_settings
 
 
 def report_unlisted(snapshot: Snapshot, order: DisplayOrder) -> None:
@@ -111,6 +113,15 @@ def export_website(args: argparse.Namespace) -> int:
     return 0
 
 
+def copy_images(args: argparse.Namespace) -> int:
+    try:
+        storage = S3Storage(load_settings())
+    except SettingsError as error:
+        print(error, file=sys.stderr)
+        return 1
+    return asyncio.run(images.copy(load_snapshot(), storage, check=args.check))
+
+
 def read(path: Path) -> str:
     return path.read_text() if path.exists() else ""
 
@@ -138,6 +149,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     command.add_argument("--snapshot", type=Path, default=SNAPSHOT, help=argparse.SUPPRESS)
     command.set_defaults(run=export_website)
+
+    command = commands.add_parser(
+        "copy-images", help="copy every finish's and agent's picture to the public bucket"
+    )
+    command.add_argument("--check", action="store_true", help="only report missing copies")
+    command.set_defaults(run=copy_images)
 
     args = parser.parse_args(argv)
     try:
