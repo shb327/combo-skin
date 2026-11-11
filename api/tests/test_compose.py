@@ -2,6 +2,7 @@
 containers all of `api/.env`, the database and the storage service only their own."""
 
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -26,6 +27,10 @@ def config(tmp_path: Path, env: str) -> Any:
         shutil.copy(REPO / name, tmp_path / name)
     (tmp_path / "api").mkdir()
     (tmp_path / "api" / ".env").write_text(env)
+    # Compose takes variables from its own environment before api/.env (CI sets the API's
+    # settings there), so leave them out: only the file under test may supply them.
+    settings = keys(example())
+    environment = {k: v for k, v in os.environ.items() if k not in settings}
     # Fixed arguments; only the temporary directory varies.
     return subprocess.run(  # noqa: S603
         [
@@ -38,6 +43,7 @@ def config(tmp_path: Path, env: str) -> Any:
             "json",
         ],
         cwd=tmp_path,
+        env=environment,
         capture_output=True,
         text=True,
         check=False,
