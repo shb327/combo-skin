@@ -1,6 +1,6 @@
 # 020: Pattern groups
 
-**Status:** Draft
+**Status:** Approved
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api, admin, website
@@ -148,7 +148,7 @@ The marketplace blogs found during the research mostly repeat these guides' list
 | Rules on write | A group needs at least one seed on the item, the item's kind and finish slug, and a seed in the group for the item's type. The combo's seeds need not include the example, so the owner can screenshot another seed of the group. New 422 `type` codes: `pattern_group_not_found`, `pattern_group_not_for_item`, `pattern_group_needs_seed` | Requiring the example seed: the owner's own example (Karambit 619, a Blue Gem) would be refused |
 | Fades | Full Fade's example per knife is the calculator's top-ranked seed, read once when filling the file. Mango Fade's is the guide's example, 541 (owner's choice; the calculator's lowest seed, 412, rejected). Nothing is computed at run time, and no code or table of the calculator is copied | Computing groups from the seed: needs only one example per knife, so a run-time calculator would be a dependency for 20 numbers |
 | Filling the file (owner's choice) | During implementation, from the sources in The groups, reading public guide pages one at a time. The owner gives the seeds for the groups marked "the owner's" | Automated collection from viewer or marketplace sites: against the project's research rules |
-| Review pictures (owner's choice) | One picture per example (R17), about 150 in all, named `<group>-<knife type>-<seed>.png` so they sort by group, in a folder on the owner's desktop, outside the repository. Each shows only that knife with that seed, at a low float, so the pattern is what differs | Reviewing seeds as numbers: the owner wants to see each one. Pictures of whole combos: the gloves would distract from the pattern |
+| Review pictures (owner's choice) | One picture per example (R17), about 150 in all, named `<group>-<knife type>-<seed>.png` so they sort by group, in a folder on the owner's desktop, outside the repository. Each shows only that knife with that seed, at a low float, so the pattern is what differs. Drawn by running the 3D viewer locally, unchanged, and capturing each knife alone in a browser, one at a time | Reviewing seeds as numbers: the owner wants to see each one. Pictures of whole combos: the gloves would distract from the pattern. Throwaway draft combos for the screenshot worker: test combos in the owner's data |
 | Dashboard, one combo | "Add special pattern" beside the item's seeds, shown only when groups exist for the item's finish and type; a list of "Name · seed"; the chosen group as a labelled chip with Remove. A native button and list, keyboard operable, as the existing search combobox | Choosing the group in the description: unstructured, the card could not show it |
 | Dashboard, batch | One choice in the batch-wide knife values, resolved per row to that knife type's seed. Rows not covered say so and take any pattern. Row overrides (spec 010) carry their own seeds and group | Picking per row only: 18 clicks for one batch |
 | Admin route | `GET /admin/pattern-groups`: every group, 16 rows with at most 20 seeds each, in file order. The dashboard filters by kind, finish and type | A route per finish: a request per form for a list this small |
@@ -349,9 +349,7 @@ npm run build
 
 ## Open questions
 
-1. **How the review pictures are drawn.** The 3D viewer lives in its own repository. Recommended: run it locally, unchanged, and draw each knife alone in a browser, one at a time, saving each picture. Alternative: throwaway draft combos for the screenshot worker to render, which would mix test combos into the owner's data and keep the worker busy.
-
-Answered by the owner on 2026-11-16, and recorded in Design as the owner's choice: the seed is copied into the combo and the group's name is linked; groups are frozen once imported, and changing one later would be its own spec that retakes the affected screenshots; a picture of every example for review; the committed `groups.json`, edited in pull requests and imported; "Blue Gem · 387" on the website; the credits page as its own spec before spec 021 makes the site public; one review; the owner gives the example seeds where no guide covers a knife; Mango Fade's example is 541; and no glove groups: Centered Web is for knives only.
+None. Answered by the owner on 2026-11-16, and recorded in Design as the owner's choice: the seed is copied into the combo and the group's name is linked; groups are frozen once imported, and changing one later would be its own spec that retakes the affected screenshots; a picture of every example for review, drawn by running the 3D viewer locally, unchanged, and capturing each knife alone in a browser, one at a time (rejected: throwaway draft combos for the screenshot worker, which would mix test combos into the owner's data); the committed `groups.json`, edited in pull requests and imported; "Blue Gem · 387" on the website; the credits page as its own spec before spec 021 makes the site public; one review; the owner gives the example seeds where no guide covers a knife; Mango Fade's example is 541; and no glove groups: Centered Web is for knives only.
 
 ## Implementation notes
 
