@@ -24,9 +24,10 @@ Pattern groups are the community's names for special patterns of a finish: Blue 
 
 - The publish step and anything on Cloudflare: spec 021. This spec only keeps everything it adds static-friendly (Design, Static files).
 - Combo variations (several combos for one pairing, such as regular, Blue Gem and Gold Gem Case Hardened) and prices: phase 2. Design, Variations, says how this spec leaves room for them.
-- The credits page: its own spec, before the public site goes live (Open questions 4).
+- The credits page: its own spec, before the public site goes live (Design, Credits).
 - Analytics; the 3D viewer.
 - Tiers (tier 1, tier 2 and so on), full seed lists of a group, and computing groups from the seed (Design).
+- Glove pattern groups (owner's choice, 2026-11-16). The data model keeps a kind per group, so one can be added later without a migration.
 - Editing groups in the dashboard.
 - Changing existing combos' patterns from a batch: batch `update` items still carry only rating and description (spec 009).
 
@@ -88,7 +89,7 @@ There is no pattern group table, file, route or screen today.
 **Dashboard**
 
 - R10. On the add and edit pages, an item whose finish and type have groups shows "Add special pattern". It lists each group's name with that type's example seed ("Blue Gem · 387"). Picking one sets the item's seeds to that seed and its group to that group. The group then shows by its name with Remove, which clears the group and keeps the seeds.
-- R11. In a batch, the batch-wide knife values show "Add special pattern" with the groups of the batch's knife finish. Picking one gives every new row whose knife type the group covers that group and its own example seed, shown on the row ("Blue Gem · 601"). A new row the group does not cover says "No Blue Gem for this knife" and takes any pattern. A row's own knife values can override the seeds and the group, and clearing the override returns the row to the batch-wide choice. The batch-wide glove values offer the glove finish's groups the same way.
+- R11. In a batch, the batch-wide knife values show "Add special pattern" with the groups of the batch's knife finish. Picking one gives every new row whose knife type the group covers that group and its own example seed, shown on the row ("Blue Gem · 601"). A new row the group does not cover says "No Blue Gem for this knife" and takes any pattern. A row's own knife values can override the seeds and the group, and clearing the override returns the row to the batch-wide choice.
 - R12. Clearing every seed of an item that has a group blocks saving, with the message "A special pattern needs a seed."
 - R13. The combo list's conditions summary names the group: `Knife Blue Gem · 387`.
 - R14. The picked groups are kept with the form's other unsaved values, as spec 010 keeps them.
@@ -105,7 +106,7 @@ There is no pattern group table, file, route or screen today.
 
 ### The groups
 
-The owner's list, with the finish each belongs to, what the community calls it, and the sources checked on 2026-11-16. Authors are named as the guides show them, for credit. Where no established source exists, the owner picks the example seeds, and the group has no sources (Open questions 6).
+The owner's list, with the finish each belongs to, what the community calls it, and the sources checked on 2026-11-16. Authors are named as the guides show them, for credit. Where no established source exists, the owner picks the example seeds, and the group has no sources (Design, Filling the file).
 
 | Group (slug) | Finish slug | Knife types | Sources | Example seed per knife |
 | --- | --- | --- | --- | --- |
@@ -134,24 +135,24 @@ The marketplace blogs found during the research mostly repeat these guides' list
 | --- | --- | --- |
 | What a group holds (owner's choice) | One example seed per item type, the group's name and its credits | Full seed lists per group: the owner needs one example, and republishing a person's compiled list would need the author's permission. Tiers (one group per tier): with one example per knife, "Blue Gem" says it |
 | Linked or copied seeds | The seed is copied into the combo when picked; the group is linked by id, so the card shows the group's current name. Changing a group's example seed changes no saved combo | Linked seeds (the combo follows the group): a screenshot already taken shows the old seed, so the card would disagree with its picture. Copying the name too: a renamed group would show two names on the site |
-| Where group data lives | A committed JSON file, reviewed in pull requests, imported into tables by `python -m combo_api.patterns import`, like the catalog | Groups entered in the dashboard: no review, no history, and the data would exist only in one database until spec 021 copies it. Both: two places to change one group |
+| Where group data lives (owner's choice) | A committed JSON file, reviewed in pull requests, imported into tables by `python -m combo_api.patterns import`, like the catalog | Groups entered in the dashboard: no review, no history, and the data would exist only in one database until spec 021 copies it. Both: two places to change one group |
 | Updating a group | Edit `groups.json` (seeds, sources, the date checked) in a pull request, then run the import. Combos keep their seeds. A group removed from the file is retired: no longer offered, still shown on combos that have it | Deleting removed groups: combos refer to them |
 | Tables | `pattern_groups` and `pattern_group_seeds`, created by migration `0008`. Finish and item types by slug, not foreign keys, as `knife_order` does, because the migration runs before the catalog import; the import checks them against the catalog | A foreign key to one finish: a group spans every knife type of a finish |
 | Combo columns | `glove_pattern_group_id` and `knife_pattern_group_id`, nullable, foreign keys to `pattern_groups.id`, `ON DELETE RESTRICT` | A text slug: no integrity check |
 | Rules on write | A group needs at least one seed on the item, the item's kind and finish slug, and a seed in the group for the item's type. The combo's seeds need not include the example, so the owner can screenshot another seed of the group. New 422 `type` codes: `pattern_group_not_found`, `pattern_group_retired`, `pattern_group_not_for_item`, `pattern_group_needs_seed` | Requiring the example seed: the owner's own example (Karambit 619, a Blue Gem) would be refused |
-| Fades | Full Fade's example per knife is the calculator's top-ranked seed, read once when filling the file. Nothing is computed at run time, and no code or table of the calculator is copied | Computing groups from the seed: needs only one example per knife, so a run-time calculator would be a dependency for 20 numbers |
-| Filling the file | During implementation, from the sources in The groups, reading public guide pages one at a time. The owner gives the seeds for the groups marked "the owner's" and reviews the whole file before approval of the implementation (criterion 4) | Automated collection from viewer or marketplace sites: against the project's research rules |
+| Fades | Full Fade's example per knife is the calculator's top-ranked seed, read once when filling the file. Mango Fade's is the guide's example, 541 (owner's choice; the calculator's lowest seed, 412, rejected). Nothing is computed at run time, and no code or table of the calculator is copied | Computing groups from the seed: needs only one example per knife, so a run-time calculator would be a dependency for 20 numbers |
+| Filling the file (owner's choice) | During implementation, from the sources in The groups, reading public guide pages one at a time. The owner gives the seeds for the groups marked "the owner's" and reviews the whole file before approval of the implementation (criterion 4) | Automated collection from viewer or marketplace sites: against the project's research rules |
 | Dashboard, one combo | "Add special pattern" beside the item's seeds, shown only when groups exist for the item's finish and type; a list of "Name · seed"; the chosen group as a labelled chip with Remove. A native button and list, keyboard operable, as the existing search combobox | Choosing the group in the description: unstructured, the card could not show it |
 | Dashboard, batch | One choice in the batch-wide knife values, resolved per row to that knife type's seed. Rows not covered say so and take any pattern. Row overrides (spec 010) carry their own seeds and group | Picking per row only: 18 clicks for one batch |
 | Admin route | `GET /admin/pattern-groups`: every active group, about 16 rows with at most 20 seeds each, in file order. The dashboard filters by kind, finish and type | A route per finish: a request per form for a list this small |
 | Public shape | Each combo item gains `pattern_group: {slug, name}` or null | Group sources in every public item: repeated on every card; they belong on the credits page |
-| Website text | "Blue Gem · 387" in the pattern row; the group name first | Name only: the screenshot's seed would be hidden. Seeds then name ("387 · Blue Gem"): the name is what a visitor scans for |
-| Credits | Stored with each group in the file and the database, returned by the admin route. The public credits page is its own spec | Credits on each card: long, and repeated |
+| Website text (owner's choice) | "Blue Gem · 387" in the pattern row; the group name first | Name only: the screenshot's seed would be hidden. Seeds then name ("387 · Blue Gem"): the name is what a visitor scans for |
+| Credits (owner's choice) | Stored with each group in the file and the database, returned by the admin route. The public credits page is its own spec, done before spec 021 makes the site public, covering these sources with the catalog data, fonts and the other credits in `THIRD_PARTY_NOTICES.md` | Credits on each card: long, and repeated |
 | Permission | None asked: the site shows one example seed per knife and a community name, not anyone's list. Every source is credited. The owner may still send the authors the draft message from the research | Asking before any use: the owner's rule is to ask before republishing a full list, which this design does not do |
 | Static files (spec 021) | The groups are a repository file; the public combo routes return the name inside each item; nothing is computed per request | A public group route the static build must also call: not needed by any page yet |
 | Variations (phase 2) | The group is per item, so variations of one pairing (regular, Blue Gem, Gold Gem) will differ by the knife item's group. Variations drop the pairing's unique constraint and add a label; the group can become the label's default | Storing the group on the combo rather than the item: gloves and knife can each have one |
 | Layout | `api/src/combo_api/patterns/` (`groups.json`, `models.py`, `importer.py`, `__main__.py`, `routes.py`); tests in `api/tests/patterns/`. `admin/src/combos/patterns.ts` (resolving a group per row) and a `SpecialPattern` component | Inside `catalog/`: the catalog is game data; groups are the community's names |
-| Size | One spec for API, dashboard and website: each part is small, and they are reviewed together | Two specs (API and data, then dashboard and website): the dashboard part cannot be checked without the API part |
+| Size (owner's choice) | One spec for API, dashboard and website: each part is small, and they are reviewed together | Two specs (API and data, then dashboard and website): the dashboard part cannot be checked without the API part |
 
 ## API / data model
 
@@ -252,7 +253,7 @@ Commands run in `api/`, `admin/` or `website/` as stated.
 **Data and import**
 
 1. `uv run alembic upgrade head`, `downgrade base` and `upgrade head` succeed; `uv run alembic check` reports no new operations; the migration tests expect revision `0008` and the tables `pattern_groups` and `pattern_group_seeds`.
-2. `groups.json` holds the 16 groups of Design, The groups (and the glove group of Open questions 7, if chosen), with those slugs, names and finish slugs, in that order. `uv run python -m combo_api.patterns import --check` exits 0 against the committed catalog.
+2. `groups.json` holds the 16 groups of Design, The groups, all of kind `knife`, with those slugs, names and finish slugs, in that order. `uv run python -m combo_api.patterns import --check` exits 0 against the committed catalog.
 3. Every group with sources lists, for each, a title, an author, an `https` link and the date checked; the groups marked "the owner's" in Design have the owner's seeds.
 4. Manual: the owner reads every example seed in `groups.json` and confirms them, recorded in Implementation notes.
 5. Tests: the import inserts the groups and their seeds; running it again changes nothing; a changed seed or name updates the row and `updated_at`; a group removed from the file becomes inactive and is not deleted.
@@ -262,7 +263,7 @@ Commands run in `api/`, `admin/` or `website/` as stated.
 **Combos**
 
 8. Tests: creating a combo with a Karambit Case Hardened knife, seeds `[387]` and `pattern_group` `blue-gem` returns the item with `pattern_group` `{"slug": "blue-gem", "name": "Blue Gem"}`; seeds `[619]` with the same group is accepted too.
-9. Tests: create returns 422 with the codes of API / data model, and stores nothing, for: an unknown group; a glove group on the knife; Blue Gem on a Fade knife; Gold Gem on a Kukri; a group with empty seeds; a retired group.
+9. Tests: create returns 422 with the codes of API / data model, and stores nothing, for: an unknown group; a knife group on the gloves; Blue Gem on a Fade knife; Gold Gem on a Kukri; a group with empty seeds; a retired group.
 10. Tests: updating a combo whose group was retired, sending that group, succeeds; sending another retired group is refused. Changing a group's example seed in the file and importing leaves the combo's seeds unchanged.
 11. Tests: a batch creating Case Hardened combos for Karambit and M9 Bayonet with `blue-gem` and each knife's seed saves both with the group; one item with a group not for its knife refuses the batch with that item's index in `loc`.
 12. Tests: `GET /admin/pattern-groups` returns active groups only, in file order, with seeds and sources; without a session it returns 401.
@@ -343,16 +344,9 @@ npm run build
 
 ## Open questions
 
-Each with the recommendation the spec is written to.
-
 1. **Linked or copied seeds.** Recommended: copy the seed, link the group's name (Design). Alternatives: link both, so combos follow a group's changes; or copy both.
-2. **Where group data lives and how it is updated.** Recommended: the committed `groups.json`, edited in pull requests and imported. Alternatives: groups entered and edited in the dashboard; or both, with the file as the starting point.
-3. **What the website shows.** Recommended: "Blue Gem · 387" in the pattern row. Alternatives: the name only; "387 · Blue Gem"; the name as a separate row.
-4. **The credits page.** Recommended: its own small spec, done before spec 021 makes the site public, covering pattern group sources together with the catalog data, fonts and other credits already in `THIRD_PARTY_NOTICES.md`. This spec stores the credits so that page only has to show them. Alternative: add it here, which grows this review with a public page and route.
-5. **One review or two.** Recommended: one. Alternative: API and data first, then dashboard and website.
-6. **Groups without an established source.** Beach, Full Mesh and Piss & Ice have no seed list I could find, and Blaze, Diamond Gem and Centered Web cover only some knives. Recommended: the owner gives the example seeds for those knives, and those groups (or knives) carry no source. Alternative: leave uncovered knives out until a guide covers them.
-7. **Specialist Gloves in Centered Web.** "Specialist Gloves Crimson Web Pattern Guide & Tierlist" by CptnKraken ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=2818147579)) is the one glove pattern guide matching the list. Recommended: add Centered Web for gloves as its own group (`centered-web-gloves`, kind glove), so the batch-wide glove values can offer it. Alternative: knives only.
-8. **Mango Fade's example.** Recommended: the guide's example, 541. Alternative: the calculator's lowest-percentage seed, 412.
+
+Answered by the owner on 2026-11-16, and recorded in Design as the owner's choice: the committed `groups.json`, edited in pull requests and imported; "Blue Gem · 387" on the website; the credits page as its own spec before spec 021 makes the site public; one review; the owner gives the example seeds where no guide covers a knife; Mango Fade's example is 541; and no glove groups: Centered Web is for knives only.
 
 ## Implementation notes
 
