@@ -162,6 +162,40 @@ describe('a glove finish page', () => {
     ])
   })
 
+  it('names the pattern group before its seeds', async () => {
+    const api = fakeApi()
+    const blueGem = { slug: 'blue-gem', name: 'Blue Gem' }
+    const karambit = item({
+      type_slug: 'karambit',
+      type_name: 'Karambit',
+      finish_slug: 'case-hardened',
+      display_name: 'Case Hardened',
+      seeds: [387],
+      pattern_group: blueGem,
+    })
+    api.combos(MOGUL_PATH, [combo('a', 8, { ...MOGUL, seeds: [2, 179] }, karambit)])
+    renderSite(MOGUL_PATH, { api })
+    await loaded()
+
+    expect(conditions(cards()[0])).toEqual([
+      'Glove Pattern: 2, 179',
+      'Knife Pattern: Blue Gem · 387',
+      'Glove Float: Any',
+      'Knife Float: Any',
+    ])
+  })
+
+  it('shows a pattern group name as text, never as HTML', async () => {
+    const api = fakeApi()
+    const knife = { ...M9, seeds: [1], pattern_group: { slug: 'x', name: '<b>x</b>' } }
+    api.combos(MOGUL_PATH, [combo('a', 8, MOGUL, knife)])
+    renderSite(MOGUL_PATH, { api })
+    await loaded()
+
+    expect(conditions(cards()[0])[1]).toBe('Knife Pattern: <b>x</b> · 1')
+    expect(cards()[0].querySelector('b')).toBeNull()
+  })
+
   it('shows a description as text, never as HTML', async () => {
     const api = fakeApi()
     api.combos(MOGUL_PATH, [combo('a', 8, MOGUL, M9, '<b>x</b>')])
