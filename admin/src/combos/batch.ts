@@ -3,6 +3,7 @@
 import type { components } from '../api/schema'
 import { fillRatings } from './fill'
 import type { FieldErrors } from './form'
+import { groupLabel, rowKnife } from './patterns'
 import type { Candidates } from './queries'
 import {
   CHECKS,
@@ -39,6 +40,7 @@ export interface RowText {
 export interface BatchText {
   top: string
   glove: ConditionsText
+  /** A special pattern picked here holds every knife type's seed: see `rowKnife`. */
   knife: ConditionsText
   description: string
   /** The batch-wide screenshot agent; null is the default agent. */
@@ -148,14 +150,25 @@ export function rowDescription(row: Row, text: BatchText): string {
   return text.description
 }
 
-/** A row's own values, with batch-wide values where it has no override. */
+/** A row's own values, with batch-wide values where it has no override. A batch-wide special
+ * pattern gives the row its knife type's own seed. */
 export function resolved(row: Row, text: BatchText) {
   return {
     glove: row.text.glove ?? text.glove,
-    knife: row.text.knife ?? (row.vanilla ? NO_CONDITIONS : text.knife),
+    knife: row.text.knife ?? (row.vanilla ? NO_CONDITIONS : rowKnife(text.knife, row.slug)),
     description: rowDescription(row, text),
     agent: row.text.agent !== undefined ? row.text.agent : text.agent,
   }
+}
+
+/** The special pattern a new row is saved with, `Blue Gem · 601`; or, when the batch-wide group
+ * does not cover its knife type, `No Blue Gem for this knife`; null for neither. */
+export function rowPattern(row: Row, text: BatchText): string | null {
+  if (row.existing || row.vanilla) return null
+  const knife = resolved(row, text).knife
+  if (knife.group) return groupLabel(knife.group.name, knife.seeds)
+  if (!row.text.knife && text.knife.group) return `No ${text.knife.group.name} for this knife`
+  return null
 }
 
 export interface BatchCheck {
@@ -191,7 +204,8 @@ export function checkBatch(
   const step = parseStep(text.step)
   if (!step.ok && (step.error !== CHECKS.stepMissing || (attempted && needsStep))) batch.step = step.error
   addConditions(batch, 'glove', checkConditions(text.glove, glove.range))
-  addConditions(batch, 'knife', checkConditions(text.knife, knifeBatchRange(rows)))
+  // A batch-wide special pattern has no seeds of its own: each row has its knife type's.
+  addConditions(batch, 'knife', checkConditions({ ...text.knife, group: null }, knifeBatchRange(rows)))
   const description = checkDescription(text.description)
   if (!description.ok) batch.description = description.error
 

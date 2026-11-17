@@ -1,14 +1,20 @@
 import { AgentPicker } from './AgentPicker'
 import { ConditionsFields, DescriptionField, RatingField } from './fields'
 import { itemErrors, type ComboText, type FieldErrors } from './form'
-import type { Agent } from './queries'
+import { itemChoices } from './patterns'
+import { usePatternGroups, type Agent, type Kind } from './queries'
 import type { FinishRange } from './values'
 
-/** Rating, both items' conditions, the screenshot agent and the description of one combo. */
+/** An item of the combo by its type and finish slugs; null while it is not chosen. */
+export type ItemSlugs = Record<Kind, { type: string; finish: string } | null>
+
+/** Rating, both items' conditions with their special patterns, the screenshot agent and the
+ * description of one combo. */
 export function ComboFields({
   prefix,
   values,
   ranges,
+  items,
   errors,
   onChange,
   unknown,
@@ -17,6 +23,8 @@ export function ComboFields({
   prefix: string
   values: ComboText
   ranges: { glove: FinishRange; knife: FinishRange }
+  /** Which groups each item can pick. */
+  items: ItemSlugs
   errors: FieldErrors
   onChange(values: ComboText): void
   /** The item not chosen yet: its range is not one finish's, so it is not shown. */
@@ -24,6 +32,11 @@ export function ComboFields({
   /** The combo's stored agent, which may be retired and so missing from the list. */
   storedAgent?: Agent | null
 }) {
+  const groups = usePatternGroups()
+  const choices = (kind: Kind) => {
+    const item = items[kind]
+    return item ? itemChoices(groups.data, kind, item.type, item.finish) : []
+  }
   return (
     <>
       <RatingField
@@ -41,6 +54,7 @@ export function ComboFields({
         range={ranges.glove}
         showRange={unknown !== 'glove'}
         errors={itemErrors(errors, 'glove')}
+        special={{ choices: choices('glove') }}
         onChange={(glove) => onChange({ ...values, glove })}
       />
       <ConditionsFields
@@ -50,6 +64,7 @@ export function ComboFields({
         range={ranges.knife}
         showRange={unknown !== 'knife'}
         errors={itemErrors(errors, 'knife')}
+        special={{ choices: choices('knife') }}
         onChange={(knife) => onChange({ ...values, knife })}
       />
       <AgentPicker

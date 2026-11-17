@@ -536,3 +536,18 @@ describe('dragging a combo to a new place', () => {
     expect(screen.queryByRole('button', { name: /^Drag / })).toBeNull()
   })
 })
+
+describe('a special pattern in the list', () => {
+  it('is named in the conditions summary', async () => {
+    const fake = new FakeApi().withSession()
+    fake.store.add({
+      glove: 'specialist/crimson-kimono',
+      knife: 'karambit/case-hardened',
+      rating: 9,
+      knifeConditions: { seeds: [387], pattern_group: 'blue-gem' },
+    })
+    renderApp(GLOVES, fake)
+    const karambit = await screen.findByRole('listitem', { name: 'Karambit | Case Hardened' })
+    expect(karambit).toHaveTextContent('Gloves any · Knife Blue Gem · 387')
+  })
+})

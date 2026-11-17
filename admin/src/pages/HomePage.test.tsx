@@ -71,7 +71,7 @@ describe('statistics', () => {
       expect(figures()).toEqual([
         '4combos',
         '2 of 4glove finishes without a combo',
-        '7 of 10knife finishes without a combo',
+        '10 of 13knife finishes without a combo',
       ]),
     )
 
@@ -87,7 +87,7 @@ describe('statistics', () => {
       expect(figures()).toEqual([
         '5combos',
         '1 of 4glove finishes without a combo',
-        '6 of 10knife finishes without a combo',
+        '9 of 13knife finishes without a combo',
       ]),
     )
   })

@@ -224,3 +224,48 @@ describe('unsaved changes', () => {
     expect(after.defaultPrevented).toBe(true)
   })
 })
+
+describe('a picked special pattern', () => {
+  async function endSessionAndLogIn(user: User, fake: FakeApi, path: string, save: string) {
+    fake.loggedIn = false
+    await user.click(screen.getByRole('button', { name: save }))
+    expect(await screen.findByText(MESSAGES.sessionEnded)).toBeInTheDocument()
+    await logIn(user)
+    await waitFor(() => expect(where()).toBe(path))
+    expect(await screen.findByText('Restored unsaved changes.')).toBeInTheDocument()
+  }
+
+  it('comes back in an add form after the session ends', async () => {
+    const fake = new FakeApi().withSession()
+    const path = '/gloves/specialist/crimson-kimono/add'
+    const { user } = renderApp(path, fake)
+    await user.type(await screen.findByRole('combobox', { name: 'Find a knife' }), 'karambit case{Enter}')
+    await user.click(within(knifeGroup()).getByRole('button', { name: 'Add special pattern' }))
+    await user.click(within(knifeGroup()).getByRole('button', { name: 'Blue Gem · 387' }))
+    await user.type(screen.getByLabelText('Rating'), '9')
+    await endSessionAndLogIn(user, fake, path, 'Save as draft')
+    expect(within(knifeGroup()).getByRole('group', { name: 'Special pattern' })).toHaveTextContent('Blue Gem')
+    expect(within(knifeGroup()).getByLabelText('Pattern seeds')).toHaveValue('387')
+  })
+
+  it('comes back in a batch after the session ends', async () => {
+    const fake = new FakeApi().withSession()
+    const path = '/gloves/specialist/crimson-kimono/batch/case-hardened'
+    const { user } = renderApp(path, fake)
+    await user.type(await screen.findByLabelText('Top rating'), '9')
+    await user.click(within(knifeGroup()).getByRole('button', { name: 'Add special pattern' }))
+    await user.click(within(knifeGroup()).getByRole('button', { name: 'Gold Gem' }))
+    await user.click(screen.getByRole('button', { name: 'Own values for Karambit' }))
+    await user.click(screen.getByRole('button', { name: 'Set own knife values for Karambit' }))
+    const own = screen.getByRole('group', { name: 'Knife, Karambit only' })
+    await user.click(within(own).getByRole('button', { name: 'Remove special pattern Gold Gem' }))
+    await endSessionAndLogIn(user, fake, path, 'Save 3 as drafts')
+    expect(within(knifeGroup()).getByRole('group', { name: 'Special pattern' })).toHaveTextContent('Gold Gem')
+    const knives = within(screen.getByRole('list', { name: 'Knives' }))
+    expect(knives.getByRole('listitem', { name: 'M9 Bayonet' })).toHaveTextContent('Gold Gem · 92')
+    expect(knives.getByRole('listitem', { name: 'Butterfly Knife' })).toHaveTextContent('No Gold Gem for this knife')
+    expect(knives.getByRole('listitem', { name: 'Karambit' })).not.toHaveTextContent('Gold Gem')
+    await user.click(screen.getByRole('button', { name: 'Own values for Karambit (knife)' }))
+    expect(within(screen.getByRole('group', { name: 'Knife, Karambit only' })).getByLabelText('Pattern seeds')).toHaveValue('128')
+  })
+})

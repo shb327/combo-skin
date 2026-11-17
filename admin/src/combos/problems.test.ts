@@ -84,3 +84,15 @@ describe('agent refusals', () => {
     expect(problemMessage('agent_not_found')).toBe('This agent is not in the catalog.')
   })
 })
+
+describe('pattern group refusals', () => {
+  it.each([
+    ['pattern_group_not_found', 'pattern_group', 'This pattern group was not found.'],
+    ['pattern_group_not_for_item', 'pattern_group', 'This pattern group is not for this item.'],
+    ['pattern_group_needs_seed', 'seeds', 'A special pattern needs a seed.'],
+  ])('%s belongs to the item field, with a fixed message', (type, last, message) => {
+    expect(problemMessage(type)).toBe(message)
+    expect(formField({ loc: ['body', 'knife', last], type })).toBe(`knife.${last}`)
+    expect(batchPlace({ loc: ['body', 'create', 1, 'knife', last], type })).toEqual({ list: 'create', index: 1, field: `knife.${last}` })
+  })
+})

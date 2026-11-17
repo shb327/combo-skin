@@ -11,6 +11,7 @@ type Status = AdminCombo['status']
 type Conditions = Schemas['Conditions']
 type Agent = Schemas['Agent']
 type Worker = Schemas['WorkerOut']
+export type PatternGroup = Schemas['PatternGroupOut']
 export type ScreenshotState = Schemas['ScreenshotState']
 export type Screenshot = Schemas['Screenshot']
 
@@ -64,6 +65,7 @@ const finish = (slug: string, name: string, range: [number, number] | null, more
 })
 const vanilla = () => finish('vanilla', 'Vanilla', null)
 const ruby = () => finish('doppler-ruby', 'Doppler', [0, 0.08], { phase: 'Ruby' })
+const caseHardened = () => finish('case-hardened', 'Case Hardened', [0, 1])
 
 export const CATALOG: Record<Kind, FakeType[]> = {
   glove: [
@@ -86,7 +88,7 @@ export const CATALOG: Record<Kind, FakeType[]> = {
     {
       slug: 'butterfly',
       name: 'Butterfly Knife',
-      finishes: [vanilla(), ruby(), finish('blue-steel', 'Blue Steel', [0, 1])],
+      finishes: [vanilla(), ruby(), finish('blue-steel', 'Blue Steel', [0, 1]), caseHardened()],
     },
     {
       slug: 'karambit',
@@ -96,12 +98,13 @@ export const CATALOG: Record<Kind, FakeType[]> = {
         ruby(),
         finish('doppler-sapphire', 'Doppler', [0, 0.08], { phase: 'Sapphire' }),
         finish('blue-steel', 'Blue Steel', [0, 1]),
+        caseHardened(),
       ],
     },
     {
       slug: 'm9-bayonet',
       name: 'M9 Bayonet',
-      finishes: [vanilla(), ruby(), finish('blue-steel', 'Blue Steel', [0.06, 0.8])],
+      finishes: [vanilla(), ruby(), finish('blue-steel', 'Blue Steel', [0.06, 0.8]), caseHardened()],
     },
   ],
 }
@@ -141,6 +144,22 @@ export const RETIRED_AGENT = agent(5305, 'Operator | FBI SWAT', 'ct', false)
 export const RICKSAW = 5404
 const agentOf = (defIndex: number | null | undefined) =>
   defIndex == null ? null : ([...AGENTS, RETIRED_AGENT].find((a) => a.def_index === defIndex) ?? null)
+
+/** Pattern groups of the fake catalog, in display order: all on Case Hardened knives. Gold Gem
+ * and Blaze cover only some knife types. Seeds and sources are placeholders. */
+const group = (slug: string, name: string, seeds: Record<string, number>): PatternGroup => ({
+  slug,
+  name,
+  kind: 'knife',
+  finish_slug: 'case-hardened',
+  seeds,
+  sources: [{ title: `${name} guide`, author: 'placeholder-author', url: 'https://example.com', checked: '2026-11-16' }],
+})
+export const PATTERN_GROUPS: PatternGroup[] = [
+  group('gold-gem', 'Gold Gem', { karambit: 128, 'm9-bayonet': 92 }),
+  group('blue-gem', 'Blue Gem', { karambit: 387, butterfly: 670, 'm9-bayonet': 601 }),
+  group('blaze', 'Blaze', { karambit: 819 }),
+]
 
 /** A picture URL on the game's image host, the fallback; never fetched in tests. */
 export const picture = (type: string, finish: string) => `${IMAGE_ORIGIN}/economy/image/fake/${type}/${finish}`
@@ -193,9 +212,16 @@ export function catalogAnswer(kind: Kind, typeSlug?: string, finishSlug?: string
 }
 
 
-function item(kind: Kind, typeSlug: string, finishSlug: string, conditions: Partial<Conditions> = {}): Item {
+function item(
+  kind: Kind,
+  typeSlug: string,
+  finishSlug: string,
+  conditions: Partial<Conditions> = {},
+  groups: PatternGroup[] = PATTERN_GROUPS,
+): Item {
   const found = find(kind, typeSlug, finishSlug)
   if (!found) throw new Error(`No ${kind} ${typeSlug}/${finishSlug} in the fake catalog`)
+  const named = groups.find((g) => g.slug === conditions.pattern_group)
   return {
     type_slug: typeSlug,
     type_name: found.type.name,
@@ -213,6 +239,7 @@ function item(kind: Kind, typeSlug: string, finishSlug: string, conditions: Part
     float_from: conditions.float_from ?? null,
     float_to: conditions.float_to ?? null,
     seeds: conditions.seeds ?? [],
+    pattern_group: named ? { slug: named.slug, name: named.name } : null,
   }
 }
 
@@ -246,6 +273,7 @@ const conditions = (c: Partial<Conditions> | undefined): Conditions => ({
   float_from: c?.float_from ?? null,
   float_to: c?.float_to ?? null,
   seeds: c?.seeds ?? [],
+  pattern_group: c?.pattern_group ?? null,
 })
 
 export class ComboStore {
@@ -254,6 +282,8 @@ export class ComboStore {
   /** The ids of every screenshot request, in order. */
   requested: string[][] = []
   knifeOrder = ['karambit', 'butterfly', 'm9-bayonet']
+  /** `GET /admin/pattern-groups`, in display order; a test may change it. */
+  patternGroups: PatternGroup[] = structuredClone(PATTERN_GROUPS)
   defaultAgent = RICKSAW
   private ids = 0
   private ticks = 0
@@ -283,8 +313,8 @@ export class ComboStore {
       version: 1,
       rating: spec.rating,
       description: spec.description ?? null,
-      glove: item('glove', gloveType, gloveFinish, spec.gloveConditions),
-      knife: item('knife', knifeType, knifeFinish, spec.knifeConditions),
+      glove: item('glove', gloveType, gloveFinish, spec.gloveConditions, this.patternGroups),
+      knife: item('knife', knifeType, knifeFinish, spec.knifeConditions, this.patternGroups),
       screenshot_agent: agentOf(spec.agent),
       screenshot: null,
       screenshot_state: {
@@ -352,12 +382,50 @@ export class ComboStore {
     return [200, { total: found.length, items: found.slice(offset, offset + limit) }]
   }
 
+  /** The API's rules for an item's pattern group (spec 020): a group of the item's kind and
+   * finish, with a seed for its type, and at least one seed on the item. */
+  private groupRefusal(
+    kind: Kind,
+    item: { type_slug: string; finish_slug: string },
+    c: Partial<Conditions> | undefined,
+    loc: (string | number)[],
+  ): Answer | null {
+    const slug = c?.pattern_group
+    if (slug == null) return null
+    const found = this.patternGroups.find((g) => g.slug === slug)
+    if (!found) return refused([[...loc, 'pattern_group'], 'pattern_group_not_found'])
+    if (found.kind !== kind || found.finish_slug !== item.finish_slug || found.seeds[item.type_slug] === undefined) {
+      return refused([[...loc, 'pattern_group'], 'pattern_group_not_for_item'])
+    }
+    if (!c?.seeds?.length) return refused([[...loc, 'seeds'], 'pattern_group_needs_seed'])
+    return null
+  }
+
+  /** An item's stored conditions, with its group named. */
+  private stored(c: Partial<Conditions> | undefined): Pick<Item, 'float_from' | 'float_to' | 'seeds' | 'pattern_group'> {
+    const named = this.patternGroups.find((g) => g.slug === c?.pattern_group)
+    return {
+      float_from: c?.float_from ?? null,
+      float_to: c?.float_to ?? null,
+      seeds: c?.seeds ?? [],
+      pattern_group: named ? { slug: named.slug, name: named.name } : null,
+    }
+  }
+
+  listPatternGroups(): Answer {
+    return [200, this.patternGroups]
+  }
+
   create(body: Schemas['ComboIn'], by: string): Answer {
     const glove = find('glove', body.glove.type_slug, body.glove.finish_slug)
     const knife = find('knife', body.knife.type_slug, body.knife.finish_slug)
     if (!glove) return refused([['body', 'glove', 'finish_slug'], 'finish_not_found'])
     if (!knife) return refused([['body', 'knife', 'finish_slug'], 'finish_not_found'])
     if (!glove.finish.active) return refused([['body', 'glove', 'finish_slug'], 'finish_retired'])
+    const groupRefused =
+      this.groupRefusal('glove', body.glove, body.glove, ['body', 'glove']) ??
+      this.groupRefusal('knife', body.knife, body.knife, ['body', 'knife'])
+    if (groupRefused) return groupRefused
     if (body.screenshot_agent != null && !agentOf(body.screenshot_agent)) {
       return refused([['body', 'screenshot_agent'], 'agent_not_found'])
     }
@@ -388,10 +456,15 @@ export class ComboStore {
     if (body.version !== combo.version) return conflict('version_conflict')
     // Required, as in the API: leaving it out never resets the agent.
     if (!('screenshot_agent' in body)) return refused([['body', 'screenshot_agent'], 'missing'])
+    const groupRefused =
+      this.groupRefusal('glove', combo.glove, body.glove, ['body', 'glove']) ??
+      this.groupRefusal('knife', combo.knife, body.knife, ['body', 'knife'])
+    if (groupRefused) return groupRefused
     combo.rating = body.rating
     combo.description = body.description ?? null
-    Object.assign(combo.glove, conditions(body.glove))
-    Object.assign(combo.knife, conditions(body.knife))
+    // Omitted `pattern_group` means none, as in the API.
+    Object.assign(combo.glove, this.stored(body.glove))
+    Object.assign(combo.knife, this.stored(body.knife))
     combo.screenshot_agent = agentOf(body.screenshot_agent)
     combo.version += 1
     this.touch(combo, by)
@@ -489,6 +562,17 @@ export class ComboStore {
       if (!find('knife', row.knife_type, body.knife_finish)) {
         return refused([['body', 'create', i, 'knife_type'], 'finish_not_found'])
       }
+    }
+    for (const [i, row] of create.entries()) {
+      const groupRefused =
+        this.groupRefusal('glove', body.glove, row.glove, ['body', 'create', i, 'glove']) ??
+        this.groupRefusal('knife', { type_slug: row.knife_type, finish_slug: body.knife_finish }, row.knife, [
+          'body',
+          'create',
+          i,
+          'knife',
+        ])
+      if (groupRefused) return groupRefused
     }
     for (const [i, row] of update.entries()) {
       if (!this.get(row.id)) return refused([['body', 'update', i, 'id'], 'combo_not_found'])

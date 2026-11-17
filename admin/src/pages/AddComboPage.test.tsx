@@ -167,3 +167,162 @@ describe('the screenshot agent', () => {
     ])
   })
 })
+
+describe('a special pattern', () => {
+  const knifeGroup = () => screen.getByRole('group', { name: 'Knife' })
+  const seeds = () => within(knifeGroup()).getByLabelText('Pattern seeds')
+  const chip = () => within(knifeGroup()).queryByRole('group', { name: 'Special pattern' })
+  const sent = (fake: FakeApi) => JSON.parse(fake.to('POST /admin/combos')[0].body)
+
+  async function pickBlueGem(user: ReturnType<typeof renderApp>['user']) {
+    await pickKnife(user, 'karambit case')
+    await user.click(within(knifeGroup()).getByRole('button', { name: 'Add special pattern' }))
+    await user.click(within(knifeGroup()).getByRole('button', { name: 'Blue Gem · 387' }))
+  }
+
+  it('lists the groups of the knife with their seeds, and is not shown without any', async () => {
+    const fake = new FakeApi().withSession()
+    const { user } = renderApp(ADD, fake)
+    await pickKnife(user, 'karambit vanilla')
+    expect(within(knifeGroup()).queryByRole('button', { name: 'Add special pattern' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Change' }))
+    await pickKnife(user, 'karambit ruby')
+    expect(within(knifeGroup()).queryByRole('button', { name: 'Add special pattern' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Change' }))
+    await pickKnife(user, 'karambit case')
+
+    const add = await within(knifeGroup()).findByRole('button', { name: 'Add special pattern' })
+    expect(add).toHaveAttribute('aria-expanded', 'false')
+    // The gloves have no groups.
+    expect(within(screen.getByRole('group', { name: 'Gloves' })).queryByRole('button', { name: 'Add special pattern' })).toBeNull()
+    // Keyboard: Enter opens the list on its first entry, Tab moves on, Escape closes it.
+    add.focus()
+    await user.keyboard('{Enter}')
+    expect(add).toHaveAttribute('aria-expanded', 'true')
+    const list = within(knifeGroup()).getByRole('list', { name: 'Special patterns' })
+    expect(within(list).getAllByRole('button').map((b) => b.textContent)).toEqual(['Gold Gem · 128', 'Blue Gem · 387', 'Blaze · 819'])
+    expect(within(list).getByRole('button', { name: 'Gold Gem · 128' })).toHaveFocus()
+    await user.keyboard('{Escape}')
+    expect(within(knifeGroup()).queryByRole('list', { name: 'Special patterns' })).toBeNull()
+    expect(add).toHaveFocus()
+    await user.keyboard('{Enter}')
+    await user.tab()
+    expect(within(knifeGroup()).getByRole('button', { name: 'Blue Gem · 387' })).toHaveFocus()
+    await user.keyboard('{Enter}')
+
+    expect(seeds()).toHaveValue('387')
+    expect(chip()).toHaveTextContent('Blue Gem')
+    expect(within(knifeGroup()).queryByRole('button', { name: 'Add special pattern' })).toBeNull()
+    expect(within(chip() as HTMLElement).getByRole('button', { name: 'Remove special pattern Blue Gem' })).toHaveFocus()
+    await user.type(screen.getByLabelText('Rating'), '9')
+    await user.click(screen.getByRole('button', { name: 'Save as draft' }))
+    await waitFor(() => expect(fake.to('POST /admin/combos')).toHaveLength(1))
+    expect(sent(fake).knife).toEqual({
+      type_slug: 'karambit',
+      finish_slug: 'case-hardened',
+      float_from: null,
+      float_to: null,
+      seeds: [387],
+      pattern_group: 'blue-gem',
+    })
+    expect(sent(fake).glove).not.toHaveProperty('pattern_group')
+  })
+
+  it('shows on the page own knife', async () => {
+    const { user } = renderApp('/knives/m9-bayonet/case-hardened/add', new FakeApi().withSession())
+    const knife = await screen.findByRole('group', { name: 'Knife' })
+    await user.click(await within(knife).findByRole('button', { name: 'Add special pattern' }))
+    const list = within(knifeGroup()).getByRole('list', { name: 'Special patterns' })
+    expect(within(list).getAllByRole('button').map((b) => b.textContent)).toEqual(['Gold Gem · 92', 'Blue Gem · 601'])
+  })
+
+  it('keeps the seeds on Remove, and sends no group', async () => {
+    const fake = new FakeApi().withSession()
+    const { user } = renderApp(ADD, fake)
+    await pickBlueGem(user)
+    await user.click(screen.getByRole('button', { name: 'Remove special pattern Blue Gem' }))
+    expect(chip()).toBeNull()
+    expect(seeds()).toHaveValue('387')
+    expect(within(knifeGroup()).getByRole('button', { name: 'Add special pattern' })).toHaveFocus()
+    await user.type(screen.getByLabelText('Rating'), '9')
+    await user.click(screen.getByRole('button', { name: 'Save as draft' }))
+    await waitFor(() => expect(fake.to('POST /admin/combos')).toHaveLength(1))
+    expect(sent(fake).knife.seeds).toEqual([387])
+    expect(sent(fake).knife).not.toHaveProperty('pattern_group')
+  })
+
+  it('keeps the group when the seeds change, and needs a seed', async () => {
+    const fake = new FakeApi().withSession()
+    const { user } = renderApp(ADD, fake)
+    await pickBlueGem(user)
+    await user.type(seeds(), ', 619')
+    expect(chip()).toHaveTextContent('Blue Gem')
+    await user.clear(seeds())
+    expect(chip()).toHaveTextContent('Blue Gem')
+    expect(seeds()).toHaveAccessibleDescription('A special pattern needs a seed.')
+    await user.type(screen.getByLabelText('Rating'), '9')
+    await user.click(screen.getByRole('button', { name: 'Save as draft' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Knife pattern seeds: A special pattern needs a seed.')
+    expect(fake.to('POST /admin/combos')).toHaveLength(0)
+
+    await user.type(seeds(), '619')
+    await user.click(screen.getByRole('button', { name: 'Save as draft' }))
+    await waitFor(() => expect(fake.to('POST /admin/combos')).toHaveLength(1))
+    expect(sent(fake).knife).toMatchObject({ seeds: [619], pattern_group: 'blue-gem' })
+  })
+
+  it('drops the group when the knife is changed', async () => {
+    const fake = new FakeApi().withSession()
+    const { user } = renderApp(ADD, fake)
+    await pickBlueGem(user)
+    await user.click(screen.getByRole('button', { name: 'Change' }))
+    await pickKnife(user, 'butterfly case')
+    expect(chip()).toBeNull()
+    expect(seeds()).toHaveValue('387')
+  })
+
+  it.each([
+    ['pattern_group_not_found', 'pattern_group', 'This pattern group was not found.'],
+    ['pattern_group_not_for_item', 'pattern_group', 'This pattern group is not for this item.'],
+  ])('shows %s at the special pattern', async (type, last, message) => {
+    const fake = new FakeApi().withSession()
+    fake.next('POST /admin/combos', refusal([['body', 'knife', last], type]))
+    const { user } = renderApp(ADD, fake)
+    await pickBlueGem(user)
+    await user.type(screen.getByLabelText('Rating'), '9')
+    await user.click(screen.getByRole('button', { name: 'Save as draft' }))
+    const remove = screen.getByRole('button', { name: 'Remove special pattern Blue Gem' })
+    await waitFor(() => expect(remove).toHaveAccessibleDescription(message))
+    expect(screen.getByRole('alert')).toHaveTextContent(`Knife special pattern: ${message}`)
+  })
+
+  it('shows pattern_group_needs_seed at the seeds', async () => {
+    const fake = new FakeApi().withSession()
+    fake.next('POST /admin/combos', refusal([['body', 'knife', 'seeds'], 'pattern_group_needs_seed']))
+    const { user } = renderApp(ADD, fake)
+    await pickBlueGem(user)
+    await user.type(screen.getByLabelText('Rating'), '9')
+    await user.click(screen.getByRole('button', { name: 'Save as draft' }))
+    await waitFor(() => expect(seeds()).toHaveAccessibleDescription('A special pattern needs a seed.'))
+  })
+
+  it('lists no group without a seed for the knife type', async () => {
+    const fake = new FakeApi().withSession()
+    fake.store.patternGroups[1].seeds = { butterfly: 670 }
+    const { user } = renderApp(ADD, fake)
+    await pickKnife(user, 'karambit case')
+    await user.click(within(knifeGroup()).getByRole('button', { name: 'Add special pattern' }))
+    expect(within(knifeGroup()).queryByRole('button', { name: /Blue Gem/ })).toBeNull()
+  })
+
+  it('renders a group name as text', async () => {
+    const fake = new FakeApi().withSession()
+    fake.store.patternGroups[1].name = '<img src=x>'
+    const { user } = renderApp(ADD, fake)
+    await pickKnife(user, 'karambit case')
+    await user.click(within(knifeGroup()).getByRole('button', { name: 'Add special pattern' }))
+    await user.click(within(knifeGroup()).getByRole('button', { name: '<img src=x> · 387' }))
+    expect(chip()).toHaveTextContent('<img src=x>')
+    expect(document.querySelector('img[src="x"]')).toBeNull()
+  })
+})

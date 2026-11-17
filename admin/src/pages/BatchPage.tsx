@@ -5,14 +5,26 @@ import { useApi } from '../api/useApi'
 import type { components } from '../api/schema'
 import { useTitle } from '../components/useTitle'
 import { AgentPicker } from '../combos/AgentPicker'
-import { EMPTY_BATCH, batchRows, checkBatch, knifeBatchRange, rowDescription, type BatchText, type Row, type RowText } from '../combos/batch'
+import {
+  EMPTY_BATCH,
+  batchRows,
+  checkBatch,
+  knifeBatchRange,
+  resolved,
+  rowDescription,
+  rowPattern,
+  type BatchText,
+  type Row,
+  type RowText,
+} from '../combos/batch'
 import { ConditionsFields, DescriptionField, RatingField } from '../combos/fields'
 import { Picture } from '../combos/Picture'
 import { FIELD_LABELS, fieldKey, itemErrors, type FieldErrors } from '../combos/form'
 import { COMBO_MESSAGES, comboErrorMessage, isCode } from '../combos/messages'
 import { finishPath } from '../combos/paths'
 import { batchPlace, problemMessage } from '../combos/problems'
-import { finishLabel, useBatchFinishes, useCandidates, useComboWrites } from '../combos/queries'
+import { batchChoices, itemChoices, type GroupChoice } from '../combos/patterns'
+import { finishLabel, useBatchFinishes, useCandidates, useComboWrites, usePatternGroups } from '../combos/queries'
 import { INPUT, LINK, PRIMARY, SECONDARY } from '../combos/styles'
 import { ErrorSummary, QueryState, RestoredNotice, StatusBadge, type SummaryEntry } from '../combos/ui'
 import { detailLabel, isRetired, useFinishPage } from '../combos/useFinishPage'
@@ -125,6 +137,7 @@ function BatchRows({
   const api = useApi()
   const writes = useComboWrites()
   const candidates = useCandidates(type, finish, knifeFinish)
+  const groups = usePatternGroups()
   const draft = useDraft<BatchText>(`batch:${type}/${finish}/${knifeFinish}`, EMPTY_BATCH)
   const [attempted, setAttempted] = useState(false)
   const [serverErrors, setServerErrors] = useState<Record<string, FieldErrors>>({})
@@ -177,6 +190,7 @@ function BatchRows({
   const checked = checkBatch(rows, text, glove, knifeFinish, attempted)
   const rowErrors = (slug: string): FieldErrors => ({ ...checked.rows[slug], ...serverErrors[slug] })
   const included = rows.filter((r) => r.text.ticked)
+  const gloveChoices = itemChoices(groups.data, 'glove', type, finish)
 
   function change(next: (current: BatchText) => BatchText) {
     setServerErrors({})
@@ -330,6 +344,7 @@ function BatchRows({
           value={text.glove}
           range={gloveRange}
           errors={itemErrors(checked.batch, 'glove')}
+          special={{ choices: gloveChoices }}
           onChange={(value) => change((current) => ({ ...current, glove: value }))}
         />
         <ConditionsFields
@@ -339,6 +354,7 @@ function BatchRows({
           range={knifeBatchRange(rows)}
           showRange={false}
           errors={itemErrors(checked.batch, 'knife')}
+          special={{ choices: batchChoices(groups.data, knifeFinish), perKnife: true }}
           onChange={(value) => change((current) => ({ ...current, knife: value }))}
         />
         <AgentPicker
@@ -390,6 +406,8 @@ function BatchRows({
               row={row}
               batch={text}
               gloveRange={gloveRange}
+              gloveChoices={gloveChoices}
+              knifeChoices={itemChoices(groups.data, 'knife', row.slug, knifeFinish)}
               errors={rowErrors(row.slug)}
               open={open.has(row.slug)}
               onToggleOpen={() => toggleOpen(row.slug)}
@@ -418,6 +436,8 @@ function BatchRow({
   row,
   batch,
   gloveRange,
+  gloveChoices,
+  knifeChoices,
   errors,
   open,
   onToggleOpen,
@@ -428,6 +448,9 @@ function BatchRow({
   row: Row
   batch: BatchText
   gloveRange: { min: number | null; max: number | null }
+  /** The special patterns this row's own values can pick. */
+  gloveChoices: GroupChoice[]
+  knifeChoices: GroupChoice[]
   errors: FieldErrors
   open: boolean
   onToggleOpen(): void
@@ -438,6 +461,7 @@ function BatchRow({
   const ownRating = row.text.ownRating !== undefined
   const ratingBox = useRef<HTMLInputElement>(null)
   const range = row.vanilla ? 'No float range' : `Float ${row.range.min} – ${row.range.max}`
+  const pattern = row.text.ticked ? rowPattern(row, batch) : null
   // Errors shown next to their own fields; the rest are listed under the row.
   const inFields = (key: string) =>
     key === 'rating' ||
@@ -461,6 +485,7 @@ function BatchRow({
           {name}
         </label>
         <span className="text-xs text-white/50">{range}</span>
+        {pattern && <span className="text-xs text-white/80">{pattern}</span>}
         {order && <span className="ml-auto flex flex-wrap items-center gap-2">{order}</span>}
         {row.existing && (
           <span className="flex items-center gap-2 text-sm text-white/70">
@@ -520,7 +545,8 @@ function BatchRow({
                 label={`own knife values for ${name}`}
                 active={row.text.knife !== undefined}
                 disabled={row.vanilla}
-                onSet={() => onChange({ knife: batch.knife })}
+                // Starts from what the row has now: the batch-wide values with its own seed.
+                onSet={() => onChange({ knife: resolved(row, batch).knife })}
                 onClear={() => onChange({ knife: undefined })}
               >
                 <ConditionsFields
@@ -529,6 +555,7 @@ function BatchRow({
                   value={row.text.knife ?? NO_CONDITIONS}
                   range={row.range}
                   errors={itemErrors(errors, 'knife')}
+                  special={{ choices: knifeChoices }}
                   onChange={(knife) => onChange({ knife })}
                 />
               </Override>
@@ -544,6 +571,7 @@ function BatchRow({
                   value={row.text.glove ?? NO_CONDITIONS}
                   range={gloveRange}
                   errors={itemErrors(errors, 'glove')}
+                  special={{ choices: gloveChoices }}
                   onChange={(glove) => onChange({ glove })}
                 />
               </Override>

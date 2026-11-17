@@ -62,6 +62,9 @@ export function AddComboPage({ kind }: { kind: Kind }) {
   // Until the other item is chosen, its values are only checked as floats from 0 to 1.
   const other = values.other ? { min: values.other.floatMin, max: values.other.floatMax } : { min: 0, max: 1 }
   const ranges = kind === 'glove' ? { glove: own, knife: other } : { glove: other, knife: own }
+  const ownItem = { type, finish }
+  const otherItem = values.other ? { type: values.other.typeSlug, finish: values.other.finishSlug } : null
+  const items = kind === 'glove' ? { glove: ownItem, knife: otherItem } : { glove: otherItem, knife: ownItem }
   const checked = checkCombo(values, ranges, attempted)
   const errors: FieldErrors = { ...checked.errors, ...serverErrors }
   const otherKey = `${otherKind}.finish`
@@ -157,7 +160,12 @@ export function AddComboPage({ kind }: { kind: Kind }) {
                 <Picture url={values.other.imageUrl} fallback={values.other.fallbackUrl} size="md" />
                 <span className="font-semibold">{values.other.label}</span>
               </span>
-              <button type="button" className={SECONDARY} onClick={() => change({ ...values, other: null })}>
+              <button
+                type="button"
+                className={SECONDARY}
+                // A special pattern belongs to the item it was picked for; the seeds stay.
+                onClick={() => change({ ...values, other: null, [otherKind]: { ...values[otherKind], group: null } })}
+              >
                 Change
               </button>
             </p>
@@ -180,6 +188,7 @@ export function AddComboPage({ kind }: { kind: Kind }) {
           prefix={PREFIX}
           values={values}
           ranges={ranges}
+          items={items}
           errors={errors}
           unknown={values.other ? undefined : otherKind}
           onChange={(next) => change({ ...values, ...next })}

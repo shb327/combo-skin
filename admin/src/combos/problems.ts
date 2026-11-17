@@ -14,6 +14,9 @@ export const REFUSALS = {
   decimal_max_places: 'Too many decimals.',
   agent_not_found: 'This agent is not in the catalog.',
   agent_retired: 'This agent is no longer in the game.',
+  pattern_group_not_found: 'This pattern group was not found.',
+  pattern_group_not_for_item: 'This pattern group is not for this item.',
+  pattern_group_needs_seed: 'A special pattern needs a seed.',
 } as const
 
 export const REFUSED = 'The API refused this value.'
@@ -26,12 +29,14 @@ const ITEM_FIELDS: Record<string, string> = {
   float_from: 'float_from',
   float_to: 'float_to',
   seeds: 'seeds',
+  pattern_group: 'pattern_group',
   type_slug: 'finish',
   finish_slug: 'finish',
 }
 
 /** The field a path names inside one combo: `rating`, `description`, `knife.float_from`,
- * `glove.seeds`, `knife.finish`, `knife_type`, `agent`; null when it names none. */
+ * `glove.seeds`, `knife.pattern_group`, `knife.finish`, `knife_type`, `agent`; null when it
+ * names none. */
 function comboField(path: (string | number)[]): string | null {
   const [first, second] = path
   if (first === 'rating' || first === 'description' || first === 'knife_type') return first

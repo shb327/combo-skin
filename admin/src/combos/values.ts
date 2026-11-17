@@ -16,6 +16,7 @@ export const CHECKS = {
   vanilla: 'Vanilla has no float or pattern.',
   seedValues: 'Seeds are whole numbers from 0 to 1000.',
   seedCount: 'At most 100 seeds.',
+  groupNeedsSeed: 'A special pattern needs a seed.',
   descriptionLength: 'At most 1000 characters.',
   controlCharacters: 'Remove tabs and other control characters.',
 } as const
@@ -28,17 +29,39 @@ export interface FinishRange {
   max: number | null
 }
 
-/** What the owner typed for one item. */
+/** A pattern group as an item names it (spec 020). */
+export interface GroupRef {
+  slug: string
+  name: string
+}
+
+/** A picked pattern group. Picked for a whole batch, it holds each knife type's example seed. */
+export interface GroupPick extends GroupRef {
+  seeds?: Record<string, number>
+}
+
+/** What the owner typed for one item, and the special pattern picked; none when absent. */
 export interface ConditionsText {
   from: string
   to: string
   seeds: string
+  group?: GroupPick | null
 }
 
+/** One item's values as sent; `pattern_group` only when it has one. */
 export interface Conditions {
   float_from: number | null
   float_to: number | null
   seeds: number[]
+  pattern_group?: string
+}
+
+/** One item's values as the API returns them. */
+export interface StoredConditions {
+  float_from: number | null
+  float_to: number | null
+  seeds: number[]
+  pattern_group?: GroupRef | null
 }
 
 export const NO_CONDITIONS: ConditionsText = { from: '', to: '', seeds: '' }
@@ -186,16 +209,27 @@ export function checkConditions(
 
   const seeds = parseSeeds(text.seeds)
   if (!seeds.ok) errors.seeds = seeds.error
+  else if (text.group && !seeds.value.length) errors.seeds = CHECKS.groupNeedsSeed
   if (Object.keys(errors).length || !seeds.ok) return { errors }
-  return { errors, value: { float_from: floatFrom, float_to: floatTo, seeds: seeds.value } }
+  return {
+    errors,
+    value: {
+      float_from: floatFrom,
+      float_to: floatTo,
+      seeds: seeds.value,
+      ...(text.group ? { pattern_group: text.group.slug } : {}),
+    },
+  }
 }
 
 /** Conditions from the API as the owner would type them. */
-export function conditionsText(conditions: Conditions): ConditionsText {
+export function conditionsText(conditions: StoredConditions): ConditionsText {
+  const group = conditions.pattern_group
   return {
     from: conditions.float_from === null ? '' : formatFloat(conditions.float_from),
     to: conditions.float_to === null ? '' : formatFloat(conditions.float_to),
     seeds: formatSeeds(conditions.seeds),
+    group: group ? { slug: group.slug, name: group.name } : null,
   }
 }
 
@@ -215,8 +249,8 @@ export function checkDescription(text: string): Checked<string | null> {
   return { ok: true, value: trimmed || null }
 }
 
-/** `Gloves 0.06–0.15 · seeds 2, 179, 300 (+3)`, or `Knife any`. */
-export function conditionsSummary(label: string, conditions: Conditions): string {
+/** `Gloves 0.06–0.15 · seeds 2, 179, 300 (+3)`, `Knife Blue Gem · 387`, or `Knife any`. */
+export function conditionsSummary(label: string, conditions: StoredConditions): string {
   const parts: string[] = []
   if (conditions.float_from !== null && conditions.float_to !== null) {
     parts.push(`${formatFloat(conditions.float_from)}–${formatFloat(conditions.float_to)}`)
@@ -224,7 +258,8 @@ export function conditionsSummary(label: string, conditions: Conditions): string
   if (conditions.seeds.length) {
     const shown = conditions.seeds.slice(0, 3).join(', ')
     const more = conditions.seeds.length - 3
-    parts.push(`seeds ${shown}${more > 0 ? ` (+${more})` : ''}`)
+    const group = conditions.pattern_group
+    parts.push(`${group ? `${group.name} ·` : 'seeds'} ${shown}${more > 0 ? ` (+${more})` : ''}`)
   }
   return `${label} ${parts.length ? parts.join(' · ') : 'any'}`
 }
