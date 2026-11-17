@@ -79,6 +79,13 @@ class Combo(Base):
     knife_seeds: Mapped[list[int]] = mapped_column(
         ARRAY(Integer), server_default=text("'{}'"), default=list
     )
+    # The pattern group each item's seeds came from (spec 020); the seeds stay the combo's own.
+    glove_pattern_group_id: Mapped[int | None] = mapped_column(
+        ForeignKey("pattern_groups.id", ondelete="RESTRICT")
+    )
+    knife_pattern_group_id: Mapped[int | None] = mapped_column(
+        ForeignKey("pattern_groups.id", ondelete="RESTRICT")
+    )
     # The agent whose arms hold the items in the combo's screenshot; null means the default.
     screenshot_agent_id: Mapped[int | None] = mapped_column(
         ForeignKey("agents.id", ondelete="RESTRICT")
