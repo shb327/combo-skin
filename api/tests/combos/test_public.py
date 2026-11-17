@@ -28,6 +28,7 @@ ITEM_KEYS = {
     "float_from",
     "float_to",
     "seeds",
+    "pattern_group",
 }
 
 

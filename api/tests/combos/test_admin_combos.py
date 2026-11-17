@@ -64,6 +64,7 @@ async def test_create_returns_a_draft(admin_client: AsyncClient) -> None:
             "float_from": None,
             "float_to": None,
             "seeds": [1, 2],
+            "pattern_group": None,
         },
         "knife": {
             "type_slug": "karambit",
@@ -78,6 +79,7 @@ async def test_create_returns_a_draft(admin_client: AsyncClient) -> None:
             "float_from": 0.0,
             "float_to": 0.01,
             "seeds": [],
+            "pattern_group": None,
         },
         "screenshot_agent": None,
         "screenshot": None,

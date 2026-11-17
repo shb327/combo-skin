@@ -21,11 +21,13 @@ from combo_api.combos.schemas import (
     AdminCombo,
     Conditions,
     Item,
+    PatternGroupRef,
     PublicCombo,
     decimal,
     number,
 )
 from combo_api.combos.schemas import Agent as AgentOut
+from combo_api.patterns.models import PatternGroup
 from combo_api.screenshots import inputs
 from combo_api.screenshots.models import ComboScreenshot, ScreenshotJob
 from combo_api.screenshots.shapes import screenshot_out, state_out
@@ -101,6 +103,18 @@ def admin_combos() -> Select[*AdminColumns]:
     )
 
 
+# The pattern group ids of a combo's gloves and knife, each None for none.
+GroupIds = tuple[int | None, int | None]
+# Pattern groups by id, as combo items name them.
+GroupRefs = dict[int, PatternGroupRef]
+
+
+async def group_refs(db: AsyncSession) -> GroupRefs:
+    """Every pattern group's slug and name, by id: a handful of rows."""
+    rows = await db.execute(select(PatternGroup.id, PatternGroup.slug, PatternGroup.name))
+    return {id_: PatternGroupRef(slug=slug, name=name) for id_, slug, name in rows}
+
+
 def new_combo(
     glove: Finish,
     knife: Finish,
@@ -111,14 +125,15 @@ def new_combo(
     screenshot_agent_id: int | None,
     admin_id: int,
     now: datetime,
+    groups: GroupIds = (None, None),
 ) -> Combo:
     """A new draft combo."""
     return Combo(
         public_id=new_public_id(),
         glove_finish_id=glove.id,
         knife_finish_id=knife.id,
-        **stored("glove", glove_conditions),
-        **stored("knife", knife_conditions),
+        **stored("glove", glove_conditions, groups[0]),
+        **stored("knife", knife_conditions, groups[1]),
         rating=decimal(rating),
         description=description,
         screenshot_agent_id=screenshot_agent_id,
@@ -181,12 +196,13 @@ async def pairing_exists(db: AsyncSession, glove: Finish, knife: Finish) -> bool
     return found is not None
 
 
-def stored(side: str, conditions: Conditions) -> dict[str, Any]:
-    """A side's conditions as column values."""
+def stored(side: str, conditions: Conditions, group_id: int | None = None) -> dict[str, Any]:
+    """A side's conditions, and the pattern group its seeds came from, as column values."""
     return {
         f"{side}_float_from": stored_float(conditions.float_from),
         f"{side}_float_to": stored_float(conditions.float_to),
         f"{side}_seeds": conditions.seeds,
+        f"{side}_pattern_group_id": group_id,
     }
 
 
@@ -201,6 +217,7 @@ def item(
     float_from: float | None = None,
     float_to: float | None = None,
     seeds: list[int] | None = None,
+    pattern_group: PatternGroupRef | None = None,
 ) -> Item:
     """A finish as an item of a combo; without conditions, as a candidate."""
     return Item(
@@ -219,6 +236,7 @@ def item(
         float_from=float_from,
         float_to=float_to,
         seeds=seeds or [],
+        pattern_group=pattern_group,
     )
 
 
@@ -231,8 +249,12 @@ def conditions(combo: Combo, side: str) -> tuple[float | None, float | None, lis
     )
 
 
-def combo_item(combo: Combo, side: str, finish: Finish, item_type: ItemType, base_url: str) -> Item:
-    return item(finish, item_type, base_url, *conditions(combo, side))
+def combo_item(
+    combo: Combo, side: str, finish: Finish, item_type: ItemType, base_url: str, groups: GroupRefs
+) -> Item:
+    group_id: int | None = getattr(combo, f"{side}_pattern_group_id")
+    group = None if group_id is None else groups.get(group_id)
+    return item(finish, item_type, base_url, *conditions(combo, side), group)
 
 
 def agent_out(agent: Agent, base_url: str) -> AgentOut:
@@ -247,7 +269,7 @@ def agent_out(agent: Agent, base_url: str) -> AgentOut:
     )
 
 
-def admin_out(row: AdminRow, base_url: str) -> AdminCombo:
+def admin_out(row: AdminRow, base_url: str, groups: GroupRefs) -> AdminCombo:
     combo, glove, glove_type, knife, knife_type, created_by, updated_by, agent, shot = row[:9]
     job, state, attempts = row[9:]
     return AdminCombo(
@@ -256,8 +278,8 @@ def admin_out(row: AdminRow, base_url: str) -> AdminCombo:
         version=combo.version,
         rating=float(combo.rating),
         description=combo.description,
-        glove=combo_item(combo, "glove", glove, glove_type, base_url),
-        knife=combo_item(combo, "knife", knife, knife_type, base_url),
+        glove=combo_item(combo, "glove", glove, glove_type, base_url, groups),
+        knife=combo_item(combo, "knife", knife, knife_type, base_url, groups),
         screenshot_agent=None if agent is None else agent_out(agent, base_url),
         screenshot=screenshot_out(combo.public_id, shot, base_url),
         screenshot_state=state_out(shot, job, state, attempts, clock.now()),
@@ -269,18 +291,18 @@ def admin_out(row: AdminRow, base_url: str) -> AdminCombo:
     )
 
 
-def public_out(row: ComboRow, base_url: str) -> PublicCombo:
+def public_out(row: ComboRow, base_url: str, groups: GroupRefs) -> PublicCombo:
     combo, glove, glove_type, knife, knife_type, *_, shot = row
     return PublicCombo(
         id=combo.public_id,
         rating=float(combo.rating),
         description=combo.description,
-        glove=combo_item(combo, "glove", glove, glove_type, base_url),
-        knife=combo_item(combo, "knife", knife, knife_type, base_url),
+        glove=combo_item(combo, "glove", glove, glove_type, base_url, groups),
+        knife=combo_item(combo, "knife", knife, knife_type, base_url, groups),
         screenshot=screenshot_out(combo.public_id, shot, base_url),
     )
 
 
 async def find(db: AsyncSession, public_id: str, base_url: str) -> AdminCombo | None:
     row = (await db.execute(admin_combos().where(Combo.public_id == public_id))).first()
-    return None if row is None else admin_out(row, base_url)
+    return None if row is None else admin_out(row, base_url, await group_refs(db))

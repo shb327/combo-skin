@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from combo_api.catalog.models import Agent, Finish, ItemType
 from combo_api.catalog.snapshot import Kind
 from combo_api.combos.schemas import Conditions, FinishRef, decimal
+from combo_api.patterns.models import PatternGroup, PatternGroupSeed
 
 Loc = tuple[str | int, ...]
 
@@ -96,3 +97,40 @@ async def agent_id(
         return None
     agent = await resolve_agent(db, def_index, loc, problems, keep=keep)
     return None if agent is None else agent.id
+
+
+async def pattern_group_id(
+    db: AsyncSession,
+    finish: Finish,
+    item_type: ItemType,
+    conditions: Conditions,
+    loc: Loc,
+    problems: Problems,
+) -> int | None:
+    """The `pattern_groups.id` an item names, or None. A group needs a seed on the item, the
+    item's kind and finish, and an example seed for the item's type; the item's seeds need not
+    include that example."""
+    if conditions.pattern_group is None:
+        return None
+    group = await db.scalar(
+        select(PatternGroup).where(PatternGroup.slug == conditions.pattern_group)
+    )
+    if group is None:
+        problems.add(
+            (*loc, "pattern_group"), "pattern_group_not_found", "No pattern group has this slug"
+        )
+        return None
+    example = await db.scalar(
+        select(PatternGroupSeed.seed).where(
+            PatternGroupSeed.group_id == group.id, PatternGroupSeed.type_slug == item_type.slug
+        )
+    )
+    if group.kind != item_type.kind or group.finish_slug != finish.slug or example is None:
+        problems.add(
+            (*loc, "pattern_group"), "pattern_group_not_for_item", "This group is not for this item"
+        )
+        return None
+    if not conditions.seeds:
+        problems.add((*loc, "seeds"), "pattern_group_needs_seed", "A special pattern needs a seed")
+        return None
+    return group.id

@@ -40,6 +40,7 @@ SAMPLES: dict[tuple[str, str], tuple[str, dict[str, Any], Any]] = {
     ("POST", "/admin/workers"): ("/admin/workers", {}, {"name": "guard-test-box"}),
     ("POST", "/admin/workers/{worker_id}/revoke"): ("/admin/workers/999999/revoke", {}, None),
     ("POST", "/admin/screenshots/request"): ("/admin/screenshots/request", {}, {"ids": [ID]}),
+    ("GET", "/admin/pattern-groups"): ("/admin/pattern-groups", {}, None),
 }
 SESSION_ROUTES = {
     ("POST", "/admin/login"),
