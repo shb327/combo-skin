@@ -357,6 +357,54 @@ None. Answered by the owner on 2026-11-16, and recorded in Design as the owner's
 - **2026-11-21: Piss & Ice on four knives.** Like Fire & Ice, the pattern exists only on the Karambit, Bayonet, Flip and Gut. The owner picked the seeds (Karambit 769, Bayonet 609, Flip 92, Gut 722); the group has no sources.
 - **2026-11-21: Gamma Doppler gems on four knives.** The owner limited Diamond Gem, Full Cyan and Full Lime to the Karambit, Bayonet, Flip and Gut, the knives with small blades, as with Fire & Ice and Piss & Ice (Cyanbit is the Karambit's alone). Each keeps the guide seed for those knives and credits only their guides: korenevskiy's Bayonet, Flip, Gut and Karambit guides for Phase 4, and for Diamond Gem the Karambit guide, Glorp's Flip guide and korenevskiy's Bayonet and Gut Phase 1 guides.
 
+### Criteria and tests
+
+| Criterion | Evidence |
+| --- | --- |
+| 1 | `tests/test_migrations.py` (revision `0008`, both tables); `alembic upgrade head`, `downgrade base`, `upgrade head` and `alembic check` run against a fresh database on 2026-11-21 |
+| 2 | `tests/patterns/test_data.py`: `test_the_file_holds_the_owners_groups`, `test_the_file_is_valid_against_the_catalog`, `test_the_committed_file_imports`; `import --check` in the Compose run below |
+| 3 | `test_data.py`: `test_every_source_is_complete`, `test_a_group_without_sources_is_the_owners_pick` |
+| 4 | Manual: 126 pictures, one per seed, in the review folder; see Picture review below |
+| 5 | `tests/patterns/test_import.py`: `test_import_inserts_and_is_safe_to_run_again`, `test_additions_are_imported` |
+| 6 | `test_data.py`: `test_the_file_format_refuses`, `test_a_duplicate_slug_is_refused`, `test_the_catalog_check_refuses`; `test_import.py`: `test_imported_groups_are_frozen`, `test_a_refused_file_writes_nothing`, `test_check_writes_nothing` |
+| 7 | `tests/test_compose.py::test_pattern_groups_load_after_the_catalog`; a separate Compose project on 2026-11-21: `patterns` exited 0 after `catalog` ("13 inserted"), a second run and `--check` reported 13 unchanged, `/admin/pattern-groups` without a session returned 401 |
+| 8 | `tests/combos/test_pattern_groups.py`: `test_create_with_a_group`, `test_any_seed_of_the_group_is_accepted` |
+| 9 | `test_pattern_groups.py::test_create_refuses` |
+| 10 | `test_pattern_groups.py::test_update_keeps_or_clears_the_group` |
+| 11 | `test_pattern_groups.py::test_batch_with_a_group` |
+| 12 | `tests/patterns/test_routes.py`: `test_list_pattern_groups`, `test_list_needs_an_admin` |
+| 13 | `test_pattern_groups.py::test_public_routes_name_the_group` |
+| 14 | `admin/src/pages/AddComboPage.test.tsx`: "lists the groups of the knife with their seeds, and is not shown without any", "keeps the seeds on Remove, and sends no group"; `src/combos/patterns.test.ts` |
+| 15 | `AddComboPage.test.tsx`: "keeps the group when the seeds change, and needs a seed"; `src/combos/values.test.ts` |
+| 16 | `admin/src/pages/BatchPage.test.tsx`: "gives every new knife its own seed of the group", "says which knife the group does not cover, and sends it with any pattern", "takes a knife own seeds and no group from its own knife values", "returns a knife to the batch-wide group when its own values are cleared, and leaves existing combos alone" |
+| 17 | `admin/src/pages/EditComboPage.test.tsx`: "shows the stored group and keeps it on Save" |
+| 18 | `admin/src/pages/FinishPage.test.tsx`: "is named in the conditions summary" |
+| 19 | `admin/src/combos/drafts.test.tsx`: "comes back in an add form after the session ends", "comes back in a batch after the session ends" |
+| 20 | `admin/src/combos/problems.test.ts`; `AddComboPage.test.tsx`: "shows pattern_group_needs_seed at the seeds", "renders a group name as text" |
+| 21 | `website/src/pages/Combos.test.tsx`: "names the pattern group before its seeds", "shows a pattern group name as text, never as HTML" |
+| 22 | `openapi --check`, and `npm run api:types:check` in `admin/` and `website/`, exit 0 |
+| 23 | `api/README.md` (groups, `groups.json`, the import, `--check`, updating a group); `admin/README.md` ("Add special pattern") |
+| 24 | On 2026-11-21: API format check, lint, mypy, the OpenAPI and export checks, and pytest (567 passed, none skipped); `docker build` through the Compose run. Admin: lint, typecheck, 416 tests, build, `check:bundle`. Website: lint, typecheck, 344 tests, build, no `/src/` paths in `dist` |
+| 25 | After the owner pushes |
+| 26 | `gitleaks dir` and `gitleaks git` on `main..020-pattern-groups`: no leaks. New URLs: Steam guides of The groups, the chescos repository, and `example.com` in tests |
+
+### Deviations
+
+- **The owner's seed choices.** Where a guide's first seed was unclear or arbitrary, the owner chose: Black Gem Classic 791, Survival 791 and Navaja 446; Gold Gem Karambit 896 and Stiletto 268, the pictured seeds; Blue Gem Huntsman 618; Cyanbit 960, from korenevskiy's Karambit Phase 3 guide; Full Cyan, Full Lime and Diamond Gem each take their guide's first pictured Tier 1 seed (Diamond Gem Flip 108, the guide's Green). So "first seed" in The groups means the guide's first pictured seed for these groups.
+- **More sources than the table names.** Cyanbit also credits korenevskiy's Karambit Phase 3 guide; Diamond Gem credits korenevskiy's Bayonet and Gut Phase 1 guides; Full Fade credits two of korenevskiy's Fade guides; Full Cyan and Full Lime credit each knife's own Phase 4 guide.
+- **Group names on items** come from one query per request (`group_refs`), not an ORM relationship: the session keeps objects after commit, so a relationship could show a stale name.
+
+### Picture review
+
+- 2026-11-21: the owner checked the first ten in game and confirmed them: Blue Gem Karambit 387, Gold Gem M9 Bayonet 739, Black Gem Karambit 215, White Gem Stiletto 402, Full Mesh M9 Bayonet 199, Full Fade Butterfly 763, Mango Fade Butterfly 541, Fire & Ice Karambit 412, Piss & Ice Karambit 769 and Full Lime Flip 412.
+- Diamond Gem Karambit 547 and the other 115 pictures are waiting for the owner's check.
+
+### Follow-ups
+
+- The credits page (Decisions), as its own spec before spec 021.
+- Gold Gem: korenevskiy's list repeats Syncler's "Case Hardened Gold Gem Guide" (2021); Syncler could be added as a source. Sources may change after import.
+- The review pictures show one side of each knife.
+
 ## Audit
 
 Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
