@@ -14,7 +14,7 @@ Pattern groups are the community's names for special patterns of a finish: Blue 
 
 **Goals**
 
-- The 16 groups the owner listed (Design, The groups), as a reviewed data file in the repository, imported into the database like the catalog.
+- The 15 groups the owner listed (Design, The groups), as a reviewed data file in the repository, imported into the database like the catalog.
 - On every combo item, a link to the group its pattern came from, next to the seeds it already has.
 - "Add special pattern" in the dashboard: on the add and edit pages for each item, and once for a whole batch, which gives each knife row its own seed.
 - The group's name in the API's combo items and on the website's combo cards.
@@ -42,7 +42,7 @@ Specs 001 to 019 are Audited and merged into `main`.
 - `api/src/combo_api/combos/models.py`: `combos` has `glove_seeds` and `knife_seeds`, `integer[]`, 0 to 1000, at most 100, sorted, empty meaning any pattern. A finish without a float range (Vanilla) takes no seeds.
 - `api/src/combo_api/combos/schemas.py`: `Conditions` (`float_from`, `float_to`, `seeds`) is used by create (`ItemIn`), update (`ComboUpdate`) and batch create (`BatchCreate`). `Item`, returned in admin and public combos, carries the finish and the combo's conditions. Batch `update` items carry `id`, `version`, rating and description only.
 - `api/src/combo_api/combos/rules.py`: catalog checks with 422 `type` codes (`finish_not_found`, `finish_has_no_pattern`, ...).
-- A knife finish slug names the same finish on every knife type, and a batch is keyed by it (spec 009, Batch key). Every finish a group belongs to exists as one slug: `case-hardened`, `scorched`, `urban-masked`, `safari-mesh`, `fade`, `crimson-web` on all 20 knife types; `marble-fade` on 18 (not Classic, Kukri); `gamma-doppler-phase-1`, `-phase-3` and `-phase-4` on 10 (Bayonet, Bowie, Butterfly, Falchion, Flip, Gut, Huntsman, Karambit, M9 Bayonet, Shadow Daggers). Specialist Gloves has `crimson-web` (`api/src/combo_api/catalog/snapshot.json`).
+- A knife finish slug names the same finish on every knife type, and a batch is keyed by it (spec 009, Batch key). Every finish a group belongs to exists as one slug: `case-hardened`, `scorched`, `urban-masked`, `safari-mesh`, `fade` on all 20 knife types; `marble-fade` on 18 (not Classic, Kukri); `gamma-doppler-phase-1`, `-phase-3` and `-phase-4` on 10 (Bayonet, Bowie, Butterfly, Falchion, Flip, Gut, Huntsman, Karambit, M9 Bayonet, Shadow Daggers). (`api/src/combo_api/catalog/snapshot.json`).
 - `api/src/combo_api/screenshots/inputs.py`: a combo's screenshot uses the lowest seed of each item, so the example seed a group gives is the one the screenshot shows.
 
 **Catalog import** (specs 005, 006)
@@ -64,7 +64,7 @@ Specs 001 to 019 are Audited and merged into `main`.
 
 - One example seed per item is enough. The owner's description says, for example, that the screenshot shows Karambit 619, a Blue Gem, and that visitors can explore Blue Gem guides for more. Descriptions have no links.
 - "Add special pattern" lists what exists for the finish; one click picks it.
-- The 16 groups in Design, The groups. No tiers.
+- The 15 groups in Design, The groups. No tiers.
 
 There is no pattern group table, file, route or screen today.
 
@@ -130,7 +130,6 @@ The owner's list, with the finish each belongs to, what the community calls it, 
 | Fire & Ice (`fire-and-ice`) | `marble-fade` | 4 (Bayonet, Flip, Gut, Karambit) | "The Complete Fire & Ice Guide" by Pixel ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=675516392), Apr 2025); korenevskiy's ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3137170442), Mar 2026) | Each knife's 1st Max (Karambit 412) |
 | Piss & Ice (`piss-and-ice`) | `marble-fade` | Owner's picks | Described by guides (yellow and blue, little red); no seed list found | The owner's |
 | Diamond Gem (`diamond-gem`) | `gamma-doppler-phase-1` | Partial | Karambit guide by MVPHAS and korenevskiy ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3257082211)); Flip guide by Glorp ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3215994745), from Slaid's video) | Each guide's first tier 1 seed |
-| Centered Web (`centered-web`) | `crimson-web` | Partial | Karambit, M9 Bayonet, Flip and Shadow Daggers guides by RemIx (for example [Karambit](https://steamcommunity.com/sharedfiles/filedetails/?id=2980565820)); korenevskiy's Karambit and M9 Bayonet guides | Each guide's first tier 1 single web |
 | White Gem (`white-gem`) | `urban-masked` | 6 (Classic, Flip, Karambit, M9 Bayonet, Skeleton, Stiletto) | "Ultimate CS2 guide to Urban Masked (White Gems)" by hanma prime ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3441697188), Oct 2026) | The guide's seed per knife (Stiletto 402) |
 
 The marketplace blogs found during the research mostly repeat these guides' lists. They are not used as sources.
@@ -151,7 +150,7 @@ The marketplace blogs found during the research mostly repeat these guides' list
 | Review pictures (owner's choice) | One picture per example (R17), about 150 in all, named `<group>-<knife type>-<seed>.png` so they sort by group, in a folder on the owner's desktop, outside the repository. Each shows only that knife with that seed, at a low float, so the pattern is what differs. Drawn by running the 3D viewer locally, unchanged, and capturing each knife alone in a browser, one at a time | Reviewing seeds as numbers: the owner wants to see each one. Pictures of whole combos: the gloves would distract from the pattern. Throwaway draft combos for the screenshot worker: test combos in the owner's data |
 | Dashboard, one combo | "Add special pattern" beside the item's seeds, shown only when groups exist for the item's finish and type; a list of "Name · seed"; the chosen group as a labelled chip with Remove. A native button and list, keyboard operable, as the existing search combobox | Choosing the group in the description: unstructured, the card could not show it |
 | Dashboard, batch | One choice in the batch-wide knife values, resolved per row to that knife type's seed. Rows not covered say so and take any pattern. Row overrides (spec 010) carry their own seeds and group | Picking per row only: 18 clicks for one batch |
-| Admin route | `GET /admin/pattern-groups`: every group, 16 rows with at most 20 seeds each, in file order. The dashboard filters by kind, finish and type | A route per finish: a request per form for a list this small |
+| Admin route | `GET /admin/pattern-groups`: every group, 15 rows with at most 20 seeds each, in file order. The dashboard filters by kind, finish and type | A route per finish: a request per form for a list this small |
 | Public shape | Each combo item gains `pattern_group: {slug, name}` or null | Group sources in every public item: repeated on every card; they belong on the credits page |
 | Website text (owner's choice) | "Blue Gem · 387" in the pattern row; the group name first | Name only: the screenshot's seed would be hidden. Seeds then name ("387 · Blue Gem"): the name is what a visitor scans for |
 | Credits (owner's choice) | Stored with each group in the file and the database, returned by the admin route. The public credits page is its own spec, done before spec 021 makes the site public, covering these sources with the catalog data, fonts and the other credits in `THIRD_PARTY_NOTICES.md` | Credits on each card: long, and repeated |
@@ -258,7 +257,7 @@ Commands run in `api/`, `admin/` or `website/` as stated.
 **Data and import**
 
 1. `uv run alembic upgrade head`, `downgrade base` and `upgrade head` succeed; `uv run alembic check` reports no new operations; the migration tests expect revision `0008` and the tables `pattern_groups` and `pattern_group_seeds`.
-2. `groups.json` holds the 16 groups of Design, The groups, all of kind `knife`, with those slugs, names and finish slugs, in that order. `uv run python -m combo_api.patterns import --check` exits 0 against the committed catalog.
+2. `groups.json` holds the 15 groups of Design, The groups, all of kind `knife`, with those slugs, names and finish slugs, in that order. `uv run python -m combo_api.patterns import --check` exits 0 against the committed catalog.
 3. Every group with sources lists, for each, a title, an author, an `https` link and the date checked; the groups marked "the owner's" in Design have the owner's seeds.
 4. Manual: the folder of R17 holds one picture for every seed in `groups.json`, each named after its group, knife type and seed and showing that knife; the owner has confirmed every one, recorded in Implementation notes with the date.
 5. Tests: the import inserts the groups and their seeds; running it again changes nothing; a new group, a seed for a knife type a group did not cover, and a changed source are imported, and `updated_at` changes.
@@ -349,11 +348,13 @@ npm run build
 
 ## Open questions
 
-None. Answered by the owner on 2026-11-16, and recorded in Design as the owner's choice: the seed is copied into the combo and the group's name is linked; groups are frozen once imported, and changing one later would be its own spec that retakes the affected screenshots; a picture of every example for review, drawn by running the 3D viewer locally, unchanged, and capturing each knife alone in a browser, one at a time (rejected: throwaway draft combos for the screenshot worker, which would mix test combos into the owner's data); the committed `groups.json`, edited in pull requests and imported; "Blue Gem · 387" on the website; the credits page as its own spec before spec 021 makes the site public; one review; the owner gives the example seeds where no guide covers a knife; Mango Fade's example is 541; and no glove groups: Centered Web is for knives only.
+None. Answered by the owner on 2026-11-16, and recorded in Design as the owner's choice: the seed is copied into the combo and the group's name is linked; groups are frozen once imported, and changing one later would be its own spec that retakes the affected screenshots; a picture of every example for review, drawn by running the 3D viewer locally, unchanged, and capturing each knife alone in a browser, one at a time (rejected: throwaway draft combos for the screenshot worker, which would mix test combos into the owner's data); the committed `groups.json`, edited in pull requests and imported; "Blue Gem · 387" on the website; the credits page as its own spec before spec 021 makes the site public; one review; the owner gives the example seeds where no guide covers a knife; Mango Fade's example is 541; and no glove groups. On 2026-11-21, during implementation, the owner removed Centered Web (Implementation notes).
 
 ## Implementation notes
 
-Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+### Owner's changes
+
+- **2026-11-21: Centered Web removed.** Only four knives have a Crimson Web guide (Karambit and M9 Bayonet by RemIx and korenevskiy, Flip by Hermano, Shadow Daggers by Giuseppe; the spec's table named RemIx for all four), and their tier 1 lists are not ranked. The owner chose to leave the group out: the file holds 15 groups. Goals, What the owner wants, The groups, the Admin route row and criterion 2 were updated to match.
 
 ## Audit
 
