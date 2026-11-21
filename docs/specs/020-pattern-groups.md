@@ -14,7 +14,7 @@ Pattern groups are the community's names for special patterns of a finish: Blue 
 
 **Goals**
 
-- The 15 groups the owner listed (Design, The groups), as a reviewed data file in the repository, imported into the database like the catalog.
+- The 13 groups the owner listed (Design, The groups), as a reviewed data file in the repository, imported into the database like the catalog.
 - On every combo item, a link to the group its pattern came from, next to the seeds it already has.
 - "Add special pattern" in the dashboard: on the add and edit pages for each item, and once for a whole batch, which gives each knife row its own seed.
 - The group's name in the API's combo items and on the website's combo cards.
@@ -64,7 +64,7 @@ Specs 001 to 019 are Audited and merged into `main`.
 
 - One example seed per item is enough. The owner's description says, for example, that the screenshot shows Karambit 619, a Blue Gem, and that visitors can explore Blue Gem guides for more. Descriptions have no links.
 - "Add special pattern" lists what exists for the finish; one click picks it.
-- The 15 groups in Design, The groups. No tiers.
+- The 13 groups in Design, The groups. No tiers.
 
 There is no pattern group table, file, route or screen today.
 
@@ -119,17 +119,15 @@ The owner's list, with the finish each belongs to, what the community calls it, 
 | Black Gem (`black-gem`) | `scorched` | 20 | "Master guide to Scorched Knifes (Black Gems)" by CuzImExige ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3142649856), Feb 2025); "Stiletto Scorched: Black Gems Patterns" by pliza ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3224675389), which credits dEAGLE-CS's research) | The master guide's best black pattern per knife |
 | Gold Gem (`gold-gem`) | `case-hardened` | 18 (not Kukri, Shadow Daggers) | "The Complete Gold Gem Patterns Guide" by korenevskiy ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3313951742), Jun 2026) | The guide's first seed per knife |
 | Blue Gem (`blue-gem`) | `case-hardened` | 20 | "The Complete Blue Gem Guide" by korenevskiy and Krieke 啤酒哥 ([index](https://steamcommunity.com/sharedfiles/filedetails/?id=3090086681), Aug 2026), one guide per knife | Each knife's "#1" seed (Karambit 387) |
-| Beach (`beach`) | `case-hardened` | Owner's picks | No established list found | The owner's |
-| Blaze (`blaze`) | `case-hardened` | Partial | "Case hardened Blaze Knife Pattern's" by dipbe ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=2118932745), 2020) | The guide's pick per knife it lists (Karambit 819); the owner's for the rest |
-| Full Mesh (`full-mesh`) | `safari-mesh` | Owner's picks | No established term found; "Top 3 Patterns for Every Knife in CS2" by clu0od ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3538425089), Aug 2025) lists mesh picks per knife | The owner's |
+| Full Mesh (`full-mesh`) | `safari-mesh` | 20 | "Top 3 Patterns for Every Knife in CS2" by clu0od ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3538425089), Aug 2025), three Safari Mesh picks per knife | The guide's first pick per knife (M9 Bayonet 199) |
 | Full Fade (`full-fade`) | `fade` | 20 | "csgo-fade-percentage-calculator" by chescos ([repository](https://github.com/chescos/csgo-fade-percentage-calculator), MIT); korenevskiy's Fade guides | The calculator's top-ranked seed per knife |
 | Mango Fade (`mango-fade`) | `fade` | 1 (Butterfly) | "Butterfly Knife Fade" by korenevskiy ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3217528899), Mar 2026), which calls it Full Yellow Fade | The guide's example, 541 |
 | Cyanbit (`cyanbit`) | `gamma-doppler-phase-3` | 1 (Karambit) | clu0od's guide above, which calls Cyanbits specific to the Karambit | The guide's first |
-| Full Cyan (`full-cyan`) | `gamma-doppler-phase-4` | Up to 10 | korenevskiy's Gamma Doppler Phase 4 guides, "Max Cyan" (for example [Karambit](https://steamcommunity.com/sharedfiles/filedetails/?id=3237679658)) | Each guide's first Max Cyan seed |
-| Full Lime (`full-lime`) | `gamma-doppler-phase-4` | Up to 10 | The same guides, "Max Lime" | Each guide's first Max Lime seed |
+| Full Cyan (`full-cyan`) | `gamma-doppler-phase-4` | 4 (Karambit, Bayonet, Flip, Gut) | korenevskiy's Gamma Doppler Phase 4 guides, "Max Cyan" (for example [Karambit](https://steamcommunity.com/sharedfiles/filedetails/?id=3237679658)) | Each guide's first Max Cyan seed |
+| Full Lime (`full-lime`) | `gamma-doppler-phase-4` | 4 (Karambit, Bayonet, Flip, Gut) | The same guides, "Max Lime" | Each guide's first Max Lime seed |
 | Fire & Ice (`fire-and-ice`) | `marble-fade` | 4 (Bayonet, Flip, Gut, Karambit) | "The Complete Fire & Ice Guide" by Pixel ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=675516392), Apr 2025); korenevskiy's ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3137170442), Mar 2026) | Each knife's 1st Max (Karambit 412) |
-| Piss & Ice (`piss-and-ice`) | `marble-fade` | Owner's picks | Described by guides (yellow and blue, little red); no seed list found | The owner's |
-| Diamond Gem (`diamond-gem`) | `gamma-doppler-phase-1` | Partial | Karambit guide by MVPHAS and korenevskiy ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3257082211)); Flip guide by Glorp ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3215994745), from Slaid's video) | Each guide's first tier 1 seed |
+| Piss & Ice (`piss-and-ice`) | `marble-fade` | 4 (Karambit, Bayonet, Flip, Gut, as Fire & Ice) | Described by guides (yellow and blue, little red); no seed list found, so no sources | The owner's |
+| Diamond Gem (`diamond-gem`) | `gamma-doppler-phase-1` | 4 (Karambit, Bayonet, Flip, Gut) | Karambit guide by MVPHAS and korenevskiy ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3257082211)); Flip guide by Glorp ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3215994745), from Slaid's video) | Each guide's first tier 1 seed |
 | White Gem (`white-gem`) | `urban-masked` | 6 (Classic, Flip, Karambit, M9 Bayonet, Skeleton, Stiletto) | "Ultimate CS2 guide to Urban Masked (White Gems)" by hanma prime ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3441697188), Oct 2026) | The guide's seed per knife (Stiletto 402) |
 
 The marketplace blogs found during the research mostly repeat these guides' lists. They are not used as sources.
@@ -150,7 +148,7 @@ The marketplace blogs found during the research mostly repeat these guides' list
 | Review pictures (owner's choice) | One picture per example (R17), about 150 in all, named `<group>-<knife type>-<seed>.png` so they sort by group, in a folder on the owner's desktop, outside the repository. Each shows only that knife with that seed, at a low float, so the pattern is what differs. Drawn by running the 3D viewer locally, unchanged, and capturing each knife alone in a browser, one at a time | Reviewing seeds as numbers: the owner wants to see each one. Pictures of whole combos: the gloves would distract from the pattern. Throwaway draft combos for the screenshot worker: test combos in the owner's data |
 | Dashboard, one combo | "Add special pattern" beside the item's seeds, shown only when groups exist for the item's finish and type; a list of "Name · seed"; the chosen group as a labelled chip with Remove. A native button and list, keyboard operable, as the existing search combobox | Choosing the group in the description: unstructured, the card could not show it |
 | Dashboard, batch | One choice in the batch-wide knife values, resolved per row to that knife type's seed. Rows not covered say so and take any pattern. Row overrides (spec 010) carry their own seeds and group | Picking per row only: 18 clicks for one batch |
-| Admin route | `GET /admin/pattern-groups`: every group, 15 rows with at most 20 seeds each, in file order. The dashboard filters by kind, finish and type | A route per finish: a request per form for a list this small |
+| Admin route | `GET /admin/pattern-groups`: every group, 13 rows with at most 20 seeds each, in file order. The dashboard filters by kind, finish and type | A route per finish: a request per form for a list this small |
 | Public shape | Each combo item gains `pattern_group: {slug, name}` or null | Group sources in every public item: repeated on every card; they belong on the credits page |
 | Website text (owner's choice) | "Blue Gem · 387" in the pattern row; the group name first | Name only: the screenshot's seed would be hidden. Seeds then name ("387 · Blue Gem"): the name is what a visitor scans for |
 | Credits (owner's choice) | Stored with each group in the file and the database, returned by the admin route. The public credits page is its own spec, done before spec 021 makes the site public, covering these sources with the catalog data, fonts and the other credits in `THIRD_PARTY_NOTICES.md` | Credits on each card: long, and repeated |
@@ -257,7 +255,7 @@ Commands run in `api/`, `admin/` or `website/` as stated.
 **Data and import**
 
 1. `uv run alembic upgrade head`, `downgrade base` and `upgrade head` succeed; `uv run alembic check` reports no new operations; the migration tests expect revision `0008` and the tables `pattern_groups` and `pattern_group_seeds`.
-2. `groups.json` holds the 15 groups of Design, The groups, all of kind `knife`, with those slugs, names and finish slugs, in that order. `uv run python -m combo_api.patterns import --check` exits 0 against the committed catalog.
+2. `groups.json` holds the 13 groups of Design, The groups, all of kind `knife`, with those slugs, names and finish slugs, in that order. `uv run python -m combo_api.patterns import --check` exits 0 against the committed catalog.
 3. Every group with sources lists, for each, a title, an author, an `https` link and the date checked; the groups marked "the owner's" in Design have the owner's seeds.
 4. Manual: the folder of R17 holds one picture for every seed in `groups.json`, each named after its group, knife type and seed and showing that knife; the owner has confirmed every one, recorded in Implementation notes with the date.
 5. Tests: the import inserts the groups and their seeds; running it again changes nothing; a new group, a seed for a knife type a group did not cover, and a changed source are imported, and `updated_at` changes.
@@ -275,7 +273,7 @@ Commands run in `api/`, `admin/` or `website/` as stated.
 
 **Dashboard**
 
-14. Tests: on the add page with a Karambit Case Hardened knife, "Add special pattern" lists Blue Gem · 387 and Gold Gem with Karambit's seed, and Beach and Blaze where they have one; with a Karambit Vanilla it is not shown. Picking Blue Gem sets the seeds to 387 and shows the Blue Gem chip; Save sends `pattern_group: "blue-gem"` and `seeds: [387]`. Remove keeps 387 and sends no group.
+14. Tests: on the add page with a Karambit Case Hardened knife, "Add special pattern" lists Blue Gem · 387 and Gold Gem with Karambit's seed; with a Karambit Vanilla it is not shown. Picking Blue Gem sets the seeds to 387 and shows the Blue Gem chip; Save sends `pattern_group: "blue-gem"` and `seeds: [387]`. Remove keeps 387 and sends no group.
 15. Tests: editing the seeds after picking keeps the group; clearing all seeds shows "A special pattern needs a seed." and Save sends nothing.
 16. Tests: a batch on Specialist Gloves Crimson Kimono with `case-hardened`, Blue Gem picked batch-wide: each new row shows its own seed ("Blue Gem · 601" on M9 Bayonet), and Save sends each row's own seed and the group. With Gold Gem, the Kukri row says "No Gold Gem for this knife" and is sent with no seeds and no group. A row's own knife override with seeds `[1]` and no group is sent as such; clearing it returns the row to Gold Gem.
 17. Tests: the edit page shows a combo's stored group and keeps it on Save.
@@ -354,7 +352,10 @@ None. Answered by the owner on 2026-11-16, and recorded in Design as the owner's
 
 ### Owner's changes
 
-- **2026-11-21: Centered Web removed.** Only four knives have a Crimson Web guide (Karambit and M9 Bayonet by RemIx and korenevskiy, Flip by Hermano, Shadow Daggers by Giuseppe; the spec's table named RemIx for all four), and their tier 1 lists are not ranked. The owner chose to leave the group out: the file holds 15 groups. Goals, What the owner wants, The groups, the Admin route row and criterion 2 were updated to match.
+- **2026-11-21: Centered Web removed.** Only four knives have a Crimson Web guide (Karambit and M9 Bayonet by RemIx and korenevskiy, Flip by Hermano, Shadow Daggers by Giuseppe; the spec's table named RemIx for all four), and their tier 1 lists are not ranked. The owner chose to leave the group out. Goals, What the owner wants, The groups, the Admin route row and criterion 2 were updated to match.
+- **2026-11-21: Full Mesh from clu0od's guide.** The owner read clu0od's Safari Mesh picks and chose them for the group, so its seeds are the guide's first pick for each of the 20 knives instead of the owner's own.
+- **2026-11-21: Piss & Ice on four knives.** Like Fire & Ice, the pattern exists only on the Karambit, Bayonet, Flip and Gut. The owner picked the seeds (Karambit 769, Bayonet 609, Flip 92, Gut 722); the group has no sources.
+- **2026-11-21: Gamma Doppler gems on four knives.** The owner limited Diamond Gem, Full Cyan and Full Lime to the Karambit, Bayonet, Flip and Gut, the knives with small blades, as with Fire & Ice and Piss & Ice (Cyanbit is the Karambit's alone). Each keeps the guide seed for those knives and credits only their guides: korenevskiy's Bayonet, Flip, Gut and Karambit guides for Phase 4, and for Diamond Gem the Karambit guide, Glorp's Flip guide and korenevskiy's Bayonet and Gut Phase 1 guides.
 
 ## Audit
 

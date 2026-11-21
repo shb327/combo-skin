@@ -200,7 +200,7 @@ describe('a special pattern', () => {
     await user.keyboard('{Enter}')
     expect(add).toHaveAttribute('aria-expanded', 'true')
     const list = within(knifeGroup()).getByRole('list', { name: 'Special patterns' })
-    expect(within(list).getAllByRole('button').map((b) => b.textContent)).toEqual(['Gold Gem · 128', 'Blue Gem · 387', 'Blaze · 819'])
+    expect(within(list).getAllByRole('button').map((b) => b.textContent)).toEqual(['Gold Gem · 128', 'Blue Gem · 387', 'Test Pattern · 555'])
     expect(within(list).getByRole('button', { name: 'Gold Gem · 128' })).toHaveFocus()
     await user.keyboard('{Escape}')
     expect(within(knifeGroup()).queryByRole('list', { name: 'Special patterns' })).toBeNull()

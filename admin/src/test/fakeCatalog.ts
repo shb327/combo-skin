@@ -146,7 +146,7 @@ const agentOf = (defIndex: number | null | undefined) =>
   defIndex == null ? null : ([...AGENTS, RETIRED_AGENT].find((a) => a.def_index === defIndex) ?? null)
 
 /** Pattern groups of the fake catalog, in display order: all on Case Hardened knives. Gold Gem
- * and Blaze cover only some knife types. Seeds and sources are placeholders. */
+ * and Test Pattern cover only some knife types. Seeds and sources are placeholders. */
 const group = (slug: string, name: string, seeds: Record<string, number>): PatternGroup => ({
   slug,
   name,
@@ -158,7 +158,7 @@ const group = (slug: string, name: string, seeds: Record<string, number>): Patte
 export const PATTERN_GROUPS: PatternGroup[] = [
   group('gold-gem', 'Gold Gem', { karambit: 128, 'm9-bayonet': 92 }),
   group('blue-gem', 'Blue Gem', { karambit: 387, butterfly: 670, 'm9-bayonet': 601 }),
-  group('blaze', 'Blaze', { karambit: 819 }),
+  group('test-pattern', 'Test Pattern', { karambit: 555 }),
 ]
 
 /** A picture URL on the game's image host, the fallback; never fetched in tests. */

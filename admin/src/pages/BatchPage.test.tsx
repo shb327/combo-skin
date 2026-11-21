@@ -584,7 +584,7 @@ describe('a special pattern for the batch', () => {
     expect(row('Karambit')).not.toHaveTextContent('Blue Gem')
     await user.click(within(everyKnife()).getByRole('button', { name: 'Add special pattern' }))
     const list = within(everyKnife()).getByRole('list', { name: 'Special patterns' })
-    expect(within(list).getAllByRole('button').map((b) => b.textContent)).toEqual(['Gold Gem', 'Blue Gem', 'Blaze'])
+    expect(within(list).getAllByRole('button').map((b) => b.textContent)).toEqual(['Gold Gem', 'Blue Gem', 'Test Pattern'])
     await user.click(within(list).getByRole('button', { name: 'Blue Gem' }))
 
     expect(within(everyKnife()).getByRole('group', { name: 'Special pattern' })).toHaveTextContent('Blue Gem')

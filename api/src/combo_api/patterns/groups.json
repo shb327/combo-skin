@@ -1,0 +1,415 @@
+{
+  "groups": [
+    {
+      "slug": "black-gem",
+      "name": "Black Gem",
+      "kind": "knife",
+      "finish": "scorched",
+      "seeds": {
+        "bayonet": 31,
+        "bowie": 488,
+        "butterfly": 444,
+        "classic": 791,
+        "falchion": 446,
+        "flip": 310,
+        "gut": 310,
+        "huntsman": 230,
+        "karambit": 215,
+        "kukri": 309,
+        "m9-bayonet": 442,
+        "navaja": 446,
+        "nomad": 791,
+        "paracord": 28,
+        "shadow-daggers": 730,
+        "skeleton": 446,
+        "stiletto": 791,
+        "survival": 791,
+        "talon": 323,
+        "ursus": 446
+      },
+      "sources": [
+        {
+          "title": "Master guide to Scorched Knifes (Black Gems)",
+          "author": "CuzImExige",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3142649856",
+          "checked": "2026-11-17"
+        },
+        {
+          "title": "Stiletto Scorched: Black Gems Patterns - Tierlist Guide",
+          "author": "pliza",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3224675389",
+          "checked": "2026-11-17"
+        }
+      ]
+    },
+    {
+      "slug": "gold-gem",
+      "name": "Gold Gem",
+      "kind": "knife",
+      "finish": "case-hardened",
+      "seeds": {
+        "bayonet": 395,
+        "bowie": 113,
+        "butterfly": 75,
+        "classic": 943,
+        "falchion": 926,
+        "flip": 731,
+        "gut": 837,
+        "huntsman": 759,
+        "karambit": 896,
+        "m9-bayonet": 739,
+        "navaja": 36,
+        "nomad": 39,
+        "paracord": 927,
+        "skeleton": 943,
+        "stiletto": 268,
+        "survival": 927,
+        "talon": 834,
+        "ursus": 425
+      },
+      "sources": [
+        {
+          "title": "The Complete Gold Gem Patterns Guide",
+          "author": "korenevskiy",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3313951742",
+          "checked": "2026-11-17"
+        }
+      ]
+    },
+    {
+      "slug": "blue-gem",
+      "name": "Blue Gem",
+      "kind": "knife",
+      "finish": "case-hardened",
+      "seeds": {
+        "bayonet": 555,
+        "bowie": 182,
+        "butterfly": 182,
+        "classic": 403,
+        "falchion": 494,
+        "flip": 670,
+        "gut": 567,
+        "huntsman": 618,
+        "karambit": 387,
+        "kukri": 494,
+        "m9-bayonet": 601,
+        "navaja": 398,
+        "nomad": 577,
+        "paracord": 403,
+        "shadow-daggers": 56,
+        "skeleton": 403,
+        "stiletto": 182,
+        "survival": 403,
+        "talon": 55,
+        "ursus": 494
+      },
+      "sources": [
+        {
+          "title": "The Complete Blue Gem Guide",
+          "author": "korenevskiy, Krieke 啤酒哥",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3090086681",
+          "checked": "2026-11-17"
+        }
+      ]
+    },
+    {
+      "slug": "full-mesh",
+      "name": "Full Mesh",
+      "kind": "knife",
+      "finish": "safari-mesh",
+      "seeds": {
+        "bayonet": 367,
+        "bowie": 217,
+        "butterfly": 255,
+        "classic": 45,
+        "falchion": 82,
+        "flip": 24,
+        "gut": 138,
+        "huntsman": 268,
+        "karambit": 95,
+        "kukri": 84,
+        "m9-bayonet": 199,
+        "navaja": 45,
+        "nomad": 215,
+        "paracord": 288,
+        "shadow-daggers": 69,
+        "skeleton": 142,
+        "stiletto": 355,
+        "survival": 81,
+        "talon": 181,
+        "ursus": 40
+      },
+      "sources": [
+        {
+          "title": "Top 3 Patterns for Every Knife in CS2",
+          "author": "clu0od",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3538425089",
+          "checked": "2026-11-21"
+        }
+      ]
+    },
+    {
+      "slug": "full-fade",
+      "name": "Full Fade",
+      "kind": "knife",
+      "finish": "fade",
+      "seeds": {
+        "bayonet": 763,
+        "bowie": 763,
+        "butterfly": 763,
+        "classic": 763,
+        "falchion": 763,
+        "flip": 763,
+        "gut": 763,
+        "huntsman": 763,
+        "karambit": 412,
+        "kukri": 763,
+        "m9-bayonet": 763,
+        "navaja": 763,
+        "nomad": 763,
+        "paracord": 763,
+        "shadow-daggers": 763,
+        "skeleton": 763,
+        "stiletto": 763,
+        "survival": 763,
+        "talon": 412,
+        "ursus": 763
+      },
+      "sources": [
+        {
+          "title": "csgo-fade-percentage-calculator",
+          "author": "chescos",
+          "url": "https://github.com/chescos/csgo-fade-percentage-calculator",
+          "checked": "2026-11-17"
+        },
+        {
+          "title": "Karambit Knife Fade | Guide",
+          "author": "korenevskiy",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3217178645",
+          "checked": "2026-11-17"
+        },
+        {
+          "title": "Butterfly Knife Fade | Guide",
+          "author": "korenevskiy",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3217528899",
+          "checked": "2026-11-17"
+        }
+      ]
+    },
+    {
+      "slug": "mango-fade",
+      "name": "Mango Fade",
+      "kind": "knife",
+      "finish": "fade",
+      "seeds": {
+        "butterfly": 541
+      },
+      "sources": [
+        {
+          "title": "Butterfly Knife Fade | Guide",
+          "author": "korenevskiy",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3217528899",
+          "checked": "2026-11-17"
+        }
+      ]
+    },
+    {
+      "slug": "cyanbit",
+      "name": "Cyanbit",
+      "kind": "knife",
+      "finish": "gamma-doppler-phase-3",
+      "seeds": {
+        "karambit": 960
+      },
+      "sources": [
+        {
+          "title": "Karambit Gamma Doppler Phase 3 | Guide",
+          "author": "korenevskiy",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3239013869",
+          "checked": "2026-11-17"
+        },
+        {
+          "title": "Top 3 Patterns for Every Knife in CS2",
+          "author": "clu0od",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3538425089",
+          "checked": "2026-11-17"
+        }
+      ]
+    },
+    {
+      "slug": "full-cyan",
+      "name": "Full Cyan",
+      "kind": "knife",
+      "finish": "gamma-doppler-phase-4",
+      "seeds": {
+        "bayonet": 763,
+        "flip": 763,
+        "gut": 763,
+        "karambit": 960
+      },
+      "sources": [
+        {
+          "title": "Bayonet Gamma Doppler Phase 4 | Guide",
+          "author": "korenevskiy",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3237684411",
+          "checked": "2026-11-17"
+        },
+        {
+          "title": "Flip Knife Gamma Doppler Phase 4 | Guide",
+          "author": "korenevskiy",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3237686295",
+          "checked": "2026-11-17"
+        },
+        {
+          "title": "Gut Knife Gamma Doppler Phase 4 | Guide",
+          "author": "korenevskiy",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3237687334",
+          "checked": "2026-11-17"
+        },
+        {
+          "title": "Karambit Gamma Doppler Phase 4 | Guide",
+          "author": "korenevskiy",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3237679658",
+          "checked": "2026-11-17"
+        }
+      ]
+    },
+    {
+      "slug": "full-lime",
+      "name": "Full Lime",
+      "kind": "knife",
+      "finish": "gamma-doppler-phase-4",
+      "seeds": {
+        "bayonet": 412,
+        "flip": 412,
+        "gut": 412,
+        "karambit": 602
+      },
+      "sources": [
+        {
+          "title": "Bayonet Gamma Doppler Phase 4 | Guide",
+          "author": "korenevskiy",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3237684411",
+          "checked": "2026-11-17"
+        },
+        {
+          "title": "Flip Knife Gamma Doppler Phase 4 | Guide",
+          "author": "korenevskiy",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3237686295",
+          "checked": "2026-11-17"
+        },
+        {
+          "title": "Gut Knife Gamma Doppler Phase 4 | Guide",
+          "author": "korenevskiy",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3237687334",
+          "checked": "2026-11-17"
+        },
+        {
+          "title": "Karambit Gamma Doppler Phase 4 | Guide",
+          "author": "korenevskiy",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3237679658",
+          "checked": "2026-11-17"
+        }
+      ]
+    },
+    {
+      "slug": "fire-and-ice",
+      "name": "Fire & Ice",
+      "kind": "knife",
+      "finish": "marble-fade",
+      "seeds": {
+        "bayonet": 412,
+        "flip": 412,
+        "gut": 412,
+        "karambit": 412
+      },
+      "sources": [
+        {
+          "title": "The Complete Fire & Ice Guide",
+          "author": "Pixel",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=675516392",
+          "checked": "2026-11-17"
+        },
+        {
+          "title": "The Complete Fire & Ice Guide",
+          "author": "korenevskiy",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3137170442",
+          "checked": "2026-11-17"
+        }
+      ]
+    },
+    {
+      "slug": "piss-and-ice",
+      "name": "Piss & Ice",
+      "kind": "knife",
+      "finish": "marble-fade",
+      "seeds": {
+        "bayonet": 609,
+        "flip": 92,
+        "gut": 722,
+        "karambit": 769
+      },
+      "sources": []
+    },
+    {
+      "slug": "diamond-gem",
+      "name": "Diamond Gem",
+      "kind": "knife",
+      "finish": "gamma-doppler-phase-1",
+      "seeds": {
+        "bayonet": 108,
+        "flip": 108,
+        "gut": 139,
+        "karambit": 547
+      },
+      "sources": [
+        {
+          "title": "Karambit Gamma Doppler Phase 1 | Guide",
+          "author": "MVPHAS, korenevskiy",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3257082211",
+          "checked": "2026-11-17"
+        },
+        {
+          "title": "Flip Knife Diamond Gem Pattern Guide (Gamma Doppler Phase 1)",
+          "author": "Glorp",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3215994745",
+          "checked": "2026-11-17"
+        },
+        {
+          "title": "Bayonet Gamma Doppler Phase 1 | Guide",
+          "author": "korenevskiy",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3260297444",
+          "checked": "2026-11-17"
+        },
+        {
+          "title": "Gut Knife Gamma Doppler Phase 1 | Guide",
+          "author": "korenevskiy",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3328731046",
+          "checked": "2026-11-17"
+        }
+      ]
+    },
+    {
+      "slug": "white-gem",
+      "name": "White Gem",
+      "kind": "knife",
+      "finish": "urban-masked",
+      "seeds": {
+        "classic": 402,
+        "flip": 346,
+        "karambit": 967,
+        "m9-bayonet": 620,
+        "skeleton": 206,
+        "stiletto": 402
+      },
+      "sources": [
+        {
+          "title": "Ultimate CS2 guide to Urban Masked (White Gems)",
+          "author": "hanma prime",
+          "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=3441697188",
+          "checked": "2026-11-17"
+        }
+      ]
+    }
+  ]
+}

@@ -9,7 +9,7 @@ describe('itemChoices', () => {
     expect(itemChoices(PATTERN_GROUPS, 'knife', 'karambit', 'case-hardened')).toEqual([
       { label: 'Gold Gem · 128', pick: { slug: 'gold-gem', name: 'Gold Gem' }, seed: 128 },
       { label: 'Blue Gem · 387', pick: { slug: 'blue-gem', name: 'Blue Gem' }, seed: 387 },
-      { label: 'Blaze · 819', pick: { slug: 'blaze', name: 'Blaze' }, seed: 819 },
+      { label: 'Test Pattern · 555', pick: { slug: 'test-pattern', name: 'Test Pattern' }, seed: 555 },
     ])
     expect(itemChoices(PATTERN_GROUPS, 'knife', 'butterfly', 'case-hardened').map((c) => c.label)).toEqual(['Blue Gem · 670'])
   })
@@ -24,7 +24,7 @@ describe('itemChoices', () => {
 describe('batchChoices', () => {
   it('lists the knife groups of the batch finish, each with every knife seed', () => {
     const choices = batchChoices(PATTERN_GROUPS, 'case-hardened')
-    expect(choices.map((c) => c.label)).toEqual(['Gold Gem', 'Blue Gem', 'Blaze'])
+    expect(choices.map((c) => c.label)).toEqual(['Gold Gem', 'Blue Gem', 'Test Pattern'])
     expect(choices[1]).toEqual({
       label: 'Blue Gem',
       pick: { slug: 'blue-gem', name: 'Blue Gem', seeds: { karambit: 387, butterfly: 670, 'm9-bayonet': 601 } },
