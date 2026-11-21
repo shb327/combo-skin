@@ -363,10 +363,10 @@ None. Answered by the owner on 2026-11-16, and recorded in Design as the owner's
 | --- | --- |
 | 1 | `tests/test_migrations.py` (revision `0008`, both tables); `alembic upgrade head`, `downgrade base`, `upgrade head` and `alembic check` run against a fresh database on 2026-11-21 |
 | 2 | `tests/patterns/test_data.py`: `test_the_file_holds_the_owners_groups`, `test_the_file_is_valid_against_the_catalog`, `test_the_committed_file_imports`; `import --check` in the Compose run below |
-| 3 | `test_data.py`: `test_every_source_is_complete`, `test_a_group_without_sources_is_the_owners_pick` |
+| 3 | `test_data.py`: `test_every_source_is_complete`, `test_a_group_without_sources_is_the_owners_pick`, `test_the_owners_own_picks` (Piss & Ice's seeds, no sources) |
 | 4 | Manual: 126 pictures, one per seed, in the review folder; see Picture review below |
 | 5 | `tests/patterns/test_import.py`: `test_import_inserts_and_is_safe_to_run_again`, `test_additions_are_imported` |
-| 6 | `test_data.py`: `test_the_file_format_refuses`, `test_a_duplicate_slug_is_refused`, `test_the_catalog_check_refuses`; `test_import.py`: `test_imported_groups_are_frozen`, `test_a_refused_file_writes_nothing`, `test_check_writes_nothing` |
+| 6 | `test_data.py`: `test_the_file_format_refuses`, `test_a_duplicate_slug_is_refused`, `test_the_catalog_check_refuses`; `test_import.py`: `test_imported_groups_are_frozen` (name, kind, finish, a changed or removed seed, a group left out), `test_a_refused_file_writes_nothing`, `test_check_writes_nothing` |
 | 7 | `tests/test_compose.py::test_pattern_groups_load_after_the_catalog`; a separate Compose project on 2026-11-21: `patterns` exited 0 after `catalog` ("13 inserted"), a second run and `--check` reported 13 unchanged, `/admin/pattern-groups` without a session returned 401 |
 | 8 | `tests/combos/test_pattern_groups.py`: `test_create_with_a_group`, `test_any_seed_of_the_group_is_accepted` |
 | 9 | `test_pattern_groups.py::test_create_refuses` |
@@ -376,15 +376,15 @@ None. Answered by the owner on 2026-11-16, and recorded in Design as the owner's
 | 13 | `test_pattern_groups.py::test_public_routes_name_the_group` |
 | 14 | `admin/src/pages/AddComboPage.test.tsx`: "lists the groups of the knife with their seeds, and is not shown without any", "keeps the seeds on Remove, and sends no group"; `src/combos/patterns.test.ts` |
 | 15 | `AddComboPage.test.tsx`: "keeps the group when the seeds change, and needs a seed"; `src/combos/values.test.ts` |
-| 16 | `admin/src/pages/BatchPage.test.tsx`: "gives every new knife its own seed of the group", "says which knife the group does not cover, and sends it with any pattern", "takes a knife own seeds and no group from its own knife values", "returns a knife to the batch-wide group when its own values are cleared, and leaves existing combos alone" |
+| 16 | `admin/src/pages/BatchPage.test.tsx`: "gives every new knife its own seed of the group", "says which knife the group does not cover, and sends it with any pattern", "takes a knife own seeds and no group from its own knife values", "returns a knife to the batch-wide group when its own values are cleared, and leaves existing combos alone". The uncovered row is Butterfly Knife, not Kukri (Deviations) |
 | 17 | `admin/src/pages/EditComboPage.test.tsx`: "shows the stored group and keeps it on Save" |
 | 18 | `admin/src/pages/FinishPage.test.tsx`: "is named in the conditions summary" |
 | 19 | `admin/src/combos/drafts.test.tsx`: "comes back in an add form after the session ends", "comes back in a batch after the session ends" |
 | 20 | `admin/src/combos/problems.test.ts`; `AddComboPage.test.tsx`: "shows pattern_group_needs_seed at the seeds", "renders a group name as text" |
 | 21 | `website/src/pages/Combos.test.tsx`: "names the pattern group before its seeds", "shows a pattern group name as text, never as HTML" |
 | 22 | `openapi --check`, and `npm run api:types:check` in `admin/` and `website/`, exit 0 |
-| 23 | `api/README.md` (groups, `groups.json`, the import, `--check`, updating a group); `admin/README.md` ("Add special pattern") |
-| 24 | On 2026-11-21: API format check, lint, mypy, the OpenAPI and export checks, and pytest (567 passed, none skipped); `docker build` through the Compose run. Admin: lint, typecheck, 416 tests, build, `check:bundle`. Website: lint, typecheck, 344 tests, build, no `/src/` paths in `dist` |
+| 23 | `api/README.md`: Pattern groups (the file, the import and `--check`, the freeze rule, how to update the groups, groups on combos), the `patterns` Compose service, `GET /admin/pattern-groups` in Endpoints, `patterns/` in Layout; `admin/README.md` ("Special patterns"). Added after the audit found the API README unchanged |
+| 24 | On 2026-11-21: API format check, lint, mypy, the OpenAPI and export checks, and pytest (569 passed, none skipped); `docker build` through the Compose run. Admin: lint, typecheck, 416 tests, build, `check:bundle`. Website: lint, 344 tests, build (which type-checks with `tsc -b`; the website has no separate `typecheck` script), no `/src/` paths in `dist` |
 | 25 | After the owner pushes |
 | 26 | `gitleaks dir` and `gitleaks git` on `main..020-pattern-groups`: no leaks. New URLs: Steam guides of The groups, the chescos repository, and `example.com` in tests |
 
@@ -392,6 +392,9 @@ None. Answered by the owner on 2026-11-16, and recorded in Design as the owner's
 
 - **The owner's seed choices.** Where a guide's first seed was unclear or arbitrary, the owner chose: Black Gem Classic 791, Survival 791 and Navaja 446; Gold Gem Karambit 896 and Stiletto 268, the pictured seeds; Blue Gem Huntsman 618; Cyanbit 960, from korenevskiy's Karambit Phase 3 guide; Full Cyan, Full Lime and Diamond Gem each take their guide's first pictured Tier 1 seed (Diamond Gem Flip 108, the guide's Green). So "first seed" in The groups means the guide's first pictured seed for these groups.
 - **More sources than the table names.** Cyanbit also credits korenevskiy's Karambit Phase 3 guide; Diamond Gem credits korenevskiy's Bayonet and Gut Phase 1 guides; Full Fade credits two of korenevskiy's Fade guides; Full Cyan and Full Lime credit each knife's own Phase 4 guide.
+- **Criterion 16's uncovered knife.** The fake catalog has no Kukri, so the batch test's knife without a Gold Gem seed is the Butterfly Knife; the behaviour is the one the criterion names.
+- **The file model.** `patterns/data.py` holds the file's pydantic models, loading and the catalog checks, beside `models.py` (tables), `importer.py`, `routes.py` and `__main__.py`.
+- **Position changes.** Moving a group in the file is allowed and counts as an update: the import stores its new position and sets `updated_at`.
 - **Group names on items** come from one query per request (`group_refs`), not an ORM relationship: the session keeps objects after commit, so a relationship could show a stale name.
 
 ### Picture review

@@ -18,7 +18,7 @@ cp api/.env.example api/.env
 docker compose up -d --wait
 ```
 
-This starts PostgreSQL and the storage service, applies migrations, imports the catalog, creates the two storage buckets, then starts the API on port 8000. Check it with:
+This starts PostgreSQL and the storage service, applies migrations, imports the catalog and the pattern groups, creates the two storage buckets, then starts the API on port 8000. Check it with:
 
 ```bash
 curl http://localhost:8000/health/ready
@@ -33,6 +33,7 @@ The Compose services, in `compose.services.yaml` (included by `compose.yaml`, wh
 | `db` | PostgreSQL, on `127.0.0.1:54320`, data in the `db-data` volume. It gets only `POSTGRES_USER`, `POSTGRES_PASSWORD` and `POSTGRES_DB` |
 | `storage` | [RustFS](https://github.com/rustfs/rustfs), an S3-compatible object store, pinned by digest, on `127.0.0.1:9000`, data in the `storage-data` volume. It gets only its credentials, `STORAGE_ACCESS_KEY_ID` and `STORAGE_SECRET_ACCESS_KEY` from `api/.env` under RustFS's own names |
 | `migrate`, `catalog` | One-shot: apply migrations, import the catalog |
+| `patterns` | One-shot, after `catalog`: import the pattern groups from `groups.json` (see Pattern groups) |
 | `storage-init` | One-shot: `python -m combo_api.screenshots init`, which creates both buckets and lets anyone read the public one, through the S3 API. Safe to re-run |
 | `api` | The API on `127.0.0.1:8000`, once the one-shot services succeeded |
 
@@ -48,6 +49,7 @@ cd api
 uv sync
 uv run alembic upgrade head
 uv run python -m combo_api.catalog import
+uv run python -m combo_api.patterns import
 uv run uvicorn combo_api.main:app --reload --no-proxy-headers
 ```
 
@@ -214,6 +216,35 @@ There is one combo per pairing of a glove finish and a knife finish, and a combo
 
 Refused input gets 422 in FastAPI's list format, with `loc` pointing at the field (in a batch, at the item) and a `type` code such as `finish_not_found`, `finish_retired`, `float_outside_finish`, `duplicate_seed`, `agent_not_found` or `agent_retired`. Conflicts get 409 with `{"detail": "<code>"}`. Every change is logged by the `combo_api.combos` logger with the admin's username.
 
+## Pattern groups
+
+A pattern group is the community's name for a special pattern of one finish, such as Blue Gem on Case Hardened or Fire & Ice on Marble Fade, with one example seed for each knife type it exists on. In the dashboard, "Add special pattern" picks a group, and each knife gets its group's seed and name; the website then shows "Blue Gem · 387".
+
+The groups live in `src/combo_api/patterns/groups.json`, reviewed in pull requests like code. Each group has:
+
+- a `slug` (kebab-case, at most 40 characters, unique), a `name` (at most 40 characters), a `kind` (`knife` or `glove`) and one `finish` slug;
+- `seeds`: one example seed, 0 to 1000, for each item type the group exists on, by type slug, at least one;
+- `sources`: the guides the seeds come from, each with a `title`, an `author`, an `https` link and the date it was `checked`. Empty means the owner's own picks.
+
+The file's order is the order the dashboard lists the groups in.
+
+```bash
+uv run python -m combo_api.patterns import           # load groups.json into the database
+uv run python -m combo_api.patterns import --check   # check it against the catalog and the database, writing nothing
+```
+
+The import checks the file against the catalog (an active type of that kind must have the finish, and every seed's type must have it) and against the groups already imported, then writes it, all or nothing. It prints how many groups it inserted, updated and left unchanged; running it again changes nothing. In Compose, the one-shot `patterns` service runs it after `catalog`, before the API starts.
+
+**Imported groups are frozen.** Combos copy a group's seed and link its name, and their screenshots show that seed, so the import refuses, naming the group, a file that changes an imported group's name, kind, finish or one of its seeds, or leaves a group out. To update the groups, change `groups.json` in a pull request and run the import (`docker compose run --rm patterns` on a stack). Allowed:
+
+- adding a group, anywhere in the file;
+- adding a seed for a type the group does not cover yet;
+- changing a group's sources, or its place in the file.
+
+Changing a seed or a name already imported needs its own spec, which also retakes the affected screenshots.
+
+**On combos.** An item's conditions may name a group (`pattern_group`, a slug). The group must be of the item's kind and finish and have a seed for its type, and the item needs at least one seed; the seeds need not include the example. Refusals are 422 `pattern_group_not_found`, `pattern_group_not_for_item` and `pattern_group_needs_seed`. Combo items answer `pattern_group` as `{slug, name}` or null. Updating the seeds keeps the group; sending `pattern_group` null clears it and keeps the seeds. The public routes show only the slug and name, never the group's seeds or sources.
+
 ## Screenshots
 
 Every combo, in any status, gets a screenshot made by a **screenshot worker**: a separate program that claims a combo, draws it in the 3D viewer on its screenshot agent's arms, and sends the image back. The API keeps the original and makes watermarked WebP versions from it for the website and the dashboard.
@@ -338,6 +369,7 @@ A missing or invalid setting stops startup with an error that names the variable
 | `POST /admin/combos/publish`, `POST /admin/combos/unpublish` | Publish `ids` or `all_drafts`; unpublish `ids`. All or nothing. |
 | `GET /admin/batches/finishes`, `GET /admin/batches/candidates`, `POST /admin/batches` | Batch finish names, candidates, and saving a batch. |
 | `GET`, `PUT /admin/knife-order` | Read or replace the knife order. |
+| `GET /admin/pattern-groups` | Every pattern group in file order, with its kind, finish, seeds and sources. |
 | `GET /admin/agents` | Agents still in the game: Counter-Terrorists first, then Terrorists, each by name. |
 | `GET`, `PUT /admin/screenshot-settings` | The default screenshot agent and how many combos use it (`using_default`); replace it with `{"default_agent": <definition index>}`, which also answers `requeued`, the done combos that get a new screenshot. 503 `default_agent_missing` while the default agent is not in the catalog (before the first import). |
 | `POST /admin/screenshots/request` | Ask for new screenshots of up to 500 combos (`{"ids": [...]}`); clears their failed attempts. `{"changed": n}` |
@@ -356,6 +388,7 @@ A missing or invalid setting stops startup with an error that names the variable
 | `src/combo_api/health.py` | Health endpoints |
 | `src/combo_api/openapi.py` | Snapshot export and check |
 | `src/combo_api/catalog/` | Catalog data (knives, gloves, agents), commands, tables, import and endpoints |
+| `src/combo_api/patterns/` | `groups.json`, its file model and catalog checks, pattern group tables, the import command and the admin endpoint |
 | `src/combo_api/combos/` | Combo, knife order and screenshot settings tables, admin and public endpoints, catalog checks, batches, agents |
 | `src/combo_api/admins/` | Admin tables, accounts command, passwords, sessions, rate limits, `require_admin` and login endpoints |
 | `src/combo_api/screenshots/` | Storage (S3 and in memory), screenshot tables, workers and `require_worker`, render inputs and the queue, uploads, images and the watermark logo, admin and worker endpoints, commands |

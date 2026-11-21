@@ -67,6 +67,7 @@ async def test_additions_are_imported(catalog: AsyncSession) -> None:
     ("changed", "frozen"),
     [
         (group(name="Blue Gems"), "name"),
+        (group(kind="glove", seeds={"hydra": 387}), "kind"),
         (group(finish="fade", seeds={"karambit": 387, "m9-bayonet": 601}), "finish"),
         (group(seeds={"karambit": 388, "m9-bayonet": 601}), "karambit's seed"),
         (group(seeds={"karambit": 387}), "m9-bayonet's seed"),

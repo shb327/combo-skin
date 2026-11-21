@@ -1,4 +1,4 @@
-"""The committed groups file: the owner's 15 groups, valid against the committed catalog."""
+"""The committed groups file: the owner's 13 groups, valid against the committed catalog."""
 
 import json
 from typing import Any
@@ -105,6 +105,13 @@ def test_the_file_format_refuses(fields: dict[str, Any]) -> None:
 
 def test_a_group_without_sources_is_the_owners_pick() -> None:
     validate(groups_file(group(sources=[])), CATALOG)
+
+
+def test_the_owners_own_picks() -> None:
+    """Piss & Ice is the owner's: their seeds, and no sources."""
+    piss_and_ice = next(g for g in load_groups().groups if g.slug == "piss-and-ice")
+    assert piss_and_ice.seeds == {"karambit": 769, "bayonet": 609, "flip": 92, "gut": 722}
+    assert piss_and_ice.sources == []
 
 
 @pytest.mark.anyio
