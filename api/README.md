@@ -243,7 +243,7 @@ The import checks the file against the catalog (an active type of that kind must
 
 Changing a seed or a name already imported needs its own spec, which also retakes the affected screenshots.
 
-**On combos.** An item's conditions may name a group (`pattern_group`, a slug). The group must be of the item's kind and finish and have a seed for its type, and the item needs at least one seed; the seeds need not include the example. Refusals are 422 `pattern_group_not_found`, `pattern_group_not_for_item` and `pattern_group_needs_seed`. Combo items answer `pattern_group` as `{slug, name}` or null. Updating the seeds keeps the group; sending `pattern_group` null clears it and keeps the seeds. The public routes show only the slug and name, never the group's seeds or sources.
+**On combos.** An item's conditions may name a group (`pattern_group`, a slug). The group must be of the item's kind and finish and have a seed for its type, and the item needs at least one seed; the seeds need not include the example. Refusals are 422 `pattern_group_not_found`, `pattern_group_not_for_item` and `pattern_group_needs_seed`. Combo items answer `pattern_group` as `{slug, name}` or null. Updates send the conditions whole, so an update keeps the group only if it sends `pattern_group` again (with any seeds); sending null, or leaving it out, clears the group and keeps the seeds. The public routes show only the slug and name, never the group's seeds or sources.
 
 ## Screenshots
 
