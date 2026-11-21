@@ -407,4 +407,52 @@ None. Answered by the owner on 2026-11-16, and recorded in Design as the owner's
 
 ## Audit
 
-Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
+**Date:** 2026-11-21 · **Branch:** 020-pattern-groups · **Commit:** 99cd212
+**Verdict:** Fail
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | Migrations up, down, up; `alembic check`; revision `0008` and both tables | Pass | `uv run alembic upgrade head`, `downgrade base`, `upgrade head` exit 0; `alembic check`: "No new upgrade operations detected."; `tests/test_migrations.py::test_revision_history`, `test_head_has_only_known_tables` |
+| 2 | 13 knife groups, slugs, names, finishes, in order; `import --check` exits 0 | Pass | `tests/patterns/test_data.py::test_the_file_holds_the_owners_groups`, `test_the_file_is_valid_against_the_catalog`; `uv run python -m combo_api.patterns import --check` exit 0 ("13 unchanged") |
+| 3 | Complete sources; the owner's seeds | Pass | `test_data.py::test_every_source_is_complete`; `checked` is a `date` in `patterns/data.py` (`Source`); `groups.json` read: Piss & Ice has no sources and seeds Karambit 769, Bayonet 609, Flip 92, Gut 722, as in Implementation notes. No test pins those seeds (follow-up) |
+| 4 | Manual: one picture per seed, confirmed by the owner | Pass | The review folder holds 126 pictures, exactly one per seed of `groups.json`, named `<group>-<knife type>-<seed>.png`, none extra; its checklist marks all 126 OK on 2026-11-21; one opened at random shows that knife alone; Implementation notes, Picture review |
+| 5 | Import inserts; rerun changes nothing; additions imported, `updated_at` changes | Pass | `tests/patterns/test_import.py::test_import_inserts_and_is_safe_to_run_again`, `test_additions_are_imported`; `uv run pytest` |
+| 6 | Refusals writing nothing; frozen groups refused, group named | Pass | `test_data.py::test_the_file_format_refuses` (kind, 1001, empty seeds, `http`), `test_a_duplicate_slug_is_refused`, `test_the_catalog_check_refuses` (finish, type without finish); `test_import.py::test_imported_groups_are_frozen` (name, finish, seed, left out), `test_a_refused_file_writes_nothing` |
+| 7 | Compose `patterns` after `catalog`, exits 0; route with an admin session returns every group | Pass | `tests/test_compose.py::test_pattern_groups_load_after_the_catalog`; separate Compose project: `catalog` then `patterns` exited 0 ("13 inserted"), rerun and `--check` "13 unchanged"; logged in as a throwaway admin, `GET /admin/pattern-groups` returned 200 with all 13 groups in file order, seeds and sources matching the file; 401 without a session |
+| 8 | Create with Blue Gem, seeds `[387]` and `[619]` | Pass | `tests/combos/test_pattern_groups.py::test_create_with_a_group`, `test_any_seed_of_the_group_is_accepted` |
+| 9 | Create refusals with codes, nothing stored | Pass | `test_pattern_groups.py::test_create_refuses` (5 cases, `combo_count == 0`) |
+| 10 | Update keeps or clears the group | Pass | `test_pattern_groups.py::test_update_keeps_or_clears_the_group` |
+| 11 | Batch with Blue Gem; refused item's index in `loc` | Pass | `test_pattern_groups.py::test_batch_with_a_group` |
+| 12 | Admin route lists groups in file order; 401 without a session | Pass | `tests/patterns/test_routes.py::test_list_pattern_groups`, `test_list_needs_an_admin`; `tests/combos/test_guard.py` |
+| 13 | Public routes return `pattern_group`, no `sources` | Pass | `test_pattern_groups.py::test_public_routes_name_the_group` (both public combo routes, raw body) |
+| 14 | Add page lists groups, picks, Save, Remove | Pass | `admin/src/pages/AddComboPage.test.tsx`: "lists the groups of the knife with their seeds, and is not shown without any", "keeps the seeds on Remove, and sends no group"; `npm test` |
+| 15 | Seeds edit keeps the group; empty seeds blocked | Pass | `AddComboPage.test.tsx`: "keeps the group when the seeds change, and needs a seed"; `src/combos/values.test.ts` |
+| 16 | Batch-wide group per row; uncovered row; row override; clearing it | Pass | `admin/src/pages/BatchPage.test.tsx`, "a special pattern for the batch": the four tests named in Implementation notes. The uncovered row is Butterfly Knife in the fake catalog, not the Kukri the criterion names (follow-up) |
+| 17 | Edit page shows and keeps the stored group | Pass | `admin/src/pages/EditComboPage.test.tsx`: "shows the stored group and keeps it on Save" |
+| 18 | List summary `Knife Blue Gem · 387` | Pass | `admin/src/pages/FinishPage.test.tsx`: "is named in the conditions summary" |
+| 19 | Picked group restored after a session end | Pass | `admin/src/combos/drafts.test.tsx`: "comes back in an add form after the session ends", "comes back in a batch after the session ends" |
+| 20 | New 422 codes mapped with fixed messages; name rendered as text | Pass | `admin/src/combos/problems.test.ts` ("pattern group refusals"); `AddComboPage.test.tsx`: "shows %s at the special pattern", "shows pattern_group_needs_seed at the seeds", "renders a group name as text" |
+| 21 | Website card "Knife Pattern: Blue Gem · 387"; unchanged without a group | Pass | `website/src/pages/Combos.test.tsx`: "names the pattern group before its seeds" (also asserts "Glove Pattern: 2, 179"), "shows a pattern group name as text, never as HTML"; spec 013 tests unchanged; `npm test` |
+| 22 | OpenAPI and both schemas regenerated and checked | Pass | `api/openapi.json` has `list_pattern_groups` and `pattern_group`; `uv run python -m combo_api.openapi --check`, `npm run api:types:check` in `admin/` and `website/` exit 0 |
+| 23 | `api/README.md` documents groups, `groups.json`, the import, `--check`, updating a group; `admin/README.md` describes "Add special pattern" | **Fail** | `git diff main...020-pattern-groups -- api/README.md` is empty; the README never mentions pattern groups, `groups.json` or `combo_api.patterns`, and its Compose services table, Endpoints and Layout lack `patterns` and `GET /admin/pattern-groups`. Implementation notes row 23 says otherwise. `admin/README.md` ("Special patterns") passes |
+| 24 | API, admin and website checks; `docker build` | Pass | See checks below; `docker build` through `docker compose up --build` exit 0 |
+| 25 | GitHub workflow runs for the latest commit succeed | Pending | Not pushed. `.github/workflows/api.yml` gains the route 401 check and the `patterns` rerun and `--check` |
+| 26 | gitleaks clean; only expected new URLs | Pass | Both gitleaks commands: no leaks. New URLs: the Steam guides of The groups, the chescos repository, `example.com` in tests, `localhost` in the workflow |
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Lint | `uv run ruff format --check .`, `uv run ruff check .`, `uv run mypy` in `api/`; `npm run lint`, `npm run typecheck` in `admin/`; `npm run lint` in `website/` | Pass |
+| Tests | `uv run pytest -rs` (567 passed, none skipped); `npm test` in `admin/` (416 passed) and `website/` (344 passed) | Pass |
+| Build | `uv sync --locked`, the OpenAPI, `export-website` and `patterns import --check` checks; `npm ci`, `npm run build` in both apps, `npm run check:bundle` in `admin/`; `docker compose up --build` | Pass |
+| Secret scan | `gitleaks git --log-opts="main..020-pattern-groups"`, `gitleaks dir .` | Pass |
+| Public exposure | manual review of `git diff main...020-pattern-groups` and `git log main..020-pattern-groups`; `git check-ignore`, `git ls-files` | Pass |
+| Design conformance | manual review | Pass (minor unrecorded differences below) |
+
+**Findings**
+
+- (blocking) Criterion 23, R16: `api/README.md` is unchanged. It needs pattern groups, `groups.json`, `python -m combo_api.patterns import [--check]`, the frozen rule and how to update a group, plus `patterns` in the Compose services table, `GET /admin/pattern-groups` in Endpoints and `patterns/` in Layout. Correct Implementation notes row 23 at the same time.
+- (follow-up) Criterion 16 names a Kukri row for "No Gold Gem for this knife"; the test uses Butterfly Knife, which the fake catalog's Gold Gem does not cover. Same behaviour; record it or match the criterion.
+- (follow-up) Criterion 3: no test pins Piss & Ice's owner seeds; a line in `test_data.py` would.
+- (follow-up) `tests/patterns/test_data.py` docstring says "the owner's 15 groups"; there are 13.
+- (follow-up) Implementation notes row 24 lists a website typecheck; `website/` has no `typecheck` script (types are checked by `tsc -b` in `npm run build`).
+- (follow-up) Unrecorded, minor: `patterns/data.py` (the file model and catalog checks) is not in Design, Layout; the import also counts a group as updated and sets `updated_at` when only its position changes. The frozen tests do not cover a changed kind, which R3 lists and `frozen_changes` handles.
