@@ -1,6 +1,6 @@
 # 020: Pattern groups
 
-**Status:** Approved
+**Status:** Implemented
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api, admin, website
@@ -397,7 +397,7 @@ None. Answered by the owner on 2026-11-16, and recorded in Design as the owner's
 ### Picture review
 
 - 2026-11-21: the owner checked the first ten in game and confirmed them: Blue Gem Karambit 387, Gold Gem M9 Bayonet 739, Black Gem Karambit 215, White Gem Stiletto 402, Full Mesh M9 Bayonet 199, Full Fade Butterfly 763, Mango Fade Butterfly 541, Fire & Ice Karambit 412, Piss & Ice Karambit 769 and Full Lime Flip 412.
-- Diamond Gem Karambit 547 and the other 115 pictures are waiting for the owner's check.
+- 2026-11-21: the owner checked the other 116 in game and confirmed every one. All 126 pictures, one per seed of `groups.json`, are confirmed.
 
 ### Follow-ups
 
