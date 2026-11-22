@@ -4,6 +4,7 @@ files and `_headers`, checked against Pages' limits and our own rules before any
 
 import json
 import os
+import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,6 +18,10 @@ MAX_FILES = 20_000
 MAX_FILE_BYTES = 25 * 1024 * 1024
 MAX_HEADER_RULES = 100
 MAX_HEADER_LINE = 2_000
+# A local address: localhost with a port (every local service has one), or any loopback IP.
+# Libraries such as React Router parse relative URLs against a bare "http://localhost", which
+# is not an address the site loads, so localhost without a port is allowed.
+LOCAL = re.compile(rb"localhost:\d|127\.0\.0\.1|\[::1\]", re.IGNORECASE)
 
 
 class SiteError(Exception):
@@ -66,12 +71,7 @@ def check(site: Path, settings: Settings, schema: PublicSchema) -> Summary:
     paths = sorted(path for path in site.rglob("*") if path.is_file())
     if len(paths) > MAX_FILES:
         raise SiteError(f"The site has {len(paths)} files; Pages takes at most {MAX_FILES}")
-    local = [
-        b"localhost",
-        b"127.0.0.1",
-        settings.local_api_url.encode(),
-        settings.local_image_base_url.encode(),
-    ]
+    local = [settings.local_api_url.encode(), settings.local_image_base_url.encode()]
     total = 0
     for path in paths:
         relative = path.relative_to(site).as_posix()
@@ -80,9 +80,14 @@ def check(site: Path, settings: Settings, schema: PublicSchema) -> Summary:
         if size > MAX_FILE_BYTES:
             raise SiteError(f"{relative} is {size} bytes; Pages takes at most 25 MiB per file")
         body = path.read_bytes()
-        hit = next((needle for needle in local if needle in body), None)
+        found = LOCAL.search(body)
+        hit = (
+            found.group().decode()
+            if found
+            else next((needle.decode() for needle in local if needle in body), None)
+        )
         if hit is not None:
-            raise SiteError(f"{relative} holds a local URL ({hit.decode()})")
+            raise SiteError(f"{relative} holds a local URL ({hit})")
         if relative.startswith("data/"):
             _check_data(relative, body, schema)
     headers = (site / "_headers").read_text()

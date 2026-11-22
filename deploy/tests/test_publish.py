@@ -120,7 +120,16 @@ def test_the_production_settings_reach_the_build_as_its_environment(ready: World
         assert local not in bundle
 
 
-@pytest.mark.parametrize("local", ["http://localhost:5173/x", "http://127.0.0.1:8000/combos"])
+@pytest.mark.parametrize(
+    "local",
+    [
+        "http://localhost:5173/x",
+        "http://127.0.0.1:8000/combos",
+        "//127.0.0.1/x",
+        "http://[::1]:9000/x",
+        "https://LOCALHOST:443",
+    ],
+)
 def test_a_local_url_in_the_build_stops_before_any_upload(ready: World, local: str) -> None:
     (ready.root / "extra.js").write_text(f'fetch("{local}")')
     result = ready.run("publish")
@@ -128,6 +137,15 @@ def test_a_local_url_in_the_build_stops_before_any_upload(ready: World, local: s
     assert "assets/index-a1.js holds a local URL" in result.err
     assert ready.public.puts == []
     assert ready.deploys() == []
+
+
+def test_a_bare_localhost_base_in_a_library_is_not_a_local_url(ready: World) -> None:
+    # React Router parses relative URLs against "http://localhost", with no port.
+    (ready.root / "extra.js").write_text(
+        'let r="http://localhost";var U=new URL("http://localhost");'
+    )
+    result = ready.run("publish")
+    assert result.code == 0, result.err
 
 
 # Criterion 8
