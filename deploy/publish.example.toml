@@ -1,0 +1,37 @@
+# The publish command's settings. Copy this file to deploy/publish.toml (gitignored) and fill
+# it in. None of these is a secret: the three tokens live in the macOS Keychain, under the
+# service names at the end (deploy/README.md, One-time setup).
+
+# The Cloudflare account that holds the Pages project and both buckets (32 hex characters,
+# from the dashboard's account home). Every Cloudflare call uses this account and no other.
+account_id = "00000000000000000000000000000000"
+
+# The Pages project the site deploys to.
+pages_project = "your-pages-project"
+
+# The site's production origin, the public image host, and the 3D viewer.
+site_origin = "https://combo.skin"
+image_base_url = "https://img.combo.skin"
+viewer_origin = "https://view.combo.skin"
+
+# The public image bucket (served at image_base_url) and the private backup bucket.
+public_bucket = "your-public-image-bucket"
+backup_bucket = "your-private-backup-bucket"
+
+# Optional. The local API and the local storage service's public bucket, both on this Mac only.
+# local_image_base_url must be the API's IMAGE_BASE_URL (api/.env).
+# local_api_url = "http://127.0.0.1:8000"
+# local_image_base_url = "http://localhost:9000/local-images"
+
+# Optional. The state folder (image history, last deployment, the lock) and the local backups,
+# both outside the repository.
+# state_dir = "~/Library/Application Support/combo-skin/publish"
+# backup_dir = "~/Library/Application Support/combo-skin/backups"
+
+# Optional. The Compose project whose db service the backup dumps.
+# compose_project = "combo-skin"
+
+# Optional. The Keychain service names of the three tokens.
+# pages_token_service = "combo-skin-pages"
+# images_token_service = "combo-skin-r2-images"
+# backup_token_service = "combo-skin-r2-backup"
