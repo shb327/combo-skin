@@ -70,8 +70,10 @@ def _publish(
     if not preview and not git.is_ancestor(commit, MAIN):
         raise CommandError(f"{commit[:12]} is not on {MAIN}; production publishes only {MAIN}")
     target = "preview" if preview else "production"
+    named = ref or MAIN
+    named = "--ref" if commit.startswith(named) else named
     out.print(
-        f"Commit {commit[:12]} ({ref or MAIN}) to {target}{', dry run' if dry_run else ''}: "
+        f"Commit {commit[:12]} ({named}) to {target}{', dry run' if dry_run else ''}: "
         f"{git.subject(commit)}"
     )
 

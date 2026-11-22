@@ -86,7 +86,12 @@ def run_check(deps: Deps) -> bool:
     with deps.workdir() as work:
         try:
             found = wrangler.version(deps.tools, work)
-            report(pin in found, "wrangler", f"{found} (pinned {pin}; run npm ci in deploy/)")
+            pinned = pin in found
+            report(
+                pinned,
+                "wrangler",
+                found if pinned else f"{found}, not the pinned {pin}: run npm ci in deploy/",
+            )
         except ToolError as error:
             report(False, "wrangler", f"{error} (run npm ci in deploy/)")
         if deps.keychain.has(settings.pages_token_service):
