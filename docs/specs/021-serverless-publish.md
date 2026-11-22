@@ -1,6 +1,6 @@
 # 021: Serverless publishing
 
-**Status:** Draft
+**Status:** Approved
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** deploy (with website changes)
@@ -10,7 +10,7 @@
 
 Combo Skin goes live without a server. The back office (dashboard, API, PostgreSQL, storage and screenshot worker) stays on the owner's Mac and is never on the internet. A publish command on the Mac reads the published combos from the local API, builds the website with that data inside it, uploads the watermarked screenshots and our catalog picture copies to a public R2 bucket at `img.combo.skin`, and deploys the site to Cloudflare Pages on `combo.skin`. Visitors get static files served close to them, with nothing to go down and about €0 a month. The nightly database backup moves into the repository and gets a copy off the Mac.
 
-The spec has two parts. Part A is the publish pipeline, the data files, images, headers, backups and runbooks. Part B adds a real HTML page per route with link previews, a 404 page, a sitemap and `robots.txt`. Whether Part B becomes its own spec is an open question.
+This spec is the publish pipeline, the data files, images, headers, backups and runbooks. A real HTML page per route with link previews, a 404 page, a sitemap and `robots.txt` were Part B of its draft; they moved unchanged into spec 022 when the owner approved the draft and its split on 22 November.
 
 ## Goals and non-goals
 
@@ -23,14 +23,14 @@ The spec has two parts. Part A is the publish pipeline, the data files, images, 
 - A test run on a `pages.dev` address before `combo.skin` changes, and written runbooks for credentials, the test run, going live, rollback and restoring a backup.
 - The nightly database backup as a documented script in the repository, with a copy in a private R2 bucket.
 - A design note in `docs/` on why static publishing beat a server.
-- (Part B) Link previews on Discord, Telegram and similar apps, and pages search engines can read.
 
 **Non-goals**
 
+- Link previews, per-route pages, the 404 page, the sitemap and `robots.txt`: spec 022.
 - The credits page. It is its own spec and must be merged before going live.
 - Analytics events (combo views, 3D opens). Cloudflare Web Analytics stays on as it is today.
 - Steam login, votes and any other visitor feature that sends data back. Those would use Cloudflare Workers with D1 or Analytics Engine later. Nothing here blocks them (Design, Later visitor features).
-- The 3D viewer and its repository, except for one possible viewer change named in Open questions.
+- The 3D viewer and its repository, except for one viewer change made there before the test run (Design, 3D on the test address).
 - Combo variations.
 - Putting the API, dashboard, database, storage or worker on the internet: no Cloudflare Access and no `api` or `admin` subdomains.
 - Doing anything on Cloudflare while this spec is written. The runbooks are carried out later, each with the owner's go-ahead.
@@ -72,15 +72,13 @@ Specs 001 to 020 are Audited and merged. Spec 019 moved the production work (res
 
 ## Requirements
 
-### Part A: publishing
-
 **The command**
 
 - R1. `deploy/` holds the publish command, run on the Mac from the repository: `uv run --project deploy python -m combo_publish <subcommand>`. The subcommands are `check`, `publish`, `status`, `prune-images` and `backup`.
 - R2. `publish` reads combos only from the local API's public routes (`GET /combo-counts`, then the combos route of each finish with combos). It never reads the database, the dashboard's routes or the originals bucket, and needs no credentials for them. It only reads public combos, so it can never publish a draft.
 - R3. The export is consistent. Each finish's list length equals its count, and the glove-side and knife-side totals are equal. On a mismatch, for example when the owner edits combos during a publish, it exports once more, then stops with "Combos changed while publishing; run it again." Nothing has been uploaded or deployed at that point.
 - R4. The website is built from one commit, never from the working tree. A production publish uses the tip of `origin/main` after `git fetch`. `--ref <commit>` is allowed only with `--preview`. The build happens in a temporary folder outside the repository, made with `git archive`. The checkout the command runs from is not changed: files, branch, index and stash stay as they were.
-- R5. The build is `npm ci` and `npm run build` with the production settings (R22), plus the data files and `_headers` (Part B adds its pages). The settings go to the build as environment variables. No `.env` file is written.
+- R5. The build is `npm ci` and `npm run build` with the production settings (R22), plus the data files and `_headers` (spec 022 adds its pages). The settings go to the build as environment variables. No `.env` file is written.
 - R6. Before anything is uploaded, the assembled site is checked against Pages' limits: at most 20,000 files, no file over 25 MiB, at most 100 `_headers` rules, no header line over 2,000 characters. It is also checked against our own rules: every data file is valid JSON in the public schema (R12), and no file holds a local URL (`localhost`, `127.0.0.1`, the local API or image base).
 - R7. Images are uploaded before the site is deployed, and only the missing ones (R15).
 - R8. A production publish runs in this order: (1) deploy the assembled folder as a preview deployment; (2) smoke-test that deployment's own URL; (3) deploy the same folder to production. Pages only uploads files it does not already have, so step 3 sends no file again. A failure at any step stops the publish with a non-zero exit, and the production site stays on its previous deployment. `--preview` stops after step 2.
@@ -96,7 +94,7 @@ Specs 001 to 020 are Audited and merged. Spec 019 moved the production work (res
 
 **Images**
 
-- R15. The public image bucket holds, for every published combo, its three watermarked WebP versions under the same keys as locally, and our copy of every catalog and agent picture named by the built `catalog.json` and `agents.json` (`image_key`). Part B adds one link-preview JPEG per finish with combos (R33). Each object is read anonymously from the local public bucket and uploaded with its `Content-Type` and `Cache-Control: public, max-age=31536000, immutable`. After each upload the returned ETag is compared with the MD5 of the bytes sent. A difference stops the publish. Keys already in the bucket (one listing per publish) are not uploaded again. `--verify-images` re-checks every key's size and ETag.
+- R15. The public image bucket holds, for every published combo, its three watermarked WebP versions under the same keys as locally, and our copy of every catalog and agent picture named by the built `catalog.json` and `agents.json` (`image_key`). Spec 022 adds one link-preview JPEG per finish with combos. Each object is read anonymously from the local public bucket and uploaded with its `Content-Type` and `Cache-Control: public, max-age=31536000, immutable`. After each upload the returned ETag is compared with the MD5 of the bytes sent. A difference stops the publish. Keys already in the bucket (one listing per publish) are not uploaded again. `--verify-images` re-checks every key's size and ETag.
 - R16. A state folder outside the repository (a setting, by default in the user's Application Support folder) records for each image key the date of the last production publish that used it, plus the last production deployment's id and commit. If the state is lost, the next production publish marks every listed key as used that day. Nothing is pruned because of lost state.
 - R17. After a successful production publish, images no production publish has used for 30 days are deleted from the public bucket. Preview publishes never delete. `prune-images --dry-run` lists what would go. `prune-images --now <combo id>` deletes one combo's images at once, for content that must go right away, and says that Cloudflare's cache may keep serving them until they are purged in the dashboard (runbook).
 
@@ -111,7 +109,7 @@ Specs 001 to 020 are Audited and merged. Spec 019 moved the production work (res
   - `Cross-Origin-Opener-Policy: same-origin`.
 - R19. `/assets/*` (Vite's hashed files) and `/fonts/*` get `Cache-Control: public, max-age=31536000, immutable`. HTML and `/data/*` keep Pages' default, which revalidates on every load (`max-age=0, must-revalidate` with an ETag).
 - R20. `https://:project.pages.dev/*` and `https://:version.:project.pages.dev/*` get `X-Robots-Tag: noindex`. Pages also adds it to preview deployments on its own. `combo.skin` does not get it.
-- R21. No page triggers a CSP violation in Chrome or Firefox: home, a type page, a combos page with screenshots, the 3D window (where the viewer allows the parent), the agent list, and a catalog picture falling back to the game's host.
+- R21. No page triggers a CSP violation in Chrome or Firefox: home, a type page, a combos page with screenshots, the 3D window, the agent list, and a catalog picture falling back to the game's host.
 
 **Production settings and the website**
 
@@ -132,17 +130,7 @@ Specs 001 to 020 are Audited and merged. Spec 019 moved the production work (res
 - R30. `backup` dumps the database of the Compose project's `db` service (`pg_dump -Fc` through `docker exec`), checks the dump with `pg_restore --list`, stores it with mode 600 and keeps the newest 30 locally. Then it uploads it to the private backup bucket and keeps the newest 30 daily dumps there, plus the first dump of each month for 12 months. A failed upload is logged and exits non-zero. It never deletes a local dump that has no copy in the bucket.
 - R31. `deploy/backup/` holds the LaunchAgent template (label `skin.combo.db-backup`, 03:00 daily, log file) and an install script. The script writes the agent with the machine's real paths into the user's LaunchAgents folder and replaces the old job. `deploy/README.md` documents setup, logs and a tested restore.
 
-### Part B: link previews and search
-
-- R32. Every route has its own HTML file in the deploy: `index.html`, `gloves.html`, `knives.html`, `gloves/<type>.html` (8), `knives/<type>.html` (20), and `gloves/<type>/<finish>/combos.html` (94) and the knife ones (576). That is 701 pages for today's catalog, made from the built `index.html` by a website script (`npm run prerender`). Pages serves each at its path with no trailing slash and no redirect.
-- R33. Each page has its own `<title>`, `<meta name="description">`, `<link rel="canonical">` on the site origin, and Open Graph and Twitter tags (`og:site_name`, `og:type`, `og:title`, `og:description`, `og:url`, `og:image` with its width, height and type, `twitter:card`). A combos page with combos uses a 1280 × 720 JPEG made from its best-rated combo's 1920 version, at `https://img.combo.skin/og/<combo id>/<version id>.jpg`, so a changed screenshot always gets a new preview URL. A combos page without combos uses the finish's picture copy with `twitter:card` `summary`. Other pages use a site preview image (`/og.jpg`, 1200 × 630, made like the coming-soon page's, without "coming soon").
-- R34. Inside `#root` each page holds plain HTML of its content until the app replaces it: the heading, the count line, and on combos pages each combo's other item, rating, pattern and float text and description, with links to the type and kind pages. All text from data (names, descriptions, pattern group names) is escaped. The page has no inline script or style.
-- R35. The app sets `document.title` on every route with the same function the prerender uses, so titles match after in-app navigation.
-- R36. A catch-all route shows "Page not found" with links to home, gloves and knives. `404.html` (with `noindex`) is in the deploy, so unknown paths answer 404.
-- R37. Combos pages without combos, and `404.html`, carry `<meta name="robots" content="noindex">`.
-- R38. `/sitemap.xml` lists home, `/gloves`, `/knives`, every type page and every combos page with combos, on the site origin. `/robots.txt` allows everything except `/data/` and names the sitemap.
-
-### Both parts
+R32 to R38 (Part B of the draft) moved to spec 022, which numbers them R1 to R7. The numbers are not reused here.
 
 - R39. `docs/static-publishing.md` is the design note: the decision, what runs where (a diagram of Mac and Cloudflare), why static beat a server, the trade-offs accepted, the free-tier numbers, and what later visitor features would add (Workers with D1 or Analytics Engine).
 - R40. `deploy/README.md` holds the runbooks: one-time setup (Cloudflare objects, tokens into the Keychain, settings file), the test run, going live, rollback, removing content now, backup setup and restore. The root README and `website/README.md` say how the site is published and drop `VITE_API_BASE_URL`. `deploy/publish.example.toml` lists every setting with placeholders.
@@ -152,23 +140,20 @@ Specs 001 to 020 are Audited and merged. Spec 019 moved the production work (res
 
 | Decision | Chosen | Alternatives rejected, and why |
 | --- | --- | --- |
-| How code reaches the live site (open) | **Recommended:** the publish command builds code and data together, from the tip of `origin/main`, on the Mac. A merge goes live on the next publish. `status` says how far behind the live site is | Pages building from GitHub on each merge, with the data in R2: merges go live by themselves (the Auto-deploy card's wish). But data and code get separate lifecycles: a rollback restores code and not data, the build must fetch data from R2 to make link-preview pages, the website reads cross-origin data that needs CORS and a wider `connect-src`, and the publish still has to trigger a build after data changes. Both ways, data only changes when the owner publishes. A nightly LaunchAgent publish: unattended deploys of whatever is on main; possible later as a one-line agent over `publish` |
-| Data inside the deploy or in R2 (open) | **Recommended:** inside the deploy, as static files on the site's own origin. One deploy pairs code and data, one rollback restores both, `connect-src 'self'`, no CORS | Data in R2: needed only by the GitHub-build option above; two places to keep in step, and a second origin for every page load |
-| Per-combo pages (open) | **Recommended:** finish pages only for now. A combo stays `?3d=<id>` on its finish page, and a shared link shows the finish's preview with its best combo. Per-combo pages come with a share control later | `/combos/<id>` pages (about 2,000 more files, well within limits) with each combo's own preview: a visitor has no way to reach those links today, since the 3D window's address is `?3d=`, which static hosting cannot tell apart from the finish page. They need a share button or a new window address, a website design change of its own |
-| Images of deleted or unpublished combos (open) | **Recommended:** deleted 30 days after the last production publish that used them. A rollback within Pages' window still finds its images, and `prune-images --now` covers urgent removal | Deleting on the next publish: rolling back would show catalog pictures in place of screenshots (the card's fallback). Never deleting: unpublished screenshots stay public for ever, and the bucket only grows. Keys have random version ids, so nobody can guess a deleted one in the meantime |
-| Credentials (open) | **Recommended:** scoped API tokens in the macOS Keychain (Pages edit on the owner's account; R2 object read and write per bucket), read at run time | Wrangler's own OAuth login: no setup, but its token reaches every account the owner belongs to, including one that is not theirs, and gives R2 no S3 keys. Keys in a gitignored `.env`: plain-text secrets on disk, one `git add -f` from public |
-| One spec or two (open) | **Recommended:** split. Part B moves unchanged into spec 022 when this one is approved, as spec 012's split into 012 and 015 did. Part A alone can go live: without a `404.html`, Pages answers every path with `index.html`, as the app needs | One spec and one review: Part A is already about the size of spec 015, and Part B (route pages, previews, titles, sitemap) is reviewed on different grounds |
+| How code reaches the live site (owner's choice) | The publish command builds code and data together, from the tip of `origin/main`, on the Mac. A merge goes live on the next publish. `status` says how far behind the live site is | Pages building from GitHub on each merge, with the data in R2: merges go live by themselves (the Auto-deploy card's wish). But data and code get separate lifecycles: a rollback restores code and not data, the build must fetch data from R2 to make link-preview pages, the website reads cross-origin data that needs CORS and a wider `connect-src`, and the publish still has to trigger a build after data changes. Both ways, data only changes when the owner publishes. A nightly LaunchAgent publish: unattended deploys of whatever is on main; possible later as a one-line agent over `publish` |
+| Data inside the deploy or in R2 (owner's choice) | Inside the deploy, as static files on the site's own origin. One deploy pairs code and data, one rollback restores both, `connect-src 'self'`, no CORS | Data in R2: needed only by the GitHub-build option above; two places to keep in step, and a second origin for every page load |
+| Per-combo pages (owner's choice) | Finish pages only for now (spec 022). A combo stays `?3d=<id>` on its finish page, and a shared link shows the finish's preview with its best combo. Per-combo pages come with a share control later | `/combos/<id>` pages (about 2,000 more files, well within limits) with each combo's own preview: a visitor has no way to reach those links today, since the 3D window's address is `?3d=`, which static hosting cannot tell apart from the finish page. They need a share button or a new window address, a website design change of its own |
+| Images of deleted or unpublished combos (owner's choice) | Deleted 30 days after the last production publish that used them. A rollback within Pages' window still finds its images, and `prune-images --now` covers urgent removal | Deleting on the next publish: rolling back would show catalog pictures in place of screenshots (the card's fallback). Never deleting: unpublished screenshots stay public for ever, and the bucket only grows. Keys have random version ids, so nobody can guess a deleted one in the meantime |
+| Credentials (owner's choice) | Scoped API tokens in the macOS Keychain (Pages edit on the owner's account; R2 object read and write per bucket), read at run time | Wrangler's own OAuth login: no setup, but its token reaches every account the owner belongs to, including one that is not theirs, and gives R2 no S3 keys. Keys in a gitignored `.env`: plain-text secrets on disk, one `git add -f` from public |
+| One spec or two (owner's choice) | Split. Part B moved unchanged into spec 022 at approval, as spec 012's split into 012 and 015 did. This spec alone can go live: without a `404.html`, Pages answers every path with `index.html`, as the app needs | One spec and one review: Part A is already about the size of spec 015, and Part B (route pages, previews, titles, sitemap) is reviewed on different grounds |
 | Where the command reads combos | The local API's public routes over HTTP, and images from the local public bucket anonymously | The database directly: needs database credentials on the host, and repeats the query code that decides what is public. Reading through the API means the publish sees exactly what the site would. |
-| Language and home | A Python package in `deploy/` (uv, ruff, mypy, pytest, like `api/`), using `boto3` for R2 and Pillow for preview JPEGs. It runs `npm`, the website's prerender script and wrangler as child processes. `wrangler` is pinned exactly in `deploy/package.json` | Inside `api/`: the API image has no Node or wrangler, and the Keychain is on the host. All in Node: a second S3 client and image library for work `api/` already does in Python |
+| Language and home | A Python package in `deploy/` (uv, ruff, mypy, pytest, like `api/`), using `boto3` for R2 (and, in spec 022, Pillow for preview JPEGs). It runs `npm` and wrangler as child processes (and spec 022's prerender script). `wrangler` is pinned exactly in `deploy/package.json` | Inside `api/`: the API image has no Node or wrangler, and the Keychain is on the host. All in Node: a second S3 client and image library for work `api/` already does in Python |
+| 3D on the test address (owner's choice) | Before the test run, a change in the viewer's own repository adds `https://<project>.pages.dev` and `https://preview.<project>.pages.dev` to the viewer's allowed parents (`frame-ancestors` and message origins), so the test run checks "View in 3D" too. That change is the viewer's work, not this spec's | Testing 3D only after going live: the test run would miss the one cross-site feature most likely to break on a new origin |
 | Uploading the site | `wrangler pages deploy` with `--branch` and `--commit-hash`; production branch `main`, previews on branch `preview` (`preview.<project>.pages.dev`) | The Pages REST API by hand: wrangler already hashes files and uploads only new ones |
 | Safe production deploy | Preview deploy, smoke test, then production deploy of the same folder (R8) | Deploying to production then rolling back on failure: visitors could see the broken deploy for a moment |
 | Image upload | Upload missing keys found by one listing; keys never change for changed content, so existence means up to date; ETag check per upload; 8 at a time | rclone sync: one more install and its own config file holding keys; its checks don't know our key rules |
 | Data file layout | One file per finish (670) plus counts, matching today's two requests one for one. About 2 KB per combo per side; about 8 MB in all at 2,000 combos | One file for all combos: every page downloads every combo. Only finishes with combos: a missing file could not be told from a typo in a URL |
-| Routing in Part A | Pages' SPA mode (no `404.html`): every path serves `index.html` with 200 | A `_redirects` rewrite: not needed while there is no `404.html` |
-| Route files (Part B) | `<path>.html`, which Pages serves at `<path>` without a redirect | `<path>/index.html`: Pages redirects `<path>` to `<path>/`, which changes every URL the site has |
-| Page content for crawlers (Part B) | Plain HTML inside `#root`, replaced when the app mounts. No hydration | Server rendering the React app at publish time: the app touches `window`, Swiper and WebGL checks at import; a large change for content crawlers mostly read from the tags. JSON-LD: needs an inline script, so a CSP hash |
-| Preview image format (Part B) | JPEG 1280 × 720 from the watermarked 1920 version, keyed by combo and version | The WebP versions directly: some apps still don't show WebP previews. A 1200 × 630 crop: it can cut the watermark |
-| Titles (Part B) | Home "Combo Skin: CS2 knife and glove combos"; combos pages "`<type> \| <finish>`: `<n>` knife combos – Combo Skin" (or glove combos); type and kind pages "`<type>` finishes – Combo Skin" and "Gloves – Combo Skin"; a description under 160 characters naming the best-rated pairings. One TypeScript function used by the app and the prerender | Titles in Python: two copies of the wording |
+| Routing | Pages' SPA mode (no `404.html`): every path serves `index.html` with 200. Spec 022 adds a file per route and `404.html` | A `_redirects` rewrite: not needed while there is no `404.html` |
 | Fonts | Bundled Montserrat, as the admin and the coming-soon page do | Allowing Google's font hosts in the CSP: a third party on every page view for no gain |
 | CSP sources | Exactly R18. Web Analytics' script from `static.cloudflareinsights.com`; its beacon goes to `/cdn-cgi/rum` on the site's own origin, or to `cloudflareinsights.com`, so both are allowed. Any source added during implementation is recorded in Implementation notes | `'unsafe-inline'` for styles: React sets styles through the DOM, which the CSP allows, and the prerendered HTML has no inline styles |
 | HSTS | `max-age=31536000` without `includeSubDomains`, as `combo.skin` sends today | `includeSubDomains` and preload: every subdomain is HTTPS on Cloudflare today, but preload is hard to undo; a later decision |
@@ -180,7 +165,7 @@ Specs 001 to 020 are Audited and merged. Spec 019 moved the production work (res
 
 | Limit (free plan) | Value | Our use | Headroom |
 | --- | --- | --- | --- |
-| Pages files per deploy | 20,000 | Part A about 720 (670 finish files, counts, about 40 built files, fonts, headers). Part B about 1,425. Per-combo pages would add about 2,000 | 14 to 28 times |
+| Pages files per deploy | 20,000 | About 720 here (670 finish files, counts, about 40 built files, fonts, headers); about 1,425 with spec 022's pages. Per-combo pages would add about 2,000 | 14 to 28 times |
 | Pages file size | 25 MiB | Largest: the catalog chunk, about 300 KB. The largest finish file is about 88 KB today, maybe 0.5 MB at 2,000 combos | 50 times or more |
 | `_headers` rules / line length | 100 / 2,000 characters | 6 rules; the CSP line is about 420 characters | Ample |
 | Pages static requests and bandwidth | Free and unlimited | All site traffic (no Functions) | Unlimited |
@@ -199,7 +184,7 @@ Sources: [Pages limits](https://developers.cloudflare.com/pages/platform/limits/
 - *One-time setup, before the test run:* create the Pages project with production branch `main`; create the public image bucket and connect `img.combo.skin` (TLS 1.2 minimum, `r2.dev` off, a cache rule like `assets.combo.skin`'s). Nothing links to it before go-live, so connecting it early is safe. Create the private backup bucket; create the three scoped tokens; add them to the Keychain with `security add-generic-password ... -w`, typing each value at the prompt so it is never on a command line; fill `deploy/publish.toml`; run `check`.
 - *Test run:* `publish --preview`, then check `preview.<project>.pages.dev` against criterion 25. Then a production publish to `<project>.pages.dev` (not yet `combo.skin`), and the rollback rehearsal of criterion 26.
 - *Going live* (when the owner says, after the credits page is merged): a production publish; remove `combo.skin` from the coming-soon project's custom domains; add it to the new project; check `https://combo.skin` (headers, HSTS, pages, images, 3D); turn on Web Analytics for the new project and check `combo.skin`'s history stays in its Web Analytics site; keep the `www` rule; keep the coming-soon project for a week as the fallback (going back means moving the domain back), then delete it if the owner wants.
-- *Rollback:* Pages dashboard → the project → Deployments → an earlier production deployment → "Rollback to this deployment" (or the API with the Pages token). Data rolls back with the code. Images older than 30 days may show as catalog pictures.
+- *Rollback:* Pages dashboard → the project → Deployments → an earlier production deployment → "Rollback to this deployment" (or the API with the Pages token). Data rolls back with the code. Images unused for more than 30 days may show as catalog pictures.
 - *Removing content now:* unpublish in the dashboard, `publish`, `prune-images --now <combo id>`, then purge the image URLs from Cloudflare's cache in the dashboard.
 - *Restore:* download a dump from the backup bucket, `pg_restore` into a new database, compare row counts.
 
@@ -217,7 +202,7 @@ No API changes.
 
 Image URLs inside are `https://img.combo.skin/combos/<combo id>/<version id>/<width>.webp` and `https://img.combo.skin/catalog/<32 hex>.png`. `fallback_image_url` stays the game's URL.
 
-**Public bucket keys:** `combos/<combo id>/<version id>/<640|1280|1920>.webp`, `catalog/<32 hex>.png`, and (Part B) `og/<combo id>/<version id>.jpg`. All use `Cache-Control: public, max-age=31536000, immutable`.
+**Public bucket keys:** `combos/<combo id>/<version id>/<640|1280|1920>.webp`, `catalog/<32 hex>.png`, and (spec 022) `og/<combo id>/<version id>.jpg`. All use `Cache-Control: public, max-age=31536000, immutable`.
 
 **Backup bucket keys:** `db/<YYYY-MM-DD_HHMMSS>.dump`.
 
@@ -232,14 +217,12 @@ Image URLs inside are `https://img.combo.skin/combos/<combo id>/<version id>/<wi
 - S3. Credentials come only from the Keychain, are scoped to the least they need (Pages edit on one account; object read and write on one bucket each), reach wrangler only through its process environment, and never appear in the repository, `.env` files, command lines, state, build folders, logs or output (R28, R29).
 - S4. Every Cloudflare call uses the owner's account id from the settings; the Pages token cannot reach any other account.
 - S5. The site sends the CSP and headers of R18 to R20; the CSP allows scripts only from the site and Web Analytics, frames only from the viewer, images only from the site, the image host and the game's host.
-- S6. Text from data is escaped wherever the prerender writes it (R34).
+- S6. Data files are served as `application/json` with `nosniff`, never as HTML.
 - S7. The backup bucket is private, reachable only with its own token. Dumps hold admin password hashes and sessions, so they are never put in the public bucket and are mode 600 on disk.
 - S8. CI has read-only permissions and no Cloudflare secrets.
 - S9. No account id, bucket name, project name, token or local path is committed; production hosts appear only in the gitignored settings and in what the command generates.
 
 ## Acceptance criteria
-
-### Part A
 
 **Command** (`deploy/tests`, pytest, with a fake API, fake bucket, fake Keychain and a fake `wrangler` that records its arguments and environment)
 
@@ -279,18 +262,10 @@ Image URLs inside are `https://img.combo.skin/combos/<combo id>/<version id>/<wi
 
 **Test run** (manual, the owner's Cloudflare objects made per the runbook)
 
-25. `publish --preview` succeeds; on the preview URL, home, a type page, a combos page with screenshots from `img.combo.skin`, a catalog picture and its fallback all load, with no CSP violation in Chrome and Firefox consoles; `curl -sI` shows the headers of R18 and `X-Robots-Tag: noindex`; a second `publish --preview` with no changes uploads 0 images and wrangler reports no new files; "View in 3D" works if the viewer allows the address (Open questions), else shows its error and the screenshot.
+25. `publish --preview` succeeds; on the preview URL, home, a type page, a combos page with screenshots from `img.combo.skin`, a catalog picture and its fallback all load, with no CSP violation in Chrome and Firefox consoles; `curl -sI` shows the headers of R18 and `X-Robots-Tag: noindex`; a second `publish --preview` with no changes uploads 0 images and wrangler reports no new files; "View in 3D" opens, draws the combo, and plays Inspect (with the viewer change of Design in place).
 26. Rollback rehearsal on `<project>.pages.dev`: two production publishes with different data, a dashboard rollback to the first shows its data, and its screenshots still load.
 
-### Part B
-
-27. `npm run prerender` (Vitest on a small catalog and data): one file per route at the paths of R32, each with the title, description, canonical and Open Graph tags of R33 and the content of R34; for today's catalog it writes 701 pages.
-28. A description `<script>alert(1)</script>` and a group name `A "&" <B>` appear escaped in the title, meta tags and body; no page has an inline script or `style` attribute.
-29. A combos page with combos has `og:image` `https://img.combo.skin/og/<id>/<version>.jpg` with width 1280 and height 720, and the publish uploads that JPEG; a new screenshot version gives a new URL; a page without combos uses the finish's picture, `twitter:card` `summary`, and `noindex`.
-30. In-app navigation sets `document.title` to the prerendered title of the route (Vitest).
-31. An unknown path renders "Page not found" (Vitest); on the preview URL, `curl -sI` of an unknown path gives 404 and of `/gloves/specialist` gives 200 with no redirect.
-32. `sitemap.xml` is valid XML listing exactly the pages of R38; `robots.txt` disallows `/data/` and names the sitemap.
-33. Manual: a combos page URL on the preview address, pasted in a private Discord and a private Telegram chat, shows the page's title, description and screenshot.
+Criteria 27 to 33 (Part B of the draft) moved to spec 022 as its criteria 1 to 7.
 
 ## Test plan
 
@@ -303,8 +278,6 @@ Image URLs inside are `https://img.combo.skin/combos/<combo id>/<version id>/<wi
 | 23 | Reading the docs against R39 and R40; the workflow run page after the owner pushes |
 | 24 | The `gitleaks` and `git grep` commands |
 | 25, 26 | Manual test run per the runbook |
-| 27 to 32 | Vitest in `website/`; `curl -sI` on the preview URL for 31 |
-| 33 | Manual, in Discord and Telegram |
 
 Commands:
 
@@ -316,15 +289,7 @@ gitleaks git --no-banner --redact
 
 ## Open questions
 
-Each has a recommendation in Design.
-
-- **How code reaches the live site.** Recommended: the publish command builds code and data together from `origin/main`. Alternative: Pages builds from GitHub on every merge, with the data in R2.
-- **Data inside the deploy or in R2.** Recommended: inside the deploy. Alternative: R2, which only the GitHub-build option needs.
-- **Per-combo pages.** Recommended: finish pages only for now, and per-combo pages later with a share control. Alternative: `/combos/<id>` pages now, plus a share button or a new 3D window address.
-- **Images of deleted or unpublished combos.** Recommended: delete them 30 days after their last use, with `prune-images --now` for urgent cases. Alternatives: delete on the next publish, or never delete.
-- **Credentials.** Recommended: scoped tokens in the Keychain. Alternatives: wrangler's OAuth login, or keys in a gitignored file.
-- **One spec or two.** Recommended: split Part B into spec 022 at approval. Alternative: one spec and one review.
-- **3D on the test address.** The viewer refuses `pages.dev` parents. Recommended: a small change in the viewer's repository that adds `https://preview.<project>.pages.dev` and `https://<project>.pages.dev` to its allowed parents, made before the test run. Alternative: test 3D only after going live.
+None. On 22 November the owner approved every recommendation of the draft: the publish command builds code and data together from `origin/main`; the data lives inside the deploy; finish pages only, with per-combo pages later with a share control; images are deleted 30 days after their last production use, with `prune-images --now` for urgent cases; scoped tokens in the Keychain; Part B split into spec 022; and a viewer change before the test run so 3D works on the `pages.dev` addresses. The answers are recorded in Design as the owner's choice.
 
 ## Implementation notes
 
