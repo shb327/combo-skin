@@ -1,6 +1,6 @@
 # 021: Serverless publishing
 
-**Status:** Approved
+**Status:** Implemented
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** deploy (with website changes)
@@ -293,7 +293,64 @@ None. On 22 November the owner approved every recommendation of the draft: the p
 
 ## Implementation notes
 
-Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+Implemented on 22 November. Test ids are `deploy/tests/<file>::<test>` and `website/<file>` (Vitest).
+
+### Criteria and tests
+
+| Criterion | Covered by |
+| --- | --- |
+| 1 | `test_check.py`: `test_everything_present_is_ready`, `test_a_missing_keychain_item_names_the_service_and_command_but_no_value`, `test_missing_keychain_items_and_no_api_are_reported`, `test_a_wrong_wrangler_version_or_account_is_reported`, `test_schema_drift_is_reported`, `test_bad_settings_stop_the_check` |
+| 2 | `test_export.py::test_every_finish_of_the_catalog_gets_a_file` (670-finish catalog, 3 finishes with combos on each side), `test_the_api_order_is_kept` |
+| 3 | `test_export.py`: `test_an_image_url_off_the_local_base_stops_the_publish`, `test_an_extra_field_stops_the_publish` (`status`, `screenshot_agent`), `test_a_list_that_differs_from_its_count_twice_stops_with_the_message`, `test_one_mismatch_then_a_match_succeeds`, `test_unequal_glove_and_knife_totals_are_a_mismatch`, `test_a_finish_missing_from_the_built_catalog_stops` |
+| 4 | `test_publish.py`: `test_the_build_comes_from_an_archive_of_origin_main_outside_the_checkout`, `test_a_production_publish_takes_no_ref`, `test_a_preview_can_build_another_commit`, `test_the_build_folder_is_refused_inside_the_repository` |
+| 5 | `test_publish.py`: `test_the_production_settings_reach_the_build_as_its_environment`, `test_a_local_url_in_the_build_stops_before_any_upload`, `test_a_bare_localhost_base_in_a_library_is_not_a_local_url`; a production-settings `vite build` of the website holds `https://img.combo.skin` and `https://view.combo.skin`, no `127.0.0.1`, and `localhost` only as React Router's bare `"http://localhost"` (Deviations, 3) |
+| 6 | `test_limits.py`: `test_20001_files_fail`, `test_a_26_mib_file_fails`, `test_101_header_rules_fail`, `test_a_2001_character_header_line_fails`, `test_a_data_file_outside_the_schema_fails`, `test_each_limit_stops_the_publish_before_any_upload` |
+| 7 | `test_images.py`: `test_the_referenced_keys_are_every_screenshot_and_every_catalog_picture`, `test_uploads_keep_their_type_and_get_the_immutable_cache_control`, `test_present_keys_are_not_uploaded_again`, `test_a_wrong_etag_stops_before_wrangler_runs`, `test_uploads_are_checked_against_md5`, `test_verify_images_uploads_a_changed_copy_again`; `test_headers.py::test_the_settings_have_no_originals_bucket` (settings model and a grep of the package) |
+| 8 | `test_publish.py`: `test_preview_then_smoke_test_then_production_of_the_same_folder`, `test_a_failed_preview_or_smoke_test_never_reaches_production`, `test_a_failed_production_deploy_exits_1_and_keeps_the_state`, `test_a_preview_publish_stops_after_its_smoke_test` |
+| 9 | `test_publish.py`: `test_counts_that_differ_from_the_export_fail_the_smoke_test`, `test_a_missing_header_fails_the_smoke_test`, `test_a_missing_screenshot_on_the_image_host_fails_the_smoke_test` |
+| 10 | `test_images.py`: `test_keys_unused_for_30_days_are_pruned_after_a_production_publish`, `test_a_preview_publish_deletes_nothing`, `test_a_failed_production_publish_deletes_nothing`, `test_prune_dry_run_lists_and_deletes_nothing`, `test_without_a_state_file_nothing_is_deleted_and_every_key_is_marked_today`, `test_prune_now_deletes_exactly_one_combo_and_prints_the_cache_note`, `test_prune_never_deletes_what_the_live_deployment_uses` |
+| 11 | `test_publish.py`: `test_a_second_publish_while_the_lock_is_held_names_the_running_one`, `test_the_lock_is_held_by_a_running_process` |
+| 12 | `test_publish.py::test_no_credential_appears_anywhere`, `test_a_missing_credential_stops_before_anything_is_uploaded`; `test_backup.py::test_a_good_dump_is_kept_private_and_uploaded` |
+| 13 | `test_publish.py`: `test_a_dry_run_prints_the_plan_and_uploads_and_deploys_nothing`, `test_a_dry_run_without_the_image_token_still_plans`, `test_a_real_run_prints_the_lines_in_order` (golden) |
+| 14 | `test_status.py`: `test_status_prints_the_live_deployment_and_that_nothing_changed`, `test_status_counts_commits_behind_and_changed_data`, `test_status_after_a_rollback_reads_the_rolled_back_deployment` |
+| 15 | `test_headers.py`: `test_headers_from_the_example_settings_equal_the_golden_file` (`deploy/tests/golden/_headers`), `test_the_golden_file_holds_r18_to_r20_exactly` |
+| 16 | `website/src/api/client.test.ts`; the page tests pass with the fake on the data paths (`src/test/fakeApi.ts`, unknown paths answered like Pages: the app's HTML with 200) |
+| 17 | `website/src/api/devData.test.ts` (mapping and status pass-through), `website/scripts/removedSettings.test.ts`; the website workflow's step "Check VITE_API_BASE_URL is gone and stops the build" runs a build with it set |
+| 18 | The website workflow's step "Check the build bundles Montserrat and no Google fonts"; `THIRD_PARTY_NOTICES.md` names the website |
+| 19 | `website/src/staleChunks.test.ts` |
+| 20 | `website/nginx.toml` deleted; `grep -rn VITE_API_BASE_URL website/src website/.env.example` prints nothing (also a workflow step) |
+| 21 | `test_backup.py`: `test_a_good_dump_is_kept_private_and_uploaded`, `test_a_dump_that_does_not_read_back_is_not_kept`, `test_a_failed_upload_exits_non_zero_and_deletes_no_local_dump`, `test_retention_keeps_30_local_and_30_daily_plus_12_monthly_remote`, `test_remote_keep_takes_the_first_dump_of_each_of_12_months`; the LaunchAgent template and installer: `test_launch_agent.py` |
+| 22 | **Pending the Cloudflare setup** (the backup bucket and its token). Runbook: `deploy/README.md`, Backups. The restore steps and `deploy/backup/counts.sql` were tried on a throwaway PostgreSQL container. The new LaunchAgent is not installed; the old backup job keeps running until then |
+| 23 | `docs/static-publishing.md`, `deploy/README.md` (every runbook), `deploy/publish.example.toml`, the root and website READMEs; `.github/workflows/deploy.yml` (`contents: read`, no secrets). The workflow run waits for the push |
+| 24 | `gitleaks git --no-banner --redact`: no leaks. `git grep -nE '[0-9a-f]{32}' -- deploy docs` finds the test fakes and the example's placeholder zeros in `deploy/`, and outside it only lock-file hashes and the public dataset commit hashes of older specs; no account id. `git ls-files deploy` holds no `publish.toml` |
+| 25, 26 | **Pending the Cloudflare setup.** Runbooks: `deploy/README.md`, Test run (step 7 is the rollback rehearsal) |
+
+### Deviations
+
+1. **Schema drift check (owner's fix, 22 November).** A production publish builds the website from `origin/main`, but the local API runs whatever the stack was last rebuilt from. R14 only caught extra fields. Before the export, the command now compares the public schemas (`PublicCombo`, `ComboCounts` and everything they reference) in the running API's `/openapi.json` with the built commit's `api/openapi.json`, and stops with "Rebuild the stack first: docker compose up -d --wait --build", naming the differing schemas. `check` reports the same against `origin/main` as last fetched. Titles and descriptions are ignored, since they change no document. Tests: `test_schema.py`, `test_publish.py::test_schema_drift_stops_the_publish_before_the_export`, `test_check.py::test_schema_drift_is_reported`.
+2. **R6's reference (owner's fix).** R6 pointed to "(R12)" for the public schema; it means R14. Fixed in R6.
+3. **Local addresses (R6, criterion 5).** React Router parses relative URLs against a bare `"http://localhost"`, so every real build holds that string. The check refuses `localhost` followed by a port (every local service has one), any `127.0.0.1` or `[::1]`, and the configured local API and image base, and allows the bare `localhost` base.
+4. **Pruning never touches the live deployment's images.** As written, a `prune-images` run more than 30 days after the last production publish would delete the live site's own images, whose last use is that publish. The state's `live` entry now also lists the image keys the live deployment uses, and those are never due. The state also keeps each data file's hash (`data_files`), to count the changed files R11 prints.
+5. **`backup_dir` setting.** The local dump folder is a setting (default under Application Support), alongside `state_dir`.
+6. **Dry run without credentials.** `publish --dry-run` runs before the setup: without the image token it says the bucket was not checked and counts every referenced image as to upload, with sizes read from the local bucket.
+7. **Missing catalog copies.** A catalog copy missing from the local bucket is skipped and counted, since the site shows the game's picture for it. A missing screenshot stops the publish.
+8. **`status` reads the live deployment from the Pages API** (the project's canonical deployment, with the Pages token). Wrangler's deployment list doesn't say which one is live after a rollback. The data comparison reads the live deployment's own data files.
+9. **R2 credentials** are one Keychain item per token, holding `<access key id>:<secret access key>`.
+10. **Wrangler's environment** is built from scratch: PATH, the locale, the temporary folder, an empty home and config folder, the Pages token and the account id. Its login and config can't be read even by accident.
+11. **`_headers` has 5 rules**, not the 6 of the free-tier table. Vite bundles the Montserrat files into `/assets/`, so the `/fonts/*` rule of R19 is kept but matches nothing today.
+12. **Criterion 20's grep and R24's refusal.** The note that refuses `VITE_API_BASE_URL` lives in `website/scripts/removedSettings.ts`, outside `src/`, so the grep prints nothing while the refusal still works.
+13. **The website drops `openapi-fetch`**: the client builds its own `/data/` URLs with `fetch`. Slugs that are not catalog slugs are `not_found` without a request.
+
+### Follow-ups
+
+- The viewer's own repository adds the `pages.dev` addresses to its allowed parents before the test run (Design, 3D on the test address).
+- Criteria 22, 25 and 26 after the one-time Cloudflare setup, per the runbooks; then `deploy/backup/install.sh` replaces the old backup job.
+- After merging, `VITE_API_BASE_URL` in a local `website/.env` stops the dev server: rename it to `DEV_API_BASE_URL` (or delete it to use the default).
+- Spec 022 (link previews) builds on this command: prerendered pages, preview JPEGs (Pillow) and `404.html`.
+
+### Dry run on the owner's data (22 November)
+
+`publish --preview --ref <this branch> --dry-run` against the local API and bucket, with settings whose Keychain names don't exist: 302 published combos, 16 glove and 210 knife finishes with combos; 671 data files (1.15 MB, the largest 85 KB); 1,639 images referenced (906 screenshot versions and 733 catalog and agent copies, none missing locally), 146.1 MB to upload; 782 Pages files, 5.7 MB. Nothing was uploaded or deployed.
 
 ## Audit
 
