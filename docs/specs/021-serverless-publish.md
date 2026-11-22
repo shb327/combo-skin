@@ -354,4 +354,61 @@ Implemented on 22 November. Test ids are `deploy/tests/<file>::<test>` and `webs
 
 ## Audit
 
-Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
+**Date:** 2026-11-22 · **Branch:** 021-serverless-publish · **Commit:** 83b9143
+**Verdict:** Fail
+
+Test ids are `deploy/tests/<file>::<test>`; pytest ran with `uv run pytest`, Vitest with `npm test`.
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | `check` | Pass | `test_check.py` (6 tests): ready lines, missing item names service and command, no value |
+| 2 | Export of a 670-finish catalog | Pass | `test_export.py::test_every_finish_of_the_catalog_gets_a_file` (2 glove and 2 knife finishes with combos, not 3 as the notes say), `test_the_api_order_is_kept` |
+| 3 | Export stops | Pass | `test_export.py`: off-base URL, `status` and `screenshot_agent`, two mismatches, one mismatch then a match; nothing uploaded, wrangler and npm never run |
+| 4 | Build from `git archive`, ref rules, checkout unchanged | **Fail** | The ref rules and the unchanged checkout are tested (`test_a_production_publish_takes_no_ref`, `test_the_build_comes_from_an_archive_of_origin_main_outside_the_checkout`). No test shows the build uses the commit's files rather than the working tree: the test edits only `README.md`, which nothing reads, and makes no unpushed commit. The code is right: an uncommitted `catalog.json` change was checked by hand on the fakes and was not deployed |
+| 5 | Production settings reach the build; no local URL | Pass | `test_the_production_settings_reach_the_build_as_its_environment`, `test_a_local_url_in_the_build_stops_before_any_upload`; a production-settings `vite build` of this commit holds both hosts and no local address with a port, `127.0.0.1` or `[::1]` |
+| 6 | Pages limits | Pass | `test_limits.py` (20,001 files, 26 MiB, 101 rules, 2,001 characters, each before any upload) |
+| 7 | Images | Pass | `test_images.py` (referenced keys, type and immutable `Cache-Control`, present keys skipped, wrong ETag before wrangler); `test_headers.py::test_the_settings_have_no_originals_bucket` |
+| 8 | Deploy order | Pass | `test_preview_then_smoke_test_then_production_of_the_same_folder`, `test_a_failed_preview_or_smoke_test_never_reaches_production` (state compared before and after), `test_a_failed_production_deploy_exits_1_and_keeps_the_state` |
+| 9 | Smoke test | Pass | `test_counts_that_differ_from_the_export_fail_the_smoke_test`, `test_a_missing_header_fails_the_smoke_test` |
+| 10 | Prune | Pass | `test_images.py` (30 days, preview, dry run, no state, `--now`). See the blocking finding for a case the criterion doesn't name |
+| 11 | Lock | Pass | `test_a_second_publish_while_the_lock_is_held_names_the_running_one`, `test_the_lock_is_held_by_a_running_process` |
+| 12 | No credential anywhere | Pass | `test_no_credential_appears_anywhere`: output, state, the deployed site folder, wrangler's arguments and environment. Its scan of the temporary folder runs after the folder is deleted (follow-up) |
+| 13 | Dry run and output order | Pass | `test_a_dry_run_prints_the_plan_and_uploads_and_deploys_nothing`, `test_a_real_run_prints_the_lines_in_order` |
+| 14 | `status` | Pass | `test_status.py` (live commit, behind count, data differs, rollback) |
+| 15 | `_headers` golden | Pass | `test_headers_from_the_example_settings_equal_the_golden_file`, `test_the_golden_file_holds_r18_to_r20_exactly` |
+| 16 | Website client | Pass | `website/src/api/client.test.ts` (data paths, `omit`, `error`, refusals before fetch, 404 and HTML 200 as `not_found`, wrong shape as `http`); page tests pass on the data paths |
+| 17 | Dev `/data/` and the old setting | Pass | `website/src/api/devData.test.ts`, `website/scripts/removedSettings.test.ts`; a build with `VITE_API_BASE_URL` set exited 1 with the note |
+| 18 | Fonts | Pass | `npm run build`: no Google font host in `dist`, 4 Montserrat `woff2` files; `THIRD_PARTY_NOTICES.md` names the website |
+| 19 | Stale chunk reload | Pass | `website/src/staleChunks.test.ts` |
+| 20 | `nginx.toml`, `VITE_API_BASE_URL` | Pass | File gone; the grep printed nothing |
+| 21 | Backup | Pass | `test_backup.py` (5 tests), `test_launch_agent.py` |
+| 22 | Backup on the Mac | Pending | Manual, after the backup bucket exists (runbook: `deploy/README.md`, Backups) |
+| 23 | Docs and CI | Pass | The design note, `deploy/README.md`, the example settings and both READMEs match R39 and R40; `deploy.yml` has `contents: read` and no secrets. Its first run waits for the push; its commands pass locally from a clean install |
+| 24 | Secrets and hashes | Pass | gitleaks clean; the 32-hex grep finds only test fakes and the example's zeros in `deploy/`; no `publish.toml` tracked |
+| 25 | Test run | Pending | Manual, after the Cloudflare setup |
+| 26 | Rollback rehearsal | Pending | Manual, after the Cloudflare setup |
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Lint | `uv run ruff check`, `uv run ruff format --check` (fresh `.venv`, `uv sync --locked`); `npm run lint` (after `npm ci`) | Pass |
+| Types | `uv run mypy` (38 files); `npm run api:types:check` | Pass |
+| Tests | `uv run pytest`: 111 passed; `npm test`: 379 passed in 21 files | Pass |
+| Build | `npm run build`, plus the workflow's checks for `/src/` paths, fonts and the old setting | Pass |
+| Secret scan | `gitleaks git --log-opts="origin/main..021-serverless-publish"`, `gitleaks dir .` | Pass |
+| Public exposure | Manual review of the diff and log: only public hosts, loopback addresses, documentation links and test values; all 10 commits by shb327, one line, no trailers; `.claude/` and `CLAUDE.md` ignored and untracked | Pass |
+| Design conformance | Manual review, and an independent read of R1 to R41 and S1 to S9 | Fail |
+
+**Findings**
+
+- (blocking) R16, "Nothing is pruned because of lost state": with no state file, `prune-images` marks every listed key as used today and saves a state with no live deployment (`deploy/src/combo_publish/prune.py:26-40`). A second `prune-images` 30 or more days later, with no production publish in between, deletes every image, the live site's included (`images.py`, `due`). Reproduced on the fakes: 10 of 10 live images deleted. Deviation 4 covers only a state written by a publish.
+- (blocking) Criterion 4: no test shows the build comes from the commit's files and not the working tree (see the table).
+- (follow-up) S9 and R22: `deploy/publish.example.toml` holds the production hosts, as do the golden `_headers` and `website/README.md`. Criterion 15 requires that (the golden file from the example settings must equal R18), so the spec contradicts itself. Record it, or build the golden file from test settings.
+- (follow-up) R12: `status` exports with the live commit's catalog and schema, so after a merge that adds a catalog finish or a public field it stops with an export error instead of saying the data differs (`status.py:31-33`). With no commit hash from the Pages API it counts from `HEAD` and reads files from the index (`status.py:25`).
+- (follow-up) R11: the last lines print `site_origin` as the production URL. Before going live that is still the coming-soon page; the deployment's own address is not printed (`publish.py`).
+- (follow-up) R29: an error outside the expected ones (an S3 `ClientError`, a JSON error) prints a raw traceback that skips the output scrubbing, and in `backup`'s log it has no timestamp (`cli.py`). No known message holds a key.
+- (follow-up) Criterion 12's scan of the temporary folder runs after the folder is deleted; check it before cleanup.
+- (follow-up) R30: the bucket keeps the newest 30 dumps, which is fewer than 30 days if `backup` also runs by hand.
+- (follow-up) R23: a non-JSON error response such as a 503 page is `http`, not `not_found`.
+- (follow-up) R19 and rollback: `/assets/*` is immutable, so Pages' HTML fallback for a missing old chunk could be cached under that chunk's name, and rolling back to the deployment that has it would leave those browsers on the error page after one reload.
+- (follow-up) The `OutsideOriginError` guard in `website/src/api/client.ts` can't be reached by any test; slugs are refused first. `state_dir` and `backup_dir` are not checked to be outside the repository.
+- (checked) Pages keeps `_headers` values as set: `combo.skin`'s coming-soon page sends one `X-Content-Type-Options` and one `Referrer-Policy`, so the smoke test's exact match holds. Whether R2 accepts boto3's default checksums is checked in criterion 25.
