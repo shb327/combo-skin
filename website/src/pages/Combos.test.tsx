@@ -7,6 +7,7 @@ import {
   MOGUL,
   ORIGIN,
   combo,
+  dataPath,
   deferred,
   fakeApi,
   item,
@@ -85,7 +86,7 @@ describe('a glove finish page', () => {
       'Butterfly Knife | Fade',
     ])
     expect(api.requests).toEqual([
-      { url: `${ORIGIN}${MOGUL_PATH}`, method: 'GET', credentials: 'omit', redirect: 'error' },
+      { url: `${ORIGIN}${dataPath(MOGUL_PATH)}`, method: 'GET', credentials: 'omit', redirect: 'error' },
     ])
   })
 
@@ -345,7 +346,7 @@ describe('a knife finish page', () => {
       'Specialist Gloves | Mogul',
       "Sport Gloves | Pandora's Box",
     ])
-    expect(api.requests.map((r) => r.url)).toEqual([`${ORIGIN}${RUBY_PATH}`])
+    expect(api.requests.map((r) => r.url)).toEqual([`${ORIGIN}${dataPath(RUBY_PATH)}`])
   })
 })
 
@@ -441,7 +442,7 @@ describe('the cache', () => {
     site.navigate(MOGUL_PATH)
     expect(await screen.findByText('M9 Bayonet | Urban Masked')).toBeInTheDocument()
     expect(screen.queryByText('Loading combos…')).toBeNull()
-    expect(api.requests.map((r) => new URL(r.url).pathname)).toEqual([MOGUL_PATH, RUBY_PATH])
+    expect(api.requests.map((r) => new URL(r.url).pathname)).toEqual([dataPath(MOGUL_PATH), dataPath(RUBY_PATH)])
   })
 
   it('asks again only once 5 minutes have passed', async () => {
@@ -455,7 +456,7 @@ describe('the cache', () => {
       api.combos(RUBY_PATH, [combo('b', 9, KIMONO, KARAMBIT_RUBY)])
       const site = renderSite(MOGUL_PATH, { api })
       expect(await screen.findByText('M9 Bayonet | Urban Masked')).toBeInTheDocument()
-      const mogulRequests = () => api.requests.filter((r) => r.url.endsWith(MOGUL_PATH)).length
+      const mogulRequests = () => api.requests.filter((r) => r.url.endsWith(dataPath(MOGUL_PATH))).length
 
       site.navigate(RUBY_PATH)
       expect(await screen.findByText('Specialist Gloves | Crimson Kimono')).toBeInTheDocument()

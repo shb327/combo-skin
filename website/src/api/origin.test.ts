@@ -1,21 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import {
-  DEFAULT_API_ORIGIN,
+  DEFAULT_DEV_API_ORIGIN,
   DEFAULT_IMAGE_BASE_URL,
   DEFAULT_VIEWER_ORIGIN,
-  apiOrigin,
-  checkApiOrigin,
+  checkDevApiOrigin,
   checkImageBaseUrl,
   checkViewerOrigin,
+  devApiOrigin,
   imageBaseUrl,
   viewerOrigin,
 } from './origin'
 
-describe('checkApiOrigin', () => {
+describe('checkDevApiOrigin', () => {
   it.each(['http://localhost:8000', 'https://api.example.com', 'http://localhost'])(
     'accepts %s',
     (value) => {
-      expect(checkApiOrigin(value)).toBe(value)
+      expect(checkDevApiOrigin(value)).toBe(value)
     },
   )
 
@@ -32,14 +32,14 @@ describe('checkApiOrigin', () => {
     '*',
     '',
   ])('refuses %s, naming the variable', (value) => {
-    expect(() => checkApiOrigin(value)).toThrow(/VITE_API_BASE_URL/)
+    expect(() => checkDevApiOrigin(value)).toThrow(/DEV_API_BASE_URL/)
   })
 
   it('defaults to the local API', () => {
-    expect(apiOrigin(undefined)).toBe(DEFAULT_API_ORIGIN)
-    expect(apiOrigin('')).toBe(DEFAULT_API_ORIGIN)
-    expect(DEFAULT_API_ORIGIN).toBe('http://localhost:8000')
-    expect(apiOrigin('https://api.example.com')).toBe('https://api.example.com')
+    expect(devApiOrigin(undefined)).toBe(DEFAULT_DEV_API_ORIGIN)
+    expect(devApiOrigin('')).toBe(DEFAULT_DEV_API_ORIGIN)
+    expect(DEFAULT_DEV_API_ORIGIN).toBe('http://localhost:8000')
+    expect(devApiOrigin('https://api.example.com')).toBe('https://api.example.com')
   })
 })
 
@@ -64,7 +64,7 @@ describe('checkImageBaseUrl', () => {
     '*',
   ])('refuses %s, naming the variable', (value) => {
     expect(() => checkImageBaseUrl(value)).toThrow(/VITE_IMAGE_BASE_URL/)
-    expect(() => checkImageBaseUrl(value)).not.toThrow(/VITE_API_BASE_URL/)
+    expect(() => checkImageBaseUrl(value)).not.toThrow(/DEV_API_BASE_URL/)
   })
 
   it('defaults to the local storage service’s public bucket', () => {
@@ -109,6 +109,6 @@ describe('checkViewerOrigin', () => {
   })
 
   it('still allows plain http on 127.0.0.1 for the viewer only', () => {
-    expect(() => checkApiOrigin('http://127.0.0.1:8000')).toThrow(/VITE_API_BASE_URL/)
+    expect(() => checkDevApiOrigin('http://127.0.0.1:8000')).toThrow(/DEV_API_BASE_URL/)
   })
 })

@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { ORIGIN, fakeApi, json } from '@/test/fakeApi'
+import { COUNTS_PATH, ORIGIN, fakeApi, json, pagesFallback } from '@/test/fakeApi'
 import { ApiError, createApi } from './client'
 
 describe('createApi', () => {
-  it('reads a finish with GET, no credentials and no redirects', async () => {
+  it('reads a finish’s data file on the site’s own origin, with GET, no credentials and no redirects', async () => {
     const fake = fakeApi()
     fake.reply(json([]))
     const api = createApi({ baseUrl: ORIGIN, fetch: fake.fetch })
     expect(await api.finishCombos('knives', 'karambit', 'doppler-ruby')).toEqual([])
     expect(fake.requests).toEqual([
       {
-        url: `${ORIGIN}/knives/karambit/doppler-ruby/combos`,
+        url: `${ORIGIN}/data/knives/karambit/doppler-ruby.json`,
         method: 'GET',
         credentials: 'omit',
         redirect: 'error',
@@ -18,33 +18,53 @@ describe('createApi', () => {
     ])
   })
 
-  it('encodes slugs, so a request stays on the API origin', async () => {
+  it.each([
+    ['a/b', 'mogul'],
+    ['..', '..'],
+    ['specialist', '%2e%2e'],
+    ['specialist', '//elsewhere.example'],
+    ['Specialist', 'mogul'],
+    ['', 'mogul'],
+  ])('refuses the slugs %s and %s as not found, before fetch', async (type, finish) => {
     const fake = fakeApi()
-    fake.reply(json([]))
-    await createApi({ baseUrl: ORIGIN, fetch: fake.fetch }).finishCombos('gloves', 'a/b', '..')
-    expect(new URL(fake.requests[0].url).origin).toBe(ORIGIN)
-    expect(fake.requests[0].url).not.toContain('/a/b/')
+    const api = createApi({ baseUrl: ORIGIN, fetch: fake.fetch })
+    await expect(api.finishCombos('gloves', type, finish)).rejects.toEqual(new ApiError('not_found'))
+    expect(fake.requests).toEqual([])
   })
+
+  it.each(['https://combo.example/data', 'https://combo.example/', '/data', 'combo.example'])(
+    'refuses %s as the site’s origin',
+    (baseUrl) => {
+      expect(() => createApi({ baseUrl, fetch: fakeApi().fetch })).toThrow(/origin/)
+    },
+  )
 
   it('names why a request failed', async () => {
     const fake = fakeApi()
     const api = createApi({ baseUrl: ORIGIN, fetch: fake.fetch })
-    fake.reply(json({ detail: 'Not Found' }, 404), json({}, 503), 'network-error')
-    for (const reason of ['not_found', 'http', 'network']) {
+    fake.reply(
+      json({ detail: 'Not Found' }, 404),
+      pagesFallback(),
+      json({}, 503),
+      json({ not: 'a list' }),
+      'network-error',
+    )
+    for (const reason of ['not_found', 'not_found', 'http', 'http', 'network']) {
       await expect(api.finishCombos('gloves', 'specialist', 'mogul')).rejects.toEqual(
         new ApiError(reason as ApiError['reason']),
       )
     }
   })
 
-  it('reads the combo counts with GET, no credentials and no redirects', async () => {
+  it('reads the combo counts from /data/combo-counts.json', async () => {
     const fake = fakeApi()
     const counts = { gloves: { specialist: { mogul: 2 } }, knives: { karambit: { fade: 1 } } }
     fake.reply(json(counts))
     const api = createApi({ baseUrl: ORIGIN, fetch: fake.fetch })
     expect(await api.comboCounts()).toEqual(counts)
+    expect(COUNTS_PATH).toBe('/data/combo-counts.json')
     expect(fake.requests).toEqual([
-      { url: `${ORIGIN}/combo-counts`, method: 'GET', credentials: 'omit', redirect: 'error' },
+      { url: `${ORIGIN}/data/combo-counts.json`, method: 'GET', credentials: 'omit', redirect: 'error' },
     ])
   })
 
@@ -57,6 +77,7 @@ describe('createApi', () => {
 
   it.each([
     ['a 404', json({ detail: 'Not Found' }, 404), 'not_found'],
+    ['the page Pages serves for a missing file', pagesFallback(), 'not_found'],
     ['a 503', json({}, 503), 'http'],
     ['no response', 'network-error' as const, 'network'],
     ['a list', json([]), 'http'],
@@ -66,6 +87,7 @@ describe('createApi', () => {
     ['a negative count', json({ gloves: {}, knives: { karambit: { fade: -1 } } }), 'http'],
     ['a fractional count', json({ gloves: { specialist: { mogul: 1.5 } }, knives: {} }), 'http'],
     ['a count as text', json({ gloves: { specialist: { mogul: '2' } }, knives: {} }), 'http'],
+    ['JSON that does not parse', new Response('{', { headers: { 'Content-Type': 'application/json' } }), 'http'],
   ])('refuses counts after %s', async (_, reply, reason) => {
     const fake = fakeApi()
     fake.reply(reply)

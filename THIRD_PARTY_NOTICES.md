@@ -62,7 +62,7 @@ SOFTWARE.
 
 ## Montserrat
 
-The admin dashboard (`admin/`) bundles the Montserrat font, weights 400 to 700, Latin subset, from the [`@fontsource/montserrat`](https://fontsource.org/fonts/montserrat) package. Montserrat is licensed under the SIL Open Font License, Version 1.1:
+The website (`website/`) and the admin dashboard (`admin/`) bundle the Montserrat font, weights 400 to 700, Latin subset, from the [`@fontsource/montserrat`](https://fontsource.org/fonts/montserrat) package. Montserrat is licensed under the SIL Open Font License, Version 1.1:
 
 ```text
 Copyright 2011 The Montserrat Project Authors (https://github.com/JulietaUla/Montserrat) Montserrat-Italic[wght].ttf: Copyright 2011 The Montserrat Project Authors (https://github.com/JulietaUla/Montserrat)

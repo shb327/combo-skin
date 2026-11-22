@@ -1,9 +1,11 @@
-/** The origins the site talks to: the API, from VITE_API_BASE_URL, our image bucket (screenshots
- * and the copies of the catalog's pictures), from VITE_IMAGE_BASE_URL, and the 3D viewer, from
- * VITE_VIEWER_ORIGIN. Used by vite.config.ts and tests. The same rules as the admin
+/** The origins the site uses: our image bucket (screenshots and the copies of the catalog's
+ * pictures), from VITE_IMAGE_BASE_URL, and the 3D viewer, from VITE_VIEWER_ORIGIN, both built
+ * into the bundle; and, for the dev and preview servers only, the local API that answers
+ * `/data/`, from DEV_API_BASE_URL. Used by vite.config.ts and tests. The same rules as the admin
  * dashboard's (admin/src/api/origin.ts). */
 
-export const DEFAULT_API_ORIGIN = 'http://localhost:8000'
+/** The local API the dev and preview servers read `/data/` from. Never in the bundle. */
+export const DEFAULT_DEV_API_ORIGIN = 'http://localhost:8000'
 /** The public bucket of the Compose stack's local storage service (path-style). */
 export const DEFAULT_IMAGE_BASE_URL = 'http://localhost:9000/local-images'
 /** The viewer's local production build (`vite preview` in the viewer project). */
@@ -34,8 +36,8 @@ export function checkOrigin(
   return value
 }
 
-export function checkApiOrigin(value: string): string {
-  return checkOrigin('VITE_API_BASE_URL', 'https://api.example.com', value)
+export function checkDevApiOrigin(value: string): string {
+  return checkOrigin('DEV_API_BASE_URL', 'http://localhost:8000', value)
 }
 
 /** The public bucket's base URL, as the API's IMAGE_BASE_URL: http(s), a host, an optional port
@@ -65,8 +67,8 @@ export function checkViewerOrigin(value: string): string {
 }
 
 /** The configured origin, or the local API when the variable is unset or empty. */
-export function apiOrigin(value: string | undefined): string {
-  return value ? checkApiOrigin(value) : DEFAULT_API_ORIGIN
+export function devApiOrigin(value: string | undefined): string {
+  return value ? checkDevApiOrigin(value) : DEFAULT_DEV_API_ORIGIN
 }
 
 /** The configured image base URL, or the local bucket when unset or empty. */

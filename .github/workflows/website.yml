@@ -39,3 +39,23 @@ jobs:
             echo "::error::The build references /src/ paths; import the files instead."
             exit 1
           fi
+      # The site bundles Montserrat and loads nothing from Google's font hosts.
+      - name: Check the build bundles Montserrat and no Google fonts
+        run: |
+          if grep -rlE 'fonts\.(googleapis|gstatic)\.com' dist; then
+            echo "::error::The build references Google's font hosts."
+            exit 1
+          fi
+          ls dist/assets | grep -q 'montserrat-latin-400-normal-.*\.woff2'
+      # The client reads its data files from its own origin: the old API setting is gone.
+      - name: Check VITE_API_BASE_URL is gone and stops the build
+        run: |
+          if grep -rn VITE_API_BASE_URL src .env.example; then
+            echo "::error::VITE_API_BASE_URL is still used; it was replaced by DEV_API_BASE_URL."
+            exit 1
+          fi
+          if VITE_API_BASE_URL=http://localhost:8000 npx vite build --outDir /tmp/refused 2> refused.log; then
+            echo "::error::A build with VITE_API_BASE_URL set did not stop."
+            exit 1
+          fi
+          grep -q 'replaced by DEV_API_BASE_URL' refused.log

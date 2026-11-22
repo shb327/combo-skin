@@ -15,7 +15,7 @@ In Counter-Strike 2, players equip cosmetic gloves and knives, each available in
 - **View a combo in 3D**: "View in 3D" on a card opens the combo in first person in a window over the page, with the game's inspect and knife swings and a choice of map and agent (see View in 3D).
 - **Search** gloves and knives by name from the top bar.
 
-Combos come from the Combo Skin API ([`api/`](../api/README.md)): they are entered in the admin dashboard, and only published combos are shown. Each card shows the combo's in-game screenshot, drawn by a screenshot worker and watermarked by the API; a combo without one yet, or whose screenshot fails to load, shows the catalog pictures of its gloves and knife instead.
+Combos come from the Combo Skin API ([`api/`](../api/README.md)): they are entered in the admin dashboard, and only published combos are shown. The live site has no server: the publish command ([`deploy/`](../deploy/README.md)) builds it with the published combos inside it as static data files and deploys it to Cloudflare Pages (see Publishing). Each card shows the combo's in-game screenshot, drawn by a screenshot worker and watermarked by the API; a combo without one yet, or whose screenshot fails to load, shows the catalog pictures of its gloves and knife instead.
 
 ## View in 3D
 
@@ -59,7 +59,7 @@ npm run dev
 
 Open the local address Vite prints (port 5173 by default). No `.env` file is needed; see Configuration for the optional settings.
 
-Combos pages read the API at `http://localhost:8000` by default. To see combos, start the API with Docker Compose as described in [`api/README.md`](../api/README.md); combos appear once they are published in the admin dashboard. Without the API, every other page works, type and finish cards show no combo counts and no filter, and a combos page says "Combos could not be loaded." with a "Try again" button.
+The dev server answers the site's data files (`/data/...`) from the API at `http://localhost:8000` by default, so combos pages show the dashboard's published combos live. To see combos, start the API with Docker Compose as described in [`api/README.md`](../api/README.md); combos appear once they are published in the admin dashboard. Without the API, every other page works, type and finish cards show no combo counts and no filter, and a combos page says "Combos could not be loaded." with a "Try again" button.
 
 ## Scripts
 
@@ -69,7 +69,7 @@ Combos pages read the API at `http://localhost:8000` by default. To see combos, 
 | `npm run build` | Type-checks (`tsc -b`) and builds the production bundle into `dist/`. |
 | `npm run lint` | Runs ESLint over the project. |
 | `npm test` | Runs the tests with [Vitest](https://vitest.dev/), against a fake API. |
-| `npm run preview` | Serves the production build from `dist/` locally. |
+| `npm run preview` | Serves the production build from `dist/` locally, with `/data/...` answered from the API like the dev server. |
 | `npm run api:types` | Regenerates `src/api/schema.d.ts` from `../api/openapi.json`. Run it after the API's OpenAPI snapshot changes. |
 | `npm run api:types:check` | Exits 1 if `src/api/schema.d.ts` is out of date. |
 
@@ -81,16 +81,16 @@ Optional settings live in `website/.env`, which is never committed (see [`.env.e
 
 | Variable | Example | Meaning |
 | --- | --- | --- |
-| `VITE_API_BASE_URL` | `https://api.example.com` | Optional. The API's origin; `http://localhost:8000` when unset. Exactly an origin: `http` or `https`, a host and an optional port, with no path, trailing slash, query or user info; plain `http` only for `localhost`. Any other value stops the dev server and the build with an error naming the variable. |
+| `DEV_API_BASE_URL` | `http://localhost:8000` | Optional. The API the dev and preview servers read `/data/...` from; `http://localhost:8000` when unset. Never built into the site. Exactly an origin: `http` or `https`, a host and an optional port, with no path, trailing slash, query or user info; plain `http` only for `localhost`. Any other value stops the dev server and the build with an error naming the variable. The old `VITE_API_BASE_URL` is refused with a note to use this one. |
 | `VITE_IMAGE_BASE_URL` | `https://images.example.com` | Optional. The base URL of the API's public image bucket, where combo screenshots and our copies of the catalog's pictures load from: `http://localhost:9000/local-images` (the public bucket of the Compose stack's storage service) when unset. `https`, or plain `http` on `localhost`; a path is allowed, a query or fragment is not. An invalid value stops the dev server and the build with an error naming the variable; the old `VITE_IMAGE_ORIGIN` is refused with a note to use this one. |
-| `VITE_VIEWER_ORIGIN` | `https://viewer.example.com` | Optional. The 3D viewer's origin for "View in 3D"; `http://127.0.0.1:5321` (the viewer's local production build, `vite preview` in the viewer project) when unset. The same rules as `VITE_API_BASE_URL`, except that plain `http` is also allowed for `127.0.0.1`; an invalid value stops the dev server and the build with an error naming the variable. Production sets the hosted viewer. |
+| `VITE_VIEWER_ORIGIN` | `https://viewer.example.com` | Optional. The 3D viewer's origin for "View in 3D"; `http://127.0.0.1:5321` (the viewer's local production build, `vite preview` in the viewer project) when unset. The same rules as `DEV_API_BASE_URL`, except that plain `http` is also allowed for `127.0.0.1`; an invalid value stops the dev server and the build with an error naming the variable. Production sets the hosted viewer. |
 | `DEV_ALLOWED_HOSTS` | `tunnel.example.com` | Optional. Comma-separated extra hosts the dev server accepts, for example a tunnel to your machine. Dev server only. |
 
 Finish and agent pictures load from our copies in the image bucket: `src/data/catalog.json` and `agents.json` give each one's `image_key`, under `VITE_IMAGE_BASE_URL`, and keep the game's own URL as `image`. If our copy fails to load, the picture loads once from the game's image host instead; the browser sends neither a referrer. The copies are made by the API's `copy-images` command (see the Catalog section of [`api/README.md`](../api/README.md)). Combo cards show the combo's screenshot: an `img` with a `srcset` of its three WebP versions (640, 1280 and 1920 pixels wide), `sizes="(min-width: 1024px) 50vw, 100vw"` to match the one- and two-column layouts, a fixed width and height so nothing shifts while it loads, lazy loading and no referrer. Screenshots load only from our image bucket; a URL on any other host, a combo without a screenshot, or an image that fails to load shows the catalog pictures, from the API's answer: our copy, then the game's. Glove and knife type images and the home page artwork are stored in the repository, imported in code and bundled by the build.
 
-The API answers the site's requests from any origin (see Public CORS in [`api/README.md`](../api/README.md)); the site sends them without cookies.
+The site sends its data requests to its own origin only, without cookies.
 
-`VITE_` variables, including `VITE_API_BASE_URL`, are built into the client bundle, so never put a secret in `.env`.
+`VITE_` variables are built into the client bundle, so never put a secret in `.env`.
 
 To reach the dev server through a tunnel, add the tunnel's host to `website/.env` and restart `npm run dev`:
 
@@ -107,7 +107,7 @@ Without it, Vite answers requests for any other host with 403. `DEV_ALLOWED_HOST
 | `src/pages/` | One component per route: `Home`, `SearchGloves`, `GloveFinishes`, `SearchKnives`, `KnifeFinishes`, `Combos`. Routes are defined in `src/App.tsx`. |
 | `src/components/` | Shared UI: app bar with search, hero, item cards, footer. |
 | `src/viewer/` | "View in 3D": the viewer's address and load fields for a combo (`params.ts`), its events and the page's error text (`messages.ts`), what the viewer can do (`features.ts`), the agents to choose from (`agents.ts`), the WebGL2 and data-saving checks (`webgl.ts`), the open window and the visit's flags and choice (`state.ts`), the window's address and opening (`ViewerHost.tsx`, `open.ts`), the window (`ViewerWindow.tsx`), its controls (`ViewerControls.tsx`) and the iframe (`ComboViewer.tsx`). The card's box with its button is `src/components/ComboPictures.tsx`. |
-| `src/api/` | The API client (`client.ts`, the only module that makes requests), its types generated from the OpenAPI snapshot (`schema.d.ts`), the combos and counts queries (`queries.ts`, with the count helpers in `counts.ts`), and the API origin, image origin, picture and screenshot host rules. |
+| `src/api/` | The data client (`client.ts`, the only module that makes requests), its types generated from the API's OpenAPI snapshot (`schema.d.ts`), the combos and counts queries (`queries.ts`, with the count helpers in `counts.ts`), the dev and preview servers' `/data/` answers from the API (`devData.ts`), and the image origin, picture and screenshot host rules. |
 | `src/data/` | The generated knife and glove catalog (`catalog.json`, read by `gloves.ts` and `knives.ts`) and agent list (`agents.json`, read by `src/viewer/agents.ts`). |
 | `src/assets/` | Images bundled with the site: logos, glove and knife type images, the home page artwork (`hero/`). |
 | `src/test/` | Test helpers: the fake API, a fake viewer (`viewer.ts`) and a renderer for the whole site. Tests sit next to the code as `*.test.ts(x)`. |
@@ -123,4 +123,11 @@ Type and finish slugs (`bloodhound`, `doppler-phase-2`) are the ones in the site
 
 **Agents** come from `agents.json`, generated by the same tooling from the same data: each agent's definition index, name, team, the game's image URL and our copy's key, Counter-Terrorists first, then Terrorists, each by name. Only the 3D window uses it, to name and picture the agents the viewer can draw; it is in the window's own chunk. Never edit it by hand either.
 
-**Combos** are not in the repository. The combos pages ask the API for the published combos of their finish (`GET /gloves/{type}/{finish}/combos`, `GET /knives/{type}/{finish}/combos`) and show them in the order the API returns: highest rating first. The type and finish pages ask once for every finish's count (`GET /combo-counts`) and keep it for 5 minutes, like the combos; when a combos page loads, its finish's count is updated to match. Combos are added, rated and published in the admin dashboard ([`admin/`](../admin/README.md)).
+**Combos** are not in the repository. The combos pages read the published combos of their finish from a data file on the site's own origin (`/data/gloves/{type}/{finish}.json`, `/data/knives/{type}/{finish}.json`) and show them in its order: highest rating first. The type and finish pages read every finish's count once (`/data/combo-counts.json`) and keep it for 5 minutes, like the combos; when a combos page loads, its finish's count is updated to match. A missing file is "not found": Pages answers it with the app's page, which is not JSON. In production the publish command writes these files from the API's public routes (`GET /{kind}/{type}/{finish}/combos` and `GET /combo-counts`), in exactly the API's shape; in development the dev server answers them from the same routes. Combos are added, rated and published in the admin dashboard ([`admin/`](../admin/README.md)).
+
+## Publishing
+
+The site is published from the back office Mac with `uv run --project deploy python -m combo_publish publish`: it builds this folder from the tip of `origin/main` with the production settings (`VITE_IMAGE_BASE_URL=https://img.combo.skin`, `VITE_VIEWER_ORIGIN=https://view.combo.skin`), adds the data files and the `_headers` file (security headers and the Content Security Policy), uploads new images to `img.combo.skin`, and deploys to Cloudflare Pages. A merge goes live on the next publish. See [`deploy/README.md`](../deploy/README.md) for the command, the headers and the runbooks.
+
+- **Fonts.** Montserrat is bundled from `@fontsource/montserrat` (weights 400 to 700, Latin), as the admin does; the site loads nothing from Google's font hosts, as its CSP requires.
+- **After a new deployment**, a page loaded from the older one may ask for a lazy chunk that is gone; it then reloads once (`src/staleChunks.ts`). A second failure in the same visit shows the error.

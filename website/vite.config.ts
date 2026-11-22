@@ -3,21 +3,25 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from "@tailwindcss/vite";
 import * as path from "node:path";
-import { apiOrigin, imageBaseUrl, viewerOrigin } from "./src/api/origin";
+import { devApiOrigin, imageBaseUrl, viewerOrigin } from "./src/api/origin";
+import { refuseRemovedSettings } from "./scripts/removedSettings";
+import { dataProxy } from "./src/api/devData";
 
 export default defineConfig(({ mode }) => {
-  // DEV_ALLOWED_HOSTS has no VITE_ prefix, so it is never exposed to client code.
+  // DEV_ALLOWED_HOSTS and DEV_API_BASE_URL have no VITE_ prefix, so they never reach client code.
   const env = loadEnv(mode, __dirname, '')
   const allowedHosts = (env.DEV_ALLOWED_HOSTS ?? '')
     .split(',')
     .map((host) => host.trim())
     .filter(Boolean)
-  // Fails, naming VITE_API_BASE_URL, before the dev server or a build starts.
-  const origin = apiOrigin(process.env.VITE_API_BASE_URL ?? env.VITE_API_BASE_URL)
-  // The same for VITE_IMAGE_BASE_URL, our bucket of screenshots and catalog pictures.
-  if (process.env.VITE_IMAGE_ORIGIN ?? env.VITE_IMAGE_ORIGIN) {
-    throw new Error('VITE_IMAGE_ORIGIN was replaced by VITE_IMAGE_BASE_URL, the bucket\'s base URL')
-  }
+  // Settings that no longer exist stop the dev server and the build, naming their replacement.
+  refuseRemovedSettings({
+    VITE_API_BASE_URL: process.env.VITE_API_BASE_URL ?? env.VITE_API_BASE_URL,
+    VITE_IMAGE_ORIGIN: process.env.VITE_IMAGE_ORIGIN ?? env.VITE_IMAGE_ORIGIN,
+  })
+  // The local API that answers /data/ on the dev and preview servers. Fails, naming the variable.
+  const api = devApiOrigin(process.env.DEV_API_BASE_URL ?? env.DEV_API_BASE_URL)
+  // Fails, naming VITE_IMAGE_BASE_URL, our bucket of screenshots and catalog pictures.
   const images = imageBaseUrl(process.env.VITE_IMAGE_BASE_URL ?? env.VITE_IMAGE_BASE_URL)
   // And for VITE_VIEWER_ORIGIN, the 3D viewer shown by "View in 3D".
   const viewer = viewerOrigin(process.env.VITE_VIEWER_ORIGIN ?? env.VITE_VIEWER_ORIGIN)
@@ -26,9 +30,18 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       tailwindcss(),
+      {
+        // Production serves /data/ as files; the dev and preview servers ask the local API.
+        name: 'combo-skin-dev-data',
+        configureServer(server) {
+          server.middlewares.use(dataProxy(api))
+        },
+        configurePreviewServer(server) {
+          server.middlewares.use(dataProxy(api))
+        },
+      },
     ],
     define: {
-      'import.meta.env.VITE_API_BASE_URL': JSON.stringify(origin),
       'import.meta.env.VITE_IMAGE_BASE_URL': JSON.stringify(images),
       'import.meta.env.VITE_VIEWER_ORIGIN': JSON.stringify(viewer),
     },

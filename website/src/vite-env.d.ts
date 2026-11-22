@@ -9,8 +9,6 @@ declare module 'swiper/css/autoplay' {}
 declare module 'swiper/css/controller' {}
 
 interface ImportMetaEnv {
-  /** The API origin, checked and defaulted by vite.config.ts. */
-  readonly VITE_API_BASE_URL: string
   /** Our image bucket's base URL (screenshots and catalog pictures), checked and defaulted by
    * vite.config.ts. */
   readonly VITE_IMAGE_BASE_URL: string
