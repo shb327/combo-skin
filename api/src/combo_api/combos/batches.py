@@ -68,7 +68,7 @@ async def save(
     glove_finish = glove[0] if glove else None
     knife_types: set[int] = set()
 
-    creates: list[tuple[BatchCreate, Finish, int | None]] = []
+    creates: list[tuple[BatchCreate, Finish, int | None, queries.GroupIds]] = []
     for index, entry in enumerate(batch.create):
         loc: rules.Loc = ("body", "create", index)
         knife_type = await rules.find_type(db, "knife", entry.knife_type)
@@ -86,13 +86,20 @@ async def save(
         knife_types.add(knife_type.id)
         if not (finish.active and knife_type.active):
             problems.add(loc, "finish_retired", "This finish is no longer in the game")
-        if glove_finish is not None:
-            rules.check_conditions(glove_finish, entry.glove, (*loc, "glove"), problems)
+        glove_group = None
+        if glove is not None:
+            rules.check_conditions(glove[0], entry.glove, (*loc, "glove"), problems)
+            glove_group = await rules.pattern_group_id(
+                db, *glove, entry.glove, (*loc, "glove"), problems
+            )
         rules.check_conditions(finish, entry.knife, (*loc, "knife"), problems)
+        knife_group = await rules.pattern_group_id(
+            db, finish, knife_type, entry.knife, (*loc, "knife"), problems
+        )
         agent = await rules.agent_id(
             db, entry.screenshot_agent, (*loc, "screenshot_agent"), problems
         )
-        creates.append((entry, finish, agent))
+        creates.append((entry, finish, agent, (glove_group, knife_group)))
 
     updates: list[tuple[BatchUpdate, Combo]] = []
     rows = await queries.lock(db, [change.id for change in batch.update])
@@ -118,7 +125,7 @@ async def save(
         raise problems.error()
     if any(row.version != change.version for change, row in updates):
         raise refuse(409, "version_conflict")
-    for _, finish, _ in creates:
+    for _, finish, _, _ in creates:
         if await queries.pairing_exists(db, glove_finish, finish):
             raise refuse(409, "combo_exists")
 
@@ -134,8 +141,9 @@ async def save(
             agent,
             current.id,
             now,
+            groups,
         )
-        for entry, finish, agent in creates
+        for entry, finish, agent, groups in creates
     ]
     await queries.insert(db, created)
     for change, row in updates:

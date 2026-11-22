@@ -1,6 +1,8 @@
 /** Inputs for combo values. Each shows its message next to it and is linked to it for
  * assistive technology. */
 import { useState, type ReactNode, type Ref } from 'react'
+import type { GroupChoice } from './patterns'
+import { SpecialPattern } from './SpecialPattern'
 import { ERROR_TEXT, INPUT } from './styles'
 import {
   CHECKS,
@@ -84,7 +86,8 @@ export function RatingField({
   )
 }
 
-/** Float range and pattern seeds for one item. A finish without a float range takes neither. */
+/** Float range and pattern seeds for one item, and its special pattern where groups exist for
+ * it. A finish without a float range takes neither. */
 export function ConditionsFields({
   id,
   legend,
@@ -94,6 +97,7 @@ export function ConditionsFields({
   onChange,
   actions,
   showRange = true,
+  special,
 }: {
   id: string
   legend: string
@@ -104,11 +108,15 @@ export function ConditionsFields({
   actions?: ReactNode
   /** Off when `range` is not one finish's range, as for every knife of a batch. */
   showRange?: boolean
+  /** The groups that can be picked. For every knife of a batch (`perKnife`), a group gives each
+   * knife its own seed, so the batch-wide seeds give way to it. */
+  special?: { choices: GroupChoice[]; perKnife?: boolean }
 }) {
   const [removed, setRemoved] = useState(0)
   const vanilla = range.min === null || range.max === null
   const hint = showRange ? rangeHint(range) : ''
-  const field = (key: keyof ConditionsText, label: string, extra: object = {}) => (
+  const perKnife = special?.perKnife && value.group ? value.group : null
+  const field = (key: 'from' | 'to' | 'seeds', label: string, extra: object = {}) => (
     <div className={key === 'seeds' ? 'w-full sm:flex-1' : 'w-28'}>
       <label htmlFor={`${id}-${key}`} className="block text-sm">
         {label}
@@ -136,16 +144,35 @@ export function ConditionsFields({
         <div className="flex flex-wrap gap-3">
           {field('from', 'Float from', { inputMode: 'decimal', placeholder: hint.split(' – ')[0] })}
           {field('to', 'Float to', { inputMode: 'decimal', placeholder: hint.split(' – ')[1] })}
-          {field('seeds', 'Pattern seeds', {
-            placeholder: 'Any pattern',
-            onBlur: () => {
-              const parsed = parseSeeds(value.seeds)
-              if (!parsed.ok) return
-              setRemoved(parsed.removed ?? 0)
-              if (formatSeeds(parsed.value) !== value.seeds) onChange({ ...value, seeds: formatSeeds(parsed.value) })
-            },
-          })}
+          {perKnife ? (
+            <p className="w-full self-end pb-2 text-sm text-white/70 sm:flex-1">
+              Each knife gets its own {perKnife.name} seed.
+            </p>
+          ) : (
+            field('seeds', 'Pattern seeds', {
+              placeholder: 'Any pattern',
+              onBlur: () => {
+                const parsed = parseSeeds(value.seeds)
+                if (!parsed.ok) return
+                setRemoved(parsed.removed ?? 0)
+                if (formatSeeds(parsed.value) !== value.seeds) onChange({ ...value, seeds: formatSeeds(parsed.value) })
+              },
+            })
+          )}
         </div>
+      )}
+      {special && (
+        <SpecialPattern
+          id={`${id}-group`}
+          choices={special.choices}
+          value={value.group}
+          error={errors.group}
+          onPick={(choice) => {
+            setRemoved(0)
+            onChange({ ...value, seeds: choice.seed === undefined ? '' : String(choice.seed), group: choice.pick })
+          }}
+          onRemove={() => onChange({ ...value, group: null })}
+        />
       )}
       {!vanilla && hint && <p className="mt-2 text-xs text-white/50">This finish: {hint}</p>}
       {removed > 0 && (

@@ -82,6 +82,8 @@ class Conditions(BaseModel):
     float_from: FloatBound | None = None
     float_to: FloatBound | None = None
     seeds: Seeds = []
+    # The pattern group the seeds came from (spec 020), by slug; null for none.
+    pattern_group: Slug | None = None
 
     @model_validator(mode="after")
     def complete_range(self) -> Self:
@@ -274,6 +276,13 @@ class ScreenshotSettingsIn(BaseModel):
     default_agent: AgentIndex
 
 
+class PatternGroupRef(BaseModel):
+    """The pattern group an item's seeds came from: its slug and name, nothing more."""
+
+    slug: str
+    name: str
+
+
 class Item(BaseModel):
     type_slug: str
     type_name: str
@@ -295,6 +304,8 @@ class Item(BaseModel):
     float_from: float | None
     float_to: float | None
     seeds: list[int]
+    # The pattern group the seeds came from; null for none, and on a candidate.
+    pattern_group: PatternGroupRef | None
 
 
 class PublicCombo(BaseModel):

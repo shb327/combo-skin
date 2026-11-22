@@ -16,7 +16,7 @@ from combo_api.admins.deps import (
     error_response,
     refuse,
 )
-from combo_api.catalog.models import Finish
+from combo_api.catalog.models import Finish, ItemType
 from combo_api.catalog.snapshot import Kind
 from combo_api.combos import batches, order, queries, rules
 from combo_api.combos.models import Combo, Status
@@ -103,10 +103,15 @@ async def create_combo(
     problems = rules.Problems()
     glove = await rules.resolve(db, "glove", combo.glove, ("body", "glove"), problems, new=True)
     knife = await rules.resolve(db, "knife", combo.knife, ("body", "knife"), problems, new=True)
-    if glove:
-        rules.check_conditions(glove[0], combo.glove, ("body", "glove"), problems)
-    if knife:
-        rules.check_conditions(knife[0], combo.knife, ("body", "knife"), problems)
+    groups: list[int | None] = [None, None]
+    for index, (side, found, conditions) in enumerate(
+        (("glove", glove, combo.glove), ("knife", knife, combo.knife))
+    ):
+        if found:
+            rules.check_conditions(found[0], conditions, ("body", side), problems)
+            groups[index] = await rules.pattern_group_id(
+                db, *found, conditions, ("body", side), problems
+            )
     agent = await rules.agent_id(db, combo.screenshot_agent, ("body", "screenshot_agent"), problems)
     if glove is None or knife is None or problems.errors:
         raise problems.error()
@@ -122,6 +127,7 @@ async def create_combo(
         agent,
         current.id,
         clock.now(),
+        (groups[0], groups[1]),
     )
     await queries.insert(db, [row])
     await db.commit()
@@ -182,7 +188,10 @@ async def list_combos(
         else (Combo.updated_at.desc(), Combo.id.desc())
     )
     rows = (await db.execute(query.order_by(*order).limit(limit).offset(offset))).all()
-    return ComboPage(total=total or 0, items=[queries.admin_out(row, images) for row in rows])
+    groups = await queries.group_refs(db)
+    return ComboPage(
+        total=total or 0, items=[queries.admin_out(row, images, groups) for row in rows]
+    )
 
 
 async def finish_filter(
@@ -233,12 +242,17 @@ async def update_combo(
     if row.version != change.version:
         raise refuse(status.HTTP_409_CONFLICT, "version_conflict")
     problems = rules.Problems()
+    groups: dict[str, int | None] = {}
     for side, conditions, finish_id in (
         ("glove", change.glove, row.glove_finish_id),
         ("knife", change.knife, row.knife_finish_id),
     ):
         finish = await db.get_one(Finish, finish_id)
+        item_type = await db.get_one(ItemType, finish.item_type_id)
         rules.check_conditions(finish, conditions, ("body", side), problems)
+        groups[side] = await rules.pattern_group_id(
+            db, finish, item_type, conditions, ("body", side), problems
+        )
     agent = await rules.agent_id(
         db,
         change.screenshot_agent,
@@ -249,8 +263,8 @@ async def update_combo(
     if problems.errors:
         raise problems.error()
     for column, value in {
-        **queries.stored("glove", change.glove),
-        **queries.stored("knife", change.knife),
+        **queries.stored("glove", change.glove, groups["glove"]),
+        **queries.stored("knife", change.knife, groups["knife"]),
         "rating": decimal(change.rating),
         "description": change.description,
         "screenshot_agent_id": agent,

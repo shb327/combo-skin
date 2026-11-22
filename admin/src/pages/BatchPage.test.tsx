@@ -563,3 +563,136 @@ describe('an agent refused in a batch', () => {
     await waitFor(() => expect(search).toHaveAccessibleDescription('This agent is no longer in the game.'))
   })
 })
+
+describe('a special pattern for the batch', () => {
+  const CASE = `${BATCH}/case-hardened`
+  const everyKnife = () => screen.getByRole('group', { name: 'Knife' })
+  type Created = { knife_type: string; knife: Record<string, unknown> }
+  const sentKnives = (fake: FakeApi) =>
+    (JSON.parse(fake.to('POST /admin/batches')[0].body).create as Created[]).map((c) => [c.knife_type, c.knife])
+
+  async function pickForBatch(user: ReturnType<typeof renderApp>['user'], name: string) {
+    await user.type(await screen.findByLabelText('Top rating'), '9')
+    await user.click(within(everyKnife()).getByRole('button', { name: 'Add special pattern' }))
+    await user.click(within(everyKnife()).getByRole('button', { name }))
+  }
+
+  it('gives every new knife its own seed of the group', async () => {
+    const fake = new FakeApi().withSession()
+    const { user } = renderApp(CASE, fake)
+    await user.type(await screen.findByLabelText('Top rating'), '9')
+    expect(row('Karambit')).not.toHaveTextContent('Blue Gem')
+    await user.click(within(everyKnife()).getByRole('button', { name: 'Add special pattern' }))
+    const list = within(everyKnife()).getByRole('list', { name: 'Special patterns' })
+    expect(within(list).getAllByRole('button').map((b) => b.textContent)).toEqual(['Gold Gem', 'Blue Gem', 'Test Pattern'])
+    await user.click(within(list).getByRole('button', { name: 'Blue Gem' }))
+
+    expect(within(everyKnife()).getByRole('group', { name: 'Special pattern' })).toHaveTextContent('Blue Gem')
+    expect(within(everyKnife()).queryByLabelText('Pattern seeds')).toBeNull()
+    expect(everyKnife()).toHaveTextContent('Each knife gets its own Blue Gem seed.')
+    expect(row('Karambit')).toHaveTextContent('Blue Gem · 387')
+    expect(row('Butterfly Knife')).toHaveTextContent('Blue Gem · 670')
+    expect(row('M9 Bayonet')).toHaveTextContent('Blue Gem · 601')
+    await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
+    await waitFor(() => expect(fake.to('POST /admin/batches')).toHaveLength(1))
+    const knife = (seed: number) => ({ float_from: null, float_to: null, seeds: [seed], pattern_group: 'blue-gem' })
+    expect(sentKnives(fake)).toEqual([
+      ['karambit', knife(387)],
+      ['butterfly', knife(670)],
+      ['m9-bayonet', knife(601)],
+    ])
+    expect(fake.store.combos.map((c) => c.knife.pattern_group?.name)).toEqual(['Blue Gem', 'Blue Gem', 'Blue Gem'])
+  })
+
+  it('says which knife the group does not cover, and sends it with any pattern', async () => {
+    const fake = new FakeApi().withSession()
+    const { user } = renderApp(CASE, fake)
+    await pickForBatch(user, 'Gold Gem')
+    expect(row('Karambit')).toHaveTextContent('Gold Gem · 128')
+    expect(row('Butterfly Knife')).toHaveTextContent('No Gold Gem for this knife')
+    expect(row('M9 Bayonet')).toHaveTextContent('Gold Gem · 92')
+    await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
+    await waitFor(() => expect(fake.to('POST /admin/batches')).toHaveLength(1))
+    expect(sentKnives(fake)).toEqual([
+      ['karambit', { float_from: null, float_to: null, seeds: [128], pattern_group: 'gold-gem' }],
+      ['butterfly', { float_from: null, float_to: null, seeds: [] }],
+      ['m9-bayonet', { float_from: null, float_to: null, seeds: [92], pattern_group: 'gold-gem' }],
+    ])
+  })
+
+  it('takes a knife own seeds and no group from its own knife values', async () => {
+    const fake = new FakeApi().withSession()
+    const { user } = renderApp(CASE, fake)
+    await pickForBatch(user, 'Gold Gem')
+    await user.click(screen.getByRole('button', { name: 'Own values for M9 Bayonet' }))
+    await user.click(screen.getByRole('button', { name: 'Set own knife values for M9 Bayonet' }))
+    const own = screen.getByRole('group', { name: 'Knife, M9 Bayonet only' })
+    expect(within(own).getByLabelText('Pattern seeds')).toHaveValue('92')
+    expect(within(own).getByRole('group', { name: 'Special pattern' })).toHaveTextContent('Gold Gem')
+    await user.click(within(own).getByRole('button', { name: 'Remove special pattern Gold Gem' }))
+    await user.clear(within(own).getByLabelText('Pattern seeds'))
+    await user.type(within(own).getByLabelText('Pattern seeds'), '1')
+    expect(row('M9 Bayonet')).not.toHaveTextContent('Gold Gem')
+    await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
+    await waitFor(() => expect(fake.to('POST /admin/batches')).toHaveLength(1))
+    expect(sentKnives(fake)[2]).toEqual(['m9-bayonet', { float_from: null, float_to: null, seeds: [1] }])
+    expect(sentKnives(fake)[0]).toEqual(['karambit', { float_from: null, float_to: null, seeds: [128], pattern_group: 'gold-gem' }])
+  })
+
+  it('returns a knife to the batch-wide group when its own values are cleared, and leaves existing combos alone', async () => {
+    const fake = new FakeApi().withSession()
+    const existing = fake.store.add({ glove: 'specialist/crimson-kimono', knife: 'karambit/case-hardened', rating: 9.5 })
+    const { user } = renderApp(CASE, fake)
+    await user.click(await screen.findByRole('checkbox', { name: 'Update Karambit' }))
+    await pickForBatch(user, 'Gold Gem')
+    expect(row('Karambit')).not.toHaveTextContent('Gold Gem')
+    await user.click(screen.getByRole('button', { name: 'Own values for M9 Bayonet' }))
+    await user.click(screen.getByRole('button', { name: 'Set own knife values for M9 Bayonet' }))
+    const own = screen.getByRole('group', { name: 'Knife, M9 Bayonet only' })
+    await user.click(within(own).getByRole('button', { name: 'Remove special pattern Gold Gem' }))
+    await user.click(within(own).getByRole('button', { name: 'Add special pattern' }))
+    expect(within(own).getAllByRole('button', { name: / · / }).map((b) => b.textContent)).toEqual(['Gold Gem · 92', 'Blue Gem · 601'])
+    await user.click(within(own).getByRole('button', { name: 'Blue Gem · 601' }))
+    expect(row('M9 Bayonet')).toHaveTextContent('Blue Gem · 601')
+    await user.click(screen.getByRole('button', { name: 'Clear own knife values for M9 Bayonet' }))
+    expect(row('M9 Bayonet')).toHaveTextContent('Gold Gem · 92')
+
+    await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
+    await waitFor(() => expect(fake.to('POST /admin/batches')).toHaveLength(1))
+    const body = JSON.parse(fake.to('POST /admin/batches')[0].body)
+    expect(body.create.map((c: Created) => [c.knife_type, c.knife])).toEqual([
+      ['butterfly', { float_from: null, float_to: null, seeds: [] }],
+      ['m9-bayonet', { float_from: null, float_to: null, seeds: [92], pattern_group: 'gold-gem' }],
+    ])
+    expect(body.update).toEqual([{ id: existing.id, version: 1, rating: 9, description: null }])
+    expect(fake.store.get(existing.id)?.knife.pattern_group).toBeNull()
+  })
+
+  it('returns to typed seeds when the batch-wide group is removed', async () => {
+    const fake = new FakeApi().withSession()
+    const { user } = renderApp(CASE, fake)
+    await pickForBatch(user, 'Blue Gem')
+    await user.click(within(everyKnife()).getByRole('button', { name: 'Remove special pattern Blue Gem' }))
+    expect(row('Karambit')).not.toHaveTextContent('Blue Gem')
+    await user.type(within(everyKnife()).getByLabelText('Pattern seeds'), '5')
+    await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
+    await waitFor(() => expect(fake.to('POST /admin/batches')).toHaveLength(1))
+    expect(sentKnives(fake).map(([, knife]) => knife)).toEqual(Array(3).fill({ float_from: null, float_to: null, seeds: [5] }))
+  })
+
+  it('offers nothing for a finish without groups', async () => {
+    renderApp(RUBY, new FakeApi().withSession())
+    await screen.findByLabelText('Top rating')
+    expect(screen.queryByRole('button', { name: 'Add special pattern' })).toBeNull()
+  })
+
+  it('shows a refusal of a row group on that row', async () => {
+    const fake = new FakeApi().withSession()
+    fake.next('POST /admin/batches', refusal([['body', 'create', 2, 'knife', 'pattern_group'], 'pattern_group_not_for_item']))
+    const { user } = renderApp(CASE, fake)
+    await pickForBatch(user, 'Blue Gem')
+    await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
+    await waitFor(() => expect(row('M9 Bayonet')).toHaveTextContent('Knife special pattern: This pattern group is not for this item.'))
+    expect(screen.getByRole('alert')).toHaveTextContent('M9 Bayonet, knife special pattern: This pattern group is not for this item.')
+  })
+})

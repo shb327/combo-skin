@@ -48,10 +48,12 @@ export const FIELD_LABELS: Record<string, string> = {
   'glove.from': 'Gloves float from',
   'glove.to': 'Gloves float to',
   'glove.seeds': 'Gloves pattern seeds',
+  'glove.group': 'Gloves special pattern',
   'glove.finish': 'Gloves',
   'knife.from': 'Knife float from',
   'knife.to': 'Knife float to',
   'knife.seeds': 'Knife pattern seeds',
+  'knife.group': 'Knife special pattern',
   'knife.finish': 'Knife',
   knife_type: 'Knife',
   agent: 'Screenshot agent',
@@ -89,7 +91,13 @@ export function checkCombo(
   return { errors, value: { rating: rating.value / 100, description: description.value, glove: items.glove, knife: items.knife } }
 }
 
-const SERVER_KEYS: Record<string, string> = { float_from: 'from', float_to: 'to', seeds: 'seeds', finish: 'finish' }
+const SERVER_KEYS: Record<string, string> = {
+  float_from: 'from',
+  float_to: 'to',
+  seeds: 'seeds',
+  pattern_group: 'group',
+  finish: 'finish',
+}
 
 /** The form field a server path names, in this form's keys. */
 export function fieldKey(serverField: string | null): string | null {
@@ -113,7 +121,12 @@ export function problemErrors(problems: Problem[]): { fields: FieldErrors; other
 
 /** Errors for a ConditionsFields component. */
 export function itemErrors(errors: FieldErrors, item: 'glove' | 'knife') {
-  return { from: errors[`${item}.from`], to: errors[`${item}.to`], seeds: errors[`${item}.seeds`] }
+  return {
+    from: errors[`${item}.from`],
+    to: errors[`${item}.to`],
+    seeds: errors[`${item}.seeds`],
+    group: errors[`${item}.group`],
+  }
 }
 
 /** The id of a field's input, for the error summary. */

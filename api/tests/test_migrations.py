@@ -22,6 +22,7 @@ def test_revision_history() -> None:
         "0005": "0004",
         "0006": "0005",
         "0007": "0006",
+        "0008": "0007",
     }
 
 
@@ -69,6 +70,8 @@ async def test_head_has_only_known_tables(engine: AsyncEngine) -> None:
             "workers",
             "combo_screenshots",
             "screenshot_jobs",
+            "pattern_groups",
+            "pattern_group_seeds",
         }
 
 

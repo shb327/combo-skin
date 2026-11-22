@@ -101,6 +101,7 @@ export function item(overrides: Partial<Item> & Pick<Item, 'type_slug' | 'finish
     float_from: null,
     float_to: null,
     seeds: [],
+    pattern_group: null,
     ...overrides,
   }
 }

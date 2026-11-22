@@ -30,9 +30,9 @@ describe('browsing types', () => {
     await screen.findByRole('combobox', { name: 'Find a knife' })
     const types = cards('Knife types')
     expect(types.map((t) => t.textContent)).toEqual([
-      'Butterfly Knife3 finishes',
-      'Karambit4 finishes',
-      'M9 Bayonet3 finishes',
+      'Butterfly Knife4 finishes',
+      'Karambit5 finishes',
+      'M9 Bayonet4 finishes',
     ])
     expect(types.map((t) => t.getAttribute('href'))).toEqual(['/knives/butterfly', '/knives/karambit', '/knives/m9-bayonet'])
     expect(fake.to('GET /knives')).toHaveLength(1)
@@ -86,6 +86,7 @@ describe('a type page', () => {
       '/knives/karambit/doppler-ruby',
       '/knives/karambit/doppler-sapphire',
       '/knives/karambit/blue-steel',
+      '/knives/karambit/case-hardened',
     ])
     expect(finishes[0]).toHaveTextContent('No float range')
     expect(finishes[1]).toHaveTextContent('Doppler (Ruby)')

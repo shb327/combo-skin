@@ -66,6 +66,7 @@ export const keys = {
   candidatesFor: (type: string, finish: string, knifeFinish: string) => ['candidates', type, finish, knifeFinish] as const,
   knifeOrder: ['knife-order'] as const,
   agents: ['agents'] as const,
+  patternGroups: ['pattern-groups'] as const,
   screenshotSettings: ['screenshot-settings'] as const,
 }
 
@@ -219,6 +220,17 @@ export function useAgents() {
     queryKey: keys.agents,
     staleTime: Infinity,
     queryFn: async () => (await api.request('get', '/admin/agents')).data ?? [],
+  })
+}
+
+/** Every pattern group, in display order. Groups never change once imported (spec 020), so
+ * they are loaded once per page load. */
+export function usePatternGroups() {
+  const api = useApi()
+  return useQuery({
+    queryKey: keys.patternGroups,
+    staleTime: Infinity,
+    queryFn: async () => (await api.request('get', '/admin/pattern-groups')).data ?? [],
   })
 }
 

@@ -244,3 +244,73 @@ describe('an agent refused by the API', () => {
     expect(within(agent).getByText('Bloody Darryl The Strapped | The Professionals')).toBeInTheDocument()
   })
 })
+
+describe('a special pattern', () => {
+  function withBlueGem() {
+    const fake = new FakeApi().withSession()
+    const combo = fake.store.add({
+      glove: 'specialist/crimson-kimono',
+      knife: 'karambit/case-hardened',
+      rating: 9,
+      knifeConditions: { seeds: [387], pattern_group: 'blue-gem' },
+    })
+    return { fake, combo, path: `/combos/${combo.id}` }
+  }
+  const knife = () => screen.getByRole('group', { name: 'Knife' })
+
+  it('shows the stored group and keeps it on Save', async () => {
+    const { fake, path } = withBlueGem()
+    const { user } = renderApp(path, fake)
+    const chip = await within(await screen.findByRole('group', { name: 'Knife' })).findByRole('group', { name: 'Special pattern' })
+    expect(chip).toHaveTextContent('Blue Gem')
+    expect(within(knife()).getByLabelText('Pattern seeds')).toHaveValue('387')
+    await user.clear(screen.getByLabelText('Rating'))
+    await user.type(screen.getByLabelText('Rating'), '9.5')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText('Saved. Version 2.')).toBeInTheDocument()
+    expect(JSON.parse(fake.to('PUT /admin/combos/{id}')[0].body).knife).toEqual({
+      float_from: null,
+      float_to: null,
+      seeds: [387],
+      pattern_group: 'blue-gem',
+    })
+    expect(within(knife()).getByRole('group', { name: 'Special pattern' })).toHaveTextContent('Blue Gem')
+  })
+
+  it('clears the group on Remove and Save, keeping the seeds', async () => {
+    const { fake, combo, path } = withBlueGem()
+    const { user } = renderApp(path, fake)
+    await user.click(await screen.findByRole('button', { name: 'Remove special pattern Blue Gem' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText('Saved. Version 2.')).toBeInTheDocument()
+    expect(JSON.parse(fake.to('PUT /admin/combos/{id}')[0].body).knife).not.toHaveProperty('pattern_group')
+    expect(fake.store.get(combo.id)?.knife).toMatchObject({ seeds: [387], pattern_group: null })
+  })
+
+  it('lists the knife groups to pick another', async () => {
+    const { fake, path } = withBlueGem()
+    const { user } = renderApp(path, fake)
+    await user.click(await screen.findByRole('button', { name: 'Remove special pattern Blue Gem' }))
+    await user.click(within(knife()).getByRole('button', { name: 'Add special pattern' }))
+    await user.click(within(knife()).getByRole('button', { name: 'Gold Gem · 128' }))
+    expect(within(knife()).getByLabelText('Pattern seeds')).toHaveValue('128')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByText('Saved. Version 2.')).toBeInTheDocument()
+    expect(JSON.parse(fake.to('PUT /admin/combos/{id}')[0].body).knife).toMatchObject({ seeds: [128], pattern_group: 'gold-gem' })
+  })
+
+  it('shows a changed group in a conflict', async () => {
+    const { fake, combo, path } = withBlueGem()
+    const { user } = renderApp(path, fake)
+    await user.click(await screen.findByRole('button', { name: 'Remove special pattern Blue Gem' }))
+    fake.store.changeAsAnother(combo.id, { rating: 7.5 })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(COMBO_MESSAGES.conflict)
+    const table = screen.getByRole('table')
+    expect(within(table).getAllByRole('row').map((r) => r.textContent)).toEqual([
+      'FieldTheirsYours',
+      'Rating7.509.00',
+      'Knife special patternBlue Gemnone',
+    ])
+  })
+})

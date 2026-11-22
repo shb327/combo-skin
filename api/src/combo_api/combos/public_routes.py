@@ -40,7 +40,8 @@ async def published(
     db: AsyncSession, query: Select[*queries.ComboColumns], base_url: str
 ) -> list[PublicCombo]:
     rows = (await db.execute(query.where(queries.PUBLISHED))).all()
-    return [queries.public_out(row, base_url) for row in rows]
+    groups = await queries.group_refs(db)
+    return [queries.public_out(row, base_url, groups) for row in rows]
 
 
 @router.get("/gloves/{type_slug}/{finish_slug}/combos", responses=NOT_FOUND)

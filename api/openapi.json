@@ -652,6 +652,19 @@
             ],
             "title": "Float To"
           },
+          "pattern_group": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pattern Group"
+          },
           "seeds": {
             "default": [],
             "items": {
@@ -1102,6 +1115,16 @@
             "title": "Paint Index",
             "type": "integer"
           },
+          "pattern_group": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PatternGroupRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "rarity": {
             "$ref": "#/components/schemas/Rarity"
           },
@@ -1136,7 +1159,8 @@
           "float_max",
           "float_from",
           "float_to",
-          "seeds"
+          "seeds",
+          "pattern_group"
         ],
         "title": "Item",
         "type": "object"
@@ -1175,6 +1199,19 @@
               }
             ],
             "title": "Float To"
+          },
+          "pattern_group": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pattern Group"
           },
           "seeds": {
             "default": [],
@@ -1534,6 +1571,97 @@
           "status"
         ],
         "title": "Live",
+        "type": "object"
+      },
+      "PatternGroupOut": {
+        "properties": {
+          "finish_slug": {
+            "title": "Finish Slug",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "seeds": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Seeds",
+            "type": "object"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/PatternSource"
+            },
+            "title": "Sources",
+            "type": "array"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "kind",
+          "finish_slug",
+          "seeds",
+          "sources"
+        ],
+        "title": "PatternGroupOut",
+        "type": "object"
+      },
+      "PatternGroupRef": {
+        "description": "The pattern group an item's seeds came from: its slug and name, nothing more.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "name"
+        ],
+        "title": "PatternGroupRef",
+        "type": "object"
+      },
+      "PatternSource": {
+        "properties": {
+          "author": {
+            "title": "Author",
+            "type": "string"
+          },
+          "checked": {
+            "title": "Checked",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "author",
+          "url",
+          "checked"
+        ],
+        "title": "PatternSource",
         "type": "object"
       },
       "PublicCombo": {
@@ -3407,6 +3535,62 @@
           }
         },
         "summary": "Admin Me",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/pattern-groups": {
+      "get": {
+        "description": "Every pattern group, in the groups file's order, with its seeds and sources.",
+        "operationId": "list_pattern_groups",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PatternGroupOut"
+                  },
+                  "title": "Response List Pattern Groups",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`not_authenticated`"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`origin_not_allowed` or `csrf_failed`"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "`internal_error`"
+          }
+        },
+        "summary": "List Pattern Groups",
         "tags": [
           "admin"
         ]

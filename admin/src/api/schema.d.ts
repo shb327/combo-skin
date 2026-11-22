@@ -261,6 +261,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/pattern-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Pattern Groups
+         * @description Every pattern group, in the groups file's order, with its seeds and sources.
+         */
+        get: operations["list_pattern_groups"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/screenshot-settings": {
         parameters: {
             query?: never;
@@ -906,6 +926,8 @@ export interface components {
             float_from?: number | null;
             /** Float To */
             float_to?: number | null;
+            /** Pattern Group */
+            pattern_group?: string | null;
             /**
              * Seeds
              * @default []
@@ -1045,6 +1067,7 @@ export interface components {
             image_url: string;
             /** Paint Index */
             paint_index: number;
+            pattern_group: components["schemas"]["PatternGroupRef"] | null;
             rarity: components["schemas"]["Rarity"];
             /** Seeds */
             seeds: number[];
@@ -1064,6 +1087,8 @@ export interface components {
             float_from?: number | null;
             /** Float To */
             float_to?: number | null;
+            /** Pattern Group */
+            pattern_group?: string | null;
             /**
              * Seeds
              * @default []
@@ -1193,6 +1218,44 @@ export interface components {
              * @constant
              */
             status: "ok";
+        };
+        /** PatternGroupOut */
+        PatternGroupOut: {
+            /** Finish Slug */
+            finish_slug: string;
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+            /** Seeds */
+            seeds: {
+                [key: string]: number;
+            };
+            /** Slug */
+            slug: string;
+            /** Sources */
+            sources: components["schemas"]["PatternSource"][];
+        };
+        /**
+         * PatternGroupRef
+         * @description The pattern group an item's seeds came from: its slug and name, nothing more.
+         */
+        PatternGroupRef: {
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+        };
+        /** PatternSource */
+        PatternSource: {
+            /** Author */
+            author: string;
+            /** Checked */
+            checked: string;
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
         };
         /** PublicCombo */
         PublicCombo: {
@@ -2344,6 +2407,53 @@ export interface operations {
             };
             /** @description `not_authenticated` */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `internal_error` */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    list_pattern_groups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatternGroupOut"][];
+                };
+            };
+            /** @description `not_authenticated` */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `origin_not_allowed` or `csrf_failed` */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

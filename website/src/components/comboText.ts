@@ -17,10 +17,15 @@ export function floatRange(item: ComboItem): string {
   return `${item.float_from} - ${item.float_to}`
 }
 
-/** "2, 179"; "Any" when any pattern goes; "None" for a finish that has no float. */
+/**
+ * "2, 179"; "Blue Gem · 387" when the seeds come from a pattern group; "Any" when any pattern
+ * goes; "None" for a finish that has no float.
+ */
 export function patternSeeds(item: ComboItem): string {
   if (hasNoFloat(item)) return 'None'
-  return item.seeds.length > 0 ? item.seeds.join(', ') : 'Any'
+  if (item.seeds.length === 0) return 'Any'
+  const seeds = item.seeds.join(', ')
+  return item.pattern_group ? `${item.pattern_group.name} · ${seeds}` : seeds
 }
 
 /** "combo" or "combos", for a count shown beside it. */

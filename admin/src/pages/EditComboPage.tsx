@@ -42,6 +42,10 @@ function seeds(text: ConditionsText) {
   return parsed.ok ? formatSeeds(parsed.value) || 'any' : text.seeds
 }
 
+function group(text: ConditionsText) {
+  return text.group?.name ?? 'none'
+}
+
 function rating(text: string) {
   const parsed = parseRating(text)
   return parsed.ok ? (parsed.value / 100).toFixed(2) : text
@@ -53,8 +57,10 @@ function differences(theirs: ComboText, mine: ComboText, agentName: (value: numb
     ['Rating', rating(theirs.rating), rating(mine.rating)],
     ['Gloves float', range(theirs.glove), range(mine.glove)],
     ['Gloves pattern seeds', seeds(theirs.glove), seeds(mine.glove)],
+    ['Gloves special pattern', group(theirs.glove), group(mine.glove)],
     ['Knife float', range(theirs.knife), range(mine.knife)],
     ['Knife pattern seeds', seeds(theirs.knife), seeds(mine.knife)],
+    ['Knife special pattern', group(theirs.knife), group(mine.knife)],
     ['Screenshot agent', agentName(theirs.agent), agentName(mine.agent)],
     ['Description', theirs.description.trim() || 'none', mine.description.trim() || 'none'],
   ]
@@ -321,6 +327,10 @@ export function EditComboPage() {
           prefix={PREFIX}
           values={values}
           ranges={ranges}
+          items={{
+            glove: { type: stored.glove.type_slug, finish: stored.glove.finish_slug },
+            knife: { type: stored.knife.type_slug, finish: stored.knife.finish_slug },
+          }}
           errors={errors}
           storedAgent={stored.screenshot_agent}
           onChange={(next) => {

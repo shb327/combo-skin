@@ -47,6 +47,16 @@ services:
       migrate:
         condition: service_completed_successfully
 
+  # Loads the committed pattern groups after the catalog they name. Safe to re-run; it refuses a
+  # file that changes a group already imported, and then the stack does not start.
+  patterns:
+    <<: *api
+    command: ["python", "-m", "combo_api.patterns", "import"]
+    restart: "no"
+    depends_on:
+      catalog:
+        condition: service_completed_successfully
+
   # S3-compatible object storage for screenshots: RustFS.
   storage:
     image: rustfs/rustfs:1.0.4@sha256:ed9210d6411d77ffceb70d94b964a3cb7d225983368bc25bebe01e995293dcc2
@@ -78,7 +88,7 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
-      catalog:
+      patterns:
         condition: service_completed_successfully
       storage-init:
         condition: service_completed_successfully

@@ -27,6 +27,7 @@ from combo_api.combos import admin_routes as combos_admin
 from combo_api.combos import agents as combos_agents
 from combo_api.combos import public_routes as combos_public
 from combo_api.db import create_engine, head_revision
+from combo_api.patterns import routes as patterns
 from combo_api.screenshots import admin_routes as screenshots_admin
 from combo_api.screenshots import worker_routes as screenshots_worker
 from combo_api.screenshots.storage import S3Storage, Storage
@@ -244,6 +245,7 @@ def create_app(
     app.include_router(combos_admin.router)
     app.include_router(combos_agents.router)
     app.include_router(combos_public.router)
+    app.include_router(patterns.router)
     app.include_router(screenshots_admin.router)
     app.include_router(screenshots_worker.router)
     # Innermost first: errors become responses before the CORS layers see them.

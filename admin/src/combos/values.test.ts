@@ -4,6 +4,7 @@ import {
   checkConditions,
   checkDescription,
   conditionsSummary,
+  conditionsText,
   formatRating,
   parseRating,
   parseSeeds,
@@ -93,6 +94,33 @@ describe('checkConditions', () => {
       seeds: [1, 2],
     })
   })
+
+  it('sends a special pattern with its seeds, and needs a seed for it', () => {
+    const group = { slug: 'blue-gem', name: 'Blue Gem' }
+    expect(checkConditions({ ...empty, seeds: '387', group }, { min: 0, max: 1 }).value).toEqual({
+      float_from: null,
+      float_to: null,
+      seeds: [387],
+      pattern_group: 'blue-gem',
+    })
+    expect(checkConditions({ ...empty, group }, { min: 0, max: 1 })).toEqual({ errors: { seeds: CHECKS.groupNeedsSeed } })
+    expect(CHECKS.groupNeedsSeed).toBe('A special pattern needs a seed.')
+    // No group: no pattern_group key, which the API reads as none.
+    expect(checkConditions({ ...empty, seeds: '5', group: null }, { min: 0, max: 1 }).value).not.toHaveProperty('pattern_group')
+  })
+})
+
+describe('conditionsText', () => {
+  it('keeps the stored group', () => {
+    const group = { slug: 'blue-gem', name: 'Blue Gem' }
+    expect(conditionsText({ float_from: null, float_to: null, seeds: [387], pattern_group: group })).toEqual({
+      from: '',
+      to: '',
+      seeds: '387',
+      group,
+    })
+    expect(conditionsText({ float_from: null, float_to: null, seeds: [], pattern_group: null }).group).toBeNull()
+  })
 })
 
 describe('parseSeeds', () => {
@@ -132,5 +160,13 @@ describe('conditionsSummary', () => {
       conditionsSummary('Gloves', { float_from: 0.06, float_to: 0.15, seeds: [2, 179, 300, 301, 302, 303] }),
     ).toBe('Gloves 0.06–0.15 · seeds 2, 179, 300 (+3)')
     expect(conditionsSummary('Knife', { float_from: null, float_to: null, seeds: [] })).toBe('Knife any')
+  })
+
+  it('names the special pattern before its seeds', () => {
+    const pattern_group = { slug: 'blue-gem', name: 'Blue Gem' }
+    expect(conditionsSummary('Knife', { float_from: null, float_to: null, seeds: [387], pattern_group })).toBe('Knife Blue Gem · 387')
+    expect(conditionsSummary('Knife', { float_from: 0, float_to: 0.01, seeds: [387, 400], pattern_group })).toBe(
+      'Knife 0–0.01 · Blue Gem · 387, 400',
+    )
   })
 })

@@ -92,6 +92,10 @@ jobs:
       - run: test "$(curl -fsS http://localhost:8000/combo-counts)" = '{"gloves":{},"knives":{}}'
       - run: test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/admin/workers)" -eq 401
       - run: test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:8000/worker/jobs/claim)" -eq 401
+      - run: test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/admin/pattern-groups)" -eq 401
+      # The pattern group import is safe to re-run, and the committed file passes its check.
+      - run: docker compose run --rm patterns
+      - run: docker compose run --rm patterns python -m combo_api.patterns import --check
       # Bucket setup is safe to re-run, and both buckets exist.
       - run: docker compose run --rm storage-init
       - run: docker compose run --rm storage-init python -m combo_api.screenshots init --check

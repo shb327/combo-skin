@@ -92,6 +92,7 @@ describe('pictures', () => {
       [copyOf('karambit', 'doppler-ruby')],
       [copyOf('karambit', 'doppler-sapphire')],
       [copyOf('karambit', 'blue-steel')],
+      [copyOf('karambit', 'case-hardened')],
     ])
     expectPicture(imagesIn(cards[1])[0], copyOf('karambit', 'doppler-ruby'))
   })

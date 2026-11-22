@@ -64,7 +64,7 @@ def test_each_container_gets_only_its_settings(tmp_path: Path) -> None:
     services = json.loads(result.stdout)["services"]
     assert set(services["db"]["environment"]) == POSTGRES
     assert set(services["storage"]["environment"]) == STORAGE
-    for name in ("migrate", "catalog", "storage-init", "api"):
+    for name in ("migrate", "catalog", "patterns", "storage-init", "api"):
         assert keys(example()) <= set(services[name]["environment"]), name
 
 
@@ -83,3 +83,15 @@ def test_a_missing_value_stops_compose_naming_it(tmp_path: Path, missing: str) -
     result = config(tmp_path, env)
     assert result.returncode != 0
     assert missing in result.stderr
+
+
+def test_pattern_groups_load_after_the_catalog(tmp_path: Path) -> None:
+    result = config(tmp_path, example())
+    assert result.returncode == 0, result.stderr
+    services = json.loads(result.stdout)["services"]
+    patterns = services["patterns"]
+    assert patterns["command"] == ["python", "-m", "combo_api.patterns", "import"]
+    assert patterns["depends_on"]["catalog"]["condition"] == "service_completed_successfully"
+    assert services["api"]["depends_on"]["patterns"]["condition"] == (
+        "service_completed_successfully"
+    )
