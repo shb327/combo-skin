@@ -308,8 +308,13 @@ from pathlib import Path
 ROOT = Path(__ROOT__)
 cwd = Path.cwd()
 with (ROOT / "npm.ndjson").open("a") as handle:
+    source = cwd.parent
+    files = sorted(str(p.relative_to(source)) for p in source.rglob("*") if p.is_file())
+    catalog_path = cwd / "src" / "data" / "catalog.json"
+    catalog = catalog_path.read_text() if catalog_path.is_file() else None
     handle.write(json.dumps({"argv": sys.argv[1:], "env": dict(os.environ), "cwd": str(cwd),
-                             "dotenv": sorted(str(p) for p in cwd.parent.rglob(".env*"))}) + "\n")
+                             "dotenv": sorted(str(p) for p in source.rglob(".env*")),
+                             "files": files, "catalog": catalog}) + "\n")
 if sys.argv[1:] == ["run", "build"]:
     dist = cwd / "dist"
     (dist / "assets").mkdir(parents=True, exist_ok=True)

@@ -46,21 +46,50 @@ def checkout_snapshot(repo: Path) -> dict[str, str]:
 # Criterion 4
 
 
+def with_finish(catalog_text: str, finish_id: str) -> str:
+    catalog = json.loads(catalog_text)
+    catalog["gloves"][0]["finishes"].append(
+        {"id": finish_id, "name": finish_id, "image": "x", "image_key": None}
+    )
+    return json.dumps(catalog)
+
+
 def test_the_build_comes_from_an_archive_of_origin_main_outside_the_checkout(ready: World) -> None:
-    # A local change and an unpushed commit are not what gets built.
-    (ready.repo / "README.md").write_text("local edit\n")
+    catalog_path = ready.repo / "website/src/data/catalog.json"
+    published = catalog_path.read_text()
     tip = git(ready.repo, "rev-parse", "origin/main")
+    # An unpushed commit, an uncommitted change and an untracked file: none is what gets built.
+    catalog_path.write_text(with_finish(published, "unpushed-finish"))
+    git(ready.repo, "commit", "-q", "-am", "Unpushed")
+    catalog_path.write_text(with_finish(catalog_path.read_text(), "uncommitted-finish"))
+    (ready.repo / "website/untracked.txt").write_text("local only\n")
+    assert git(ready.repo, "rev-parse", "HEAD") != tip
     before = checkout_snapshot(ready.repo)
+
     result = ready.run("publish")
     assert result.code == 0, result.err
     assert checkout_snapshot(ready.repo) == before
+
     builds = [call for call in ready.calls("npm") if call["argv"] == ["run", "build"]]
     assert len(builds) == 1
     website = Path(builds[0]["cwd"])
     assert not website.is_relative_to(ready.repo)
     assert website.is_relative_to(ready.temp)
-    # The temporary build folder is gone afterwards.
-    assert not website.exists()
+    assert not website.exists()  # the temporary folder is gone afterwards
+    # The build saw exactly origin/main's files, as git archive writes them.
+    committed = git(ready.repo, "ls-tree", "-r", "--name-only", "origin/main").splitlines()
+    assert [f for f in builds[0]["files"] if not f.startswith("website/node_modules")] == sorted(
+        committed
+    )
+    assert builds[0]["catalog"] == published
+    # The deploy holds exactly origin/main's finishes, and was labelled with its commit.
+    deployed = ready.root / "deployments" / "dep2" / "data"
+    finishes = {p.relative_to(deployed).as_posix() for p in deployed.rglob("*.json")}
+    assert "gloves/specialist/unpushed-finish.json" not in finishes
+    assert "gloves/specialist/uncommitted-finish.json" not in finishes
+    assert len(finishes) == 1 + sum(
+        len(t["finishes"]) for kind in ("gloves", "knives") for t in json.loads(published)[kind]
+    )
     commits = [call["argv"][call["argv"].index("--commit-hash") + 1] for call in ready.deploys()]
     assert commits == [tip, tip]
 
