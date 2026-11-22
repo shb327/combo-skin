@@ -2,6 +2,7 @@
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -248,7 +249,7 @@ def test_the_lock_is_held_by_a_running_process(ready: World) -> None:
         "    print('locked', flush=True)\n"
         "    time.sleep(30)\n"
     )
-    holder = subprocess.Popen(["python", "-c", script], stdout=subprocess.PIPE, text=True)
+    holder = subprocess.Popen([sys.executable, "-c", script], stdout=subprocess.PIPE, text=True)
     try:
         assert holder.stdout is not None and holder.stdout.readline().strip() == "locked"
         result = ready.run("publish")
