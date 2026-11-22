@@ -191,6 +191,42 @@ def test_without_a_state_file_nothing_is_deleted_and_every_key_is_marked_today(
     assert all(day == ready.today.isoformat() for day in marked.values())
 
 
+def test_prune_after_lost_state_never_deletes_the_live_images(ready: World) -> None:
+    assert ready.run("publish").code == 0
+    live = set(ready.public.store)
+    (ready.settings.state_dir / "state.json").unlink()
+    for days in (0, 31, 400):
+        ready.today = ready.now.date() + timedelta(days=days)
+        result = ready.run("prune-images")
+        assert result.code == 1
+        assert "No production publish is recorded" in result.err
+        assert "run publish first" in result.err
+    assert ready.public.deleted == []
+    assert set(ready.public.store) == live
+    # Nothing was written in its place, so the next publish starts from a clean slate.
+    assert ready.state() is None
+
+
+def test_prune_refuses_a_state_without_a_live_deployment(ready: World) -> None:
+    ready.public.store["combos/old/v1/640.webp"] = (b"x", "image/webp", IMMUTABLE)
+    ready.settings.state_dir.mkdir(parents=True)
+    (ready.settings.state_dir / "state.json").write_text(
+        '{"images": {"combos/old/v1/640.webp": "2020-01-01"}}'
+    )
+    result = ready.run("prune-images")
+    assert result.code == 1
+    assert ready.public.deleted == []
+
+
+def test_prune_now_works_without_a_recorded_publish(ready: World) -> None:
+    for key in screenshot_keys("b", "v7"):
+        ready.public.store[key] = (b"x", "image/webp", IMMUTABLE)
+    result = ready.run("prune-images", "--now", "b")
+    assert result.code == 0, result.err
+    assert sorted(ready.public.deleted) == sorted(screenshot_keys("b", "v7"))
+    assert ready.state() is None
+
+
 def test_prune_now_deletes_exactly_one_combo_and_prints_the_cache_note(ready: World) -> None:
     assert ready.run("publish").code == 0
     result = ready.run("prune-images", "--now", "b")

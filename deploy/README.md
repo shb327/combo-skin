@@ -56,7 +56,7 @@ The command writes the site's `_headers` from the settings: on every response th
 
 ### State
 
-The state folder (`state_dir`, outside the repository) holds `state.json` (the last production deployment and the image keys it uses, each data file's hash, and the date each image key was last used by a production publish) and the lock. No credential is ever in it. If it is lost, the next production publish marks every image in the bucket as used that day, so nothing is pruned because of it.
+The state folder (`state_dir`, outside the repository) holds `state.json` (the last production deployment and the image keys it uses, each data file's hash, and the date each image key was last used by a production publish) and the lock. No credential is ever in it. If it is lost, the next production publish marks every image in the bucket as used that day, so nothing is pruned because of it, and `prune-images` (without `--now`) refuses to run until a production publish has recorded the live deployment again.
 
 ## Settings
 

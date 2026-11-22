@@ -3,7 +3,7 @@ combo's images at once with `--now` (spec 021, R17). It is the only way to delet
 besides a successful production publish."""
 
 from combo_publish import images, state
-from combo_publish.app import Deps
+from combo_publish.app import CommandError, Deps
 
 CACHE_NOTE = (
     "Cloudflare's cache may keep serving these images until they are purged: Cloudflare "
@@ -23,9 +23,13 @@ def run(deps: Deps, *, dry_run: bool = False, now: str | None = None) -> None:
         if now is not None:
             keys = images.combo_keys(listing, now)
         else:
-            if current is None:
-                out.print("No state yet: every listed image is marked as used today.")
-            current = current or state.State()
+            # Without the live deployment's images on record, nothing tells them from unused
+            # ones: only a production publish records them (spec 021, R16).
+            if current is None or current.live is None:
+                raise CommandError(
+                    "No production publish is recorded in the state folder, so nothing can be "
+                    "pruned safely: run publish first. Nothing was deleted."
+                )
             keys = images.due(current, listing, deps.today())
         verb = "Would delete" if dry_run else "Deleting"
         out.print(f"{verb} {len(keys)} images")
