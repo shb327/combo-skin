@@ -204,7 +204,23 @@
       "kind": "knife",
       "finish": "fade",
       "seeds": {
-        "butterfly": 541
+        "bayonet": 602,
+        "bowie": 412,
+        "butterfly": 541,
+        "classic": 412,
+        "falchion": 412,
+        "flip": 673,
+        "gut": 241,
+        "huntsman": 412,
+        "kukri": 412,
+        "m9-bayonet": 412,
+        "navaja": 359,
+        "nomad": 412,
+        "paracord": 412,
+        "skeleton": 393,
+        "stiletto": 332,
+        "survival": 412,
+        "ursus": 412
       },
       "sources": [
         {
