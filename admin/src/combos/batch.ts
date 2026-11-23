@@ -35,6 +35,8 @@ export interface RowText {
   description?: string
   /** The row's own screenshot agent; null is its own choice of the default agent. */
   agent?: number | null
+  /** Unticked by the form when this batch-wide group was picked: the group's slug (spec 024). */
+  untickedFor?: string
 }
 
 export interface BatchText {
@@ -169,6 +171,58 @@ export function rowPattern(row: Row, text: BatchText): string | null {
   if (knife.group) return groupLabel(knife.group.name, knife.seeds)
   if (!row.text.knife && text.knife.group) return `No ${text.knife.group.name} for this knife`
   return null
+}
+
+/** A row a batch-wide group decides for: a new combo with a float range and no own knife values. */
+const decidedByGroup = (row: Row) => !row.existing && !row.vanilla && row.text.knife === undefined
+
+const knives = (count: number) => `${count} ${count === 1 ? 'knife' : 'knives'}`
+
+/** The batch with new batch-wide knife values. When the group changes, the old one is removed
+ * first: the rows it unticked are ticked again. A new group then unticks the ticked rows it has
+ * no seed for and marks them, so removing it ticks them again (spec 024). `announcement` says
+ * what changed, or is null. */
+export function applyGroup(rows: Row[], text: BatchText, knife: ConditionsText): { text: BatchText; announcement: string | null } {
+  if ((text.knife.group?.slug ?? null) === (knife.group?.slug ?? null)) return { text: { ...text, knife }, announcement: null }
+  const next = { ...text.rows }
+  const ticked: string[] = []
+  const unticked: string[] = []
+  const seeds = knife.group?.seeds
+  for (const row of rows) {
+    const name = row.candidate.knife.type_name
+    let own = row.text
+    let back = false
+    if (own.untickedFor !== undefined) {
+      const rest = { ...own }
+      delete rest.untickedFor
+      own = row.existing ? rest : { ...rest, ticked: true }
+      back = !row.existing
+    }
+    if (seeds && knife.group && decidedByGroup(row) && own.ticked && seeds[row.slug] === undefined) {
+      own = { ...own, ticked: false, untickedFor: knife.group.slug }
+      if (!back) unticked.push(name)
+    } else if (back) {
+      ticked.push(name)
+    }
+    if (own !== row.text) next[row.slug] = own
+  }
+  const said = [
+    unticked.length && knife.group ? `Unticked ${knives(unticked.length)} with no ${knife.group.name}: ${unticked.join(', ')}.` : '',
+    ticked.length ? `Ticked again: ${ticked.join(', ')}.` : '',
+  ].filter(Boolean)
+  return { text: { ...text, knife, rows: next }, announcement: said.length ? said.join(' ') : null }
+}
+
+/** The rows the batch-wide group unticked, in batch order (spec 024). */
+export const untickedByGroup = (rows: Row[]) => rows.filter((row) => !row.text.ticked && row.text.untickedFor !== undefined)
+
+/** The line under the batch-wide group naming the knives it unticked, or null. */
+export function untickedNote(rows: Row[], text: BatchText): string | null {
+  const group = text.knife.group
+  const shown = untickedByGroup(rows)
+  if (!group || !shown.length) return null
+  const names = shown.map((row) => row.candidate.knife.type_name).join(', ')
+  return `${knives(shown.length)} with no ${group.name} unticked: ${names}. Tick one to include it with any pattern.`
 }
 
 export interface BatchCheck {
