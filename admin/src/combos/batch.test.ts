@@ -30,11 +30,11 @@ describe('applyGroup', () => {
     expect(ticks(text)).toEqual({ karambit: true, butterfly: false, 'm9-bayonet': true })
     expect(text.rows.butterfly.untickedFor).toBe('gold-gem')
     expect(text.rows.karambit?.untickedFor).toBeUndefined()
-    expect(announcement).toBe('Unticked 1 knife with no Gold Gem: Butterfly Knife.')
+    expect(announcement).toBe('Unticked 1 knife with no Gold Gem and moved it to the end: Butterfly Knife.')
 
     const two = pick(EMPTY_BATCH, test)
     expect(ticks(two.text)).toEqual({ karambit: true, butterfly: false, 'm9-bayonet': false })
-    expect(two.announcement).toBe('Unticked 2 knives with no Test Pattern: Butterfly Knife, M9 Bayonet.')
+    expect(two.announcement).toBe('Unticked 2 knives with no Test Pattern and moved them to the end: Butterfly Knife, M9 Bayonet.')
   })
 
   it('ticks again on removal only the knives it unticked', () => {
@@ -92,5 +92,49 @@ describe('applyGroup', () => {
     expect(text.knife).toEqual(typed)
     expect(text.rows).toBe(handTicked.rows)
     expect(announcement).toBeNull()
+  })
+
+  const order = (text: BatchText, candidates = caseHardened()) => batchRows(candidates, text).map((r) => r.slug)
+  const ratings = (text: BatchText, candidates = caseHardened()) =>
+    Object.fromEntries(batchRows(candidates, text).filter((r) => r.text.ticked).map((r) => [r.slug, r.rating]))
+
+  it('moves the knives it unticks to the end, in their order', () => {
+    expect(order(pick(EMPTY_BATCH, test).text)).toEqual(['karambit', 'butterfly', 'm9-bayonet'])
+    const reversed: BatchText = { ...EMPTY_BATCH, order: ['m9-bayonet', 'butterfly', 'karambit'] }
+    expect(order(pick(reversed, test).text)).toEqual(['karambit', 'm9-bayonet', 'butterfly'])
+  })
+
+  it('leaves knives unticked by hand and combos that exist in their places', () => {
+    const store = new ComboStore()
+    store.add({ glove: 'specialist/crimson-kimono', knife: 'butterfly/case-hardened', rating: 9 })
+    const candidates = caseHardened(store)
+    const start: BatchText = {
+      ...EMPTY_BATCH,
+      order: ['butterfly', 'm9-bayonet', 'karambit'],
+      rows: { 'm9-bayonet': { ticked: false, byHand: false, rating: '' } },
+    }
+    const { text } = pick(start, test, candidates)
+    expect(order(text, candidates)).toEqual(['butterfly', 'm9-bayonet', 'karambit'])
+  })
+
+  it.each([
+    ['open', false],
+    ['locked', true],
+  ])('changes no rating with the order %s', (_, orderLocked) => {
+    const start: BatchText = { ...EMPTY_BATCH, top: '9', orderLocked, order: ['m9-bayonet', 'butterfly', 'karambit'] }
+    const picked = pick(start, gold).text
+    expect(order(picked)).toEqual(['m9-bayonet', 'karambit', 'butterfly'])
+    expect(ratings(picked)).toEqual({ 'm9-bayonet': '9.00', karambit: '8.95' })
+    // The same knives ticked without the move get the same ratings.
+    const unmoved: BatchText = { ...picked, order: start.order }
+    expect(ratings(picked)).toEqual(ratings(unmoved))
+  })
+
+  it('leaves the order as it is when the group is removed', () => {
+    const picked = pick({ ...EMPTY_BATCH, order: ['m9-bayonet', 'butterfly', 'karambit'] }, test).text
+    expect(order(picked)).toEqual(['karambit', 'm9-bayonet', 'butterfly'])
+    const removed = pick(picked, null).text
+    expect(order(removed)).toEqual(['karambit', 'm9-bayonet', 'butterfly'])
+    expect(ticks(removed)).toEqual({ karambit: true, butterfly: true, 'm9-bayonet': true })
   })
 })
