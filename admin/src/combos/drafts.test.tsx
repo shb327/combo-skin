@@ -266,7 +266,7 @@ describe('a picked special pattern', () => {
     expect(knives.getByRole('listitem', { name: 'M9 Bayonet' })).toHaveTextContent('Gold Gem · 92')
     expect(knives.getByRole('listitem', { name: 'Butterfly Knife' })).toHaveTextContent('Unticked: no Gold Gem for this knife')
     expect(screen.getByRole('checkbox', { name: 'Include Butterfly Knife' })).not.toBeChecked()
-    expect(knifeGroup()).toHaveTextContent('1 knife with no Gold Gem unticked: Butterfly Knife.')
+    expect(knifeGroup()).toHaveTextContent('1 knife with no Gold Gem unticked and moved to the end: Butterfly Knife.')
     // The mark came back too: removing the group ticks the knife again.
     await user.click(within(knifeGroup()).getByRole('button', { name: 'Remove special pattern Gold Gem' }))
     expect(screen.getByRole('checkbox', { name: 'Include Butterfly Knife' })).toBeChecked()

@@ -650,9 +650,31 @@ describe('a special pattern for the batch', () => {
     expect(screen.getByRole('checkbox', { name: 'Include M9 Bayonet' })).toBeChecked()
     expect(screen.getByRole('button', { name: 'Save 2 as drafts' })).toBeInTheDocument()
     expect(everyKnife()).toHaveTextContent(
-      '1 knife with no Gold Gem unticked: Butterfly Knife. Tick one to include it with any pattern.',
+      '1 knife with no Gold Gem unticked and moved to the end: Butterfly Knife. Tick one to include it with any pattern.',
     )
-    expect(screen.getByText('Unticked 1 knife with no Gold Gem: Butterfly Knife.')).toBeInTheDocument()
+    expect(screen.getByText('Unticked 1 knife with no Gold Gem and moved it to the end: Butterfly Knife.')).toBeInTheDocument()
+  })
+
+  it('moves the knives the group unticks to the end of the batch', async () => {
+    const { user } = renderApp(CASE, new FakeApi().withSession())
+    await user.selectOptions(await screen.findByLabelText('Position of M9 Bayonet'), '1')
+    expect(names()).toEqual(['M9 Bayonet', 'Karambit', 'Butterfly Knife'])
+    await pickForBatch(user, 'Test Pattern')
+    expect(names()).toEqual(['Karambit', 'M9 Bayonet', 'Butterfly Knife'])
+    expect(screen.getByRole('checkbox', { name: 'Include M9 Bayonet' })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Include Butterfly Knife' })).not.toBeChecked()
+    expect(everyKnife()).toHaveTextContent('2 knives with no Test Pattern unticked and moved to the end: M9 Bayonet, Butterfly Knife.')
+    expect(
+      screen.getByText('Unticked 2 knives with no Test Pattern and moved them to the end: M9 Bayonet, Butterfly Knife.'),
+    ).toBeInTheDocument()
+  })
+
+  it('changes no rating when it moves knives', async () => {
+    const { user } = renderApp(CASE, new FakeApi().withSession())
+    await pickForBatch(user, 'Gold Gem')
+    expect(names()).toEqual(['Karambit', 'M9 Bayonet', 'Butterfly Knife'])
+    expect(rating('Karambit')).toHaveValue('9.00')
+    expect(rating('M9 Bayonet')).toHaveValue('8.95')
   })
 
   it('sends a knife ticked again by hand with any pattern', async () => {
@@ -663,12 +685,14 @@ describe('a special pattern for the batch', () => {
     expect(row('Butterfly Knife')).toHaveTextContent('No Gold Gem for this knife')
     expect(row('Butterfly Knife')).not.toHaveTextContent('Unticked')
     expect(everyKnife()).not.toHaveTextContent('unticked')
+    // Ticked again by hand, it stays at the end, where the group moved it (spec 025).
+    expect(names()).toEqual(['Karambit', 'M9 Bayonet', 'Butterfly Knife'])
     await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
     await waitFor(() => expect(fake.to('POST /admin/batches')).toHaveLength(1))
     expect(sentKnives(fake)).toEqual([
       ['karambit', { float_from: null, float_to: null, seeds: [128], pattern_group: 'gold-gem' }],
-      ['butterfly', { float_from: null, float_to: null, seeds: [] }],
       ['m9-bayonet', { float_from: null, float_to: null, seeds: [92], pattern_group: 'gold-gem' }],
+      ['butterfly', { float_from: null, float_to: null, seeds: [] }],
     ])
   })
 
