@@ -192,4 +192,43 @@ None. Answered by the owner on 2026-11-23, as recommended:
 
 ## Audit
 
-Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
+**Date:** 2026-11-23 · **Branch:** 024-batch-form · **Commit:** bbfe967
+**Verdict:** Fail
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | Gold Gem unticks Butterfly Knife: row text, checkbox description, others ticked, Save 2, box note, live region | Pass | `admin/src/pages/BatchPage.test.tsx:640`, `npm test` |
+| 2 | Ticked again by hand: "No Gold Gem for this knife", sent with any pattern | Pass | `BatchPage.test.tsx:658` |
+| 3 | Remove ticks it again with "Ticked again: ..."; Blue Gem leaves all three ticked; a hand untick before the pick stays | Pass | `BatchPage.test.tsx:675`, `:690` |
+| 4 | Hand tick, Remove, Gold Gem again: unticked and marked again | Pass | `BatchPage.test.tsx:699` |
+| 5 | An existing combo and a knife with own knife values are not unticked | Pass | `BatchPage.test.tsx:710`. The existing combo is Butterfly Knife under Test Pattern, not "Update Karambit": every fake group covers Karambit, so the criterion's example could not show it. Not recorded in Implementation notes (follow-up) |
+| 6 | `applyGroup` unit tests: pick, removal, one-step change, same slug | Pass | `admin/src/combos/batch.test.ts:27`, `:40`, `:50`, `:60`, `:71`, `:87` |
+| 7 | Ticks, marks and texts restored after a session end | Pass | `admin/src/combos/drafts.test.tsx:251` |
+| 8 | Keyboard drag of M9 Bayonet to the top: order, fill, announcement, focus, no knife order request | Pass | `BatchPage.test.tsx:267`; the drop text can only come from the drag's announcements, since a drag does not set the page's live region |
+| 9 | Space, Down, Escape: order kept, cancel announced | Pass | `BatchPage.test.tsx:287` |
+| 10 | No Move buttons; position list works; Refill hides handles and position lists, Change order shows them | Pass | `BatchPage.test.tsx:247`, `:300` |
+| 11 | Knife order page unchanged, with Up, Down and position | Pass | `admin/src/pages/KnifeOrderPage.tsx` and its test have no changes on the branch; `KnifeOrderPage.test.tsx` passes and uses Move buttons and position lists |
+| 12 | Manual: Diamond Gem, mouse drag with auto-scroll, touch at 375 px, screen reader, no CSP violation | Fail | Diamond Gem, auto-scroll, the 375 px layout and the CSP were checked in the built dashboard (Implementation notes). The mouse and touch drags were sent as DOM mouse and touch events from the page, not with Chrome's touch emulation or a real pointer. The screen reader step was not done with a screen reader: only the handle's description and the live region's text were read from the page |
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Install | `npm ci` in `admin/`, after removing `node_modules` and `dist` | Pass (exit 0) |
+| API types | `npm run api:types:check` | Pass (exit 0) |
+| Lint | `npm run lint` | Pass (exit 0) |
+| Types | `npm run typecheck` | Pass (exit 0) |
+| Tests | `npm test` | Pass (29 files, 429 tests) |
+| Build | `npm run build` | Pass (exit 0) |
+| Bundle | `npm run check:bundle` | Pass ("dist: bundle checks passed") |
+| Dependencies | `npm audit --omit=dev`; `admin/package.json` and lockfile unchanged | Pass (0 vulnerabilities, no new package) |
+| Secret scan | `gitleaks git` over the branch's commits; `gitleaks dir .` | Pass (no leaks) |
+| Public exposure | manual review of the diff and log; `.claude/` and `CLAUDE.md` ignored, none tracked | Pass |
+| Design conformance | manual review | Pass with follow-ups |
+
+**Findings**
+
+- (blocking) Criterion 12 is not fully checked: the screen reader step needs a run with a screen reader (for example VoiceOver: the handle's instructions, then a keyboard drag). Either run it, or change the criterion to what was checked.
+- (follow-up) At pick up, a screen reader hears "Karambit is in its place, position 2.", not "Picked up Karambit." as Design says: dnd-kit announces the start and then at once the first "over" (the knife itself), and the live region shows only the second. R14 still holds (knife and position are named). Returning nothing from `onDragOver` while the knife is over its own place would keep "Picked up ...". The finish list (spec 017) does the same with "... is over ...".
+- (follow-up) R15 and Design put the position list "next to the handle"; it is at the right end of the row's first line, with the handle at its start. Not recorded in Implementation notes.
+- (follow-up) Design says the jsdom layout helper matches a list's direct children; `layOutListItems()` uses the outermost `li` instead, with the same effect. Not recorded.
+- (follow-up) Criterion 5's existing combo is Butterfly Knife, not Karambit (see criterion 5). Not recorded.
+- (follow-up) Recorded deviation: the batch's keyboard drag scrolls at once (`scrollBehavior: 'auto'`), agreed by the owner.
