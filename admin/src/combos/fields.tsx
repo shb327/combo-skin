@@ -109,8 +109,8 @@ export function ConditionsFields({
   /** Off when `range` is not one finish's range, as for every knife of a batch. */
   showRange?: boolean
   /** The groups that can be picked. For every knife of a batch (`perKnife`), a group gives each
-   * knife its own seed, so the batch-wide seeds give way to it. */
-  special?: { choices: GroupChoice[]; perKnife?: boolean }
+   * knife its own seed, so the batch-wide seeds give way to it; `note` is shown under that. */
+  special?: { choices: GroupChoice[]; perKnife?: boolean; note?: string | null }
 }) {
   const [removed, setRemoved] = useState(0)
   const vanilla = range.min === null || range.max === null
@@ -145,9 +145,10 @@ export function ConditionsFields({
           {field('from', 'Float from', { inputMode: 'decimal', placeholder: hint.split(' – ')[0] })}
           {field('to', 'Float to', { inputMode: 'decimal', placeholder: hint.split(' – ')[1] })}
           {perKnife ? (
-            <p className="w-full self-end pb-2 text-sm text-white/70 sm:flex-1">
-              Each knife gets its own {perKnife.name} seed.
-            </p>
+            <div className="w-full self-end pb-2 text-sm text-white/70 sm:flex-1">
+              <p>Each knife gets its own {perKnife.name} seed.</p>
+              {special?.note && <p className="mt-1">{special.note}</p>}
+            </div>
           ) : (
             field('seeds', 'Pattern seeds', {
               placeholder: 'Any pattern',

@@ -604,13 +604,32 @@ describe('a special pattern for the batch', () => {
     expect(fake.store.combos.map((c) => c.knife.pattern_group?.name)).toEqual(['Blue Gem', 'Blue Gem', 'Blue Gem'])
   })
 
-  it('says which knife the group does not cover, and sends it with any pattern', async () => {
+  it('unticks the knife the group does not cover, and says why', async () => {
+    const { user } = renderApp(CASE, new FakeApi().withSession())
+    await pickForBatch(user, 'Gold Gem')
+    expect(row('Karambit')).toHaveTextContent('Gold Gem · 128')
+    expect(row('M9 Bayonet')).toHaveTextContent('Gold Gem · 92')
+    const butterfly = screen.getByRole('checkbox', { name: 'Include Butterfly Knife' })
+    expect(butterfly).not.toBeChecked()
+    expect(row('Butterfly Knife')).toHaveTextContent('Unticked: no Gold Gem for this knife')
+    expect(butterfly).toHaveAccessibleDescription('Unticked: no Gold Gem for this knife')
+    expect(screen.getByRole('checkbox', { name: 'Include Karambit' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Include M9 Bayonet' })).toBeChecked()
+    expect(screen.getByRole('button', { name: 'Save 2 as drafts' })).toBeInTheDocument()
+    expect(everyKnife()).toHaveTextContent(
+      '1 knife with no Gold Gem unticked: Butterfly Knife. Tick one to include it with any pattern.',
+    )
+    expect(screen.getByText('Unticked 1 knife with no Gold Gem: Butterfly Knife.')).toBeInTheDocument()
+  })
+
+  it('sends a knife ticked again by hand with any pattern', async () => {
     const fake = new FakeApi().withSession()
     const { user } = renderApp(CASE, fake)
     await pickForBatch(user, 'Gold Gem')
-    expect(row('Karambit')).toHaveTextContent('Gold Gem · 128')
+    await user.click(screen.getByRole('checkbox', { name: 'Include Butterfly Knife' }))
     expect(row('Butterfly Knife')).toHaveTextContent('No Gold Gem for this knife')
-    expect(row('M9 Bayonet')).toHaveTextContent('Gold Gem · 92')
+    expect(row('Butterfly Knife')).not.toHaveTextContent('Unticked')
+    expect(everyKnife()).not.toHaveTextContent('unticked')
     await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
     await waitFor(() => expect(fake.to('POST /admin/batches')).toHaveLength(1))
     expect(sentKnives(fake)).toEqual([
@@ -618,6 +637,54 @@ describe('a special pattern for the batch', () => {
       ['butterfly', { float_from: null, float_to: null, seeds: [] }],
       ['m9-bayonet', { float_from: null, float_to: null, seeds: [92], pattern_group: 'gold-gem' }],
     ])
+  })
+
+  it('ticks the knife again when the group is removed, and another group decides again', async () => {
+    const { user } = renderApp(CASE, new FakeApi().withSession())
+    await pickForBatch(user, 'Gold Gem')
+    await user.click(within(everyKnife()).getByRole('button', { name: 'Remove special pattern Gold Gem' }))
+    expect(screen.getByRole('checkbox', { name: 'Include Butterfly Knife' })).toBeChecked()
+    expect(screen.getByText('Ticked again: Butterfly Knife.')).toBeInTheDocument()
+    expect(everyKnife()).not.toHaveTextContent('unticked')
+    await user.click(within(everyKnife()).getByRole('button', { name: 'Add special pattern' }))
+    await user.click(within(everyKnife()).getByRole('button', { name: 'Blue Gem' }))
+    for (const name of ['Karambit', 'Butterfly Knife', 'M9 Bayonet']) {
+      expect(screen.getByRole('checkbox', { name: `Include ${name}` })).toBeChecked()
+    }
+    expect(row('Butterfly Knife')).toHaveTextContent('Blue Gem · 670')
+  })
+
+  it('never ticks a knife unticked by hand', async () => {
+    const { user } = renderApp(CASE, new FakeApi().withSession())
+    await user.click(await screen.findByRole('checkbox', { name: 'Include Butterfly Knife' }))
+    await pickForBatch(user, 'Gold Gem')
+    expect(row('Butterfly Knife')).not.toHaveTextContent('Unticked')
+    await user.click(within(everyKnife()).getByRole('button', { name: 'Remove special pattern Gold Gem' }))
+    expect(screen.getByRole('checkbox', { name: 'Include Butterfly Knife' })).not.toBeChecked()
+  })
+
+  it('unticks a knife ticked by hand again after the group is removed and picked again', async () => {
+    const { user } = renderApp(CASE, new FakeApi().withSession())
+    await pickForBatch(user, 'Gold Gem')
+    await user.click(screen.getByRole('checkbox', { name: 'Include Butterfly Knife' }))
+    await user.click(within(everyKnife()).getByRole('button', { name: 'Remove special pattern Gold Gem' }))
+    await user.click(within(everyKnife()).getByRole('button', { name: 'Add special pattern' }))
+    await user.click(within(everyKnife()).getByRole('button', { name: 'Gold Gem' }))
+    expect(screen.getByRole('checkbox', { name: 'Include Butterfly Knife' })).not.toBeChecked()
+    expect(row('Butterfly Knife')).toHaveTextContent('Unticked: no Gold Gem for this knife')
+  })
+
+  it('leaves a combo that exists and a knife with own knife values ticked', async () => {
+    const fake = new FakeApi().withSession()
+    fake.store.add({ glove: 'specialist/crimson-kimono', knife: 'butterfly/case-hardened', rating: 9.5 })
+    const { user } = renderApp(CASE, fake)
+    await user.click(await screen.findByRole('checkbox', { name: 'Update Butterfly Knife' }))
+    await user.click(screen.getByRole('button', { name: 'Own values for M9 Bayonet' }))
+    await user.click(screen.getByRole('button', { name: 'Set own knife values for M9 Bayonet' }))
+    await pickForBatch(user, 'Test Pattern')
+    expect(screen.getByRole('checkbox', { name: 'Update Butterfly Knife' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Include M9 Bayonet' })).toBeChecked()
+    expect(screen.queryByText(/Unticked/)).toBeNull()
   })
 
   it('takes a knife own seeds and no group from its own knife values', async () => {
@@ -633,9 +700,9 @@ describe('a special pattern for the batch', () => {
     await user.clear(within(own).getByLabelText('Pattern seeds'))
     await user.type(within(own).getByLabelText('Pattern seeds'), '1')
     expect(row('M9 Bayonet')).not.toHaveTextContent('Gold Gem')
-    await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
+    await user.click(screen.getByRole('button', { name: 'Save 2 as drafts' }))
     await waitFor(() => expect(fake.to('POST /admin/batches')).toHaveLength(1))
-    expect(sentKnives(fake)[2]).toEqual(['m9-bayonet', { float_from: null, float_to: null, seeds: [1] }])
+    expect(sentKnives(fake)[1]).toEqual(['m9-bayonet', { float_from: null, float_to: null, seeds: [1] }])
     expect(sentKnives(fake)[0]).toEqual(['karambit', { float_from: null, float_to: null, seeds: [128], pattern_group: 'gold-gem' }])
   })
 
@@ -657,11 +724,11 @@ describe('a special pattern for the batch', () => {
     await user.click(screen.getByRole('button', { name: 'Clear own knife values for M9 Bayonet' }))
     expect(row('M9 Bayonet')).toHaveTextContent('Gold Gem · 92')
 
-    await user.click(screen.getByRole('button', { name: 'Save 3 as drafts' }))
+    // Butterfly Knife has no Gold Gem seed, so it was unticked.
+    await user.click(screen.getByRole('button', { name: 'Save 2 as drafts' }))
     await waitFor(() => expect(fake.to('POST /admin/batches')).toHaveLength(1))
     const body = JSON.parse(fake.to('POST /admin/batches')[0].body)
     expect(body.create.map((c: Created) => [c.knife_type, c.knife])).toEqual([
-      ['butterfly', { float_from: null, float_to: null, seeds: [] }],
       ['m9-bayonet', { float_from: null, float_to: null, seeds: [92], pattern_group: 'gold-gem' }],
     ])
     expect(body.update).toEqual([{ id: existing.id, version: 1, rating: 9, description: null }])

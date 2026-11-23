@@ -214,7 +214,8 @@ export function applyGroup(rows: Row[], text: BatchText, knife: ConditionsText):
 }
 
 /** The rows the batch-wide group unticked, in batch order (spec 024). */
-export const untickedByGroup = (rows: Row[]) => rows.filter((row) => !row.text.ticked && row.text.untickedFor !== undefined)
+export const untickedByGroup = (rows: Row[]) =>
+  rows.filter((row) => !row.existing && !row.text.ticked && row.text.untickedFor !== undefined)
 
 /** The line under the batch-wide group naming the knives it unticked, or null. */
 export function untickedNote(rows: Row[], text: BatchText): string | null {

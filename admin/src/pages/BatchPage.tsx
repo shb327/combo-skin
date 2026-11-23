@@ -7,6 +7,7 @@ import { useTitle } from '../components/useTitle'
 import { AgentPicker } from '../combos/AgentPicker'
 import {
   EMPTY_BATCH,
+  applyGroup,
   batchRows,
   checkBatch,
   knifeBatchRange,
@@ -16,6 +17,7 @@ import {
   type BatchText,
   type Row,
   type RowText,
+  untickedNote,
 } from '../combos/batch'
 import { ConditionsFields, DescriptionField, RatingField } from '../combos/fields'
 import { Picture } from '../combos/Picture'
@@ -354,8 +356,13 @@ function BatchRows({
           range={knifeBatchRange(rows)}
           showRange={false}
           errors={itemErrors(checked.batch, 'knife')}
-          special={{ choices: batchChoices(groups.data, knifeFinish), perKnife: true }}
-          onChange={(value) => change((current) => ({ ...current, knife: value }))}
+          special={{ choices: batchChoices(groups.data, knifeFinish), perKnife: true, note: untickedNote(rows, text) }}
+          onChange={(value) => {
+            // A new batch-wide group unticks the knives it has no seed for (spec 024).
+            const next = applyGroup(rows, text, value)
+            change(() => next.text)
+            if (next.announcement) setAnnouncement(next.announcement)
+          }}
         />
         <AgentPicker
           id="batch-agent"
@@ -462,6 +469,11 @@ function BatchRow({
   const ratingBox = useRef<HTMLInputElement>(null)
   const range = row.vanilla ? 'No float range' : `Float ${row.range.min} – ${row.range.max}`
   const pattern = row.text.ticked ? rowPattern(row, batch) : null
+  // Unticked by the batch-wide group, which has no seed for this knife (spec 024).
+  const why =
+    !row.text.ticked && !row.existing && row.text.untickedFor !== undefined && batch.knife.group
+      ? `Unticked: no ${batch.knife.group.name} for this knife`
+      : null
   // Errors shown next to their own fields; the rest are listed under the row.
   const inFields = (key: string) =>
     key === 'rating' ||
@@ -479,13 +491,20 @@ function BatchRow({
           type="checkbox"
           checked={row.text.ticked}
           aria-label={`${row.existing ? 'Update' : 'Include'} ${name}`}
-          onChange={() => onChange({ ticked: !row.text.ticked })}
+          aria-describedby={why ? `${id}-why` : undefined}
+          // A tick by hand is the owner's own choice: the group no longer decides for the row.
+          onChange={() => onChange({ ticked: !row.text.ticked, untickedFor: undefined })}
         />
         <label htmlFor={id} className="font-semibold">
           {name}
         </label>
         <span className="text-xs text-white/50">{range}</span>
         {pattern && <span className="text-xs text-white/80">{pattern}</span>}
+        {why && (
+          <span id={`${id}-why`} className="text-xs text-white/80">
+            {why}
+          </span>
+        )}
         {order && <span className="ml-auto flex flex-wrap items-center gap-2">{order}</span>}
         {row.existing && (
           <span className="flex items-center gap-2 text-sm text-white/70">
