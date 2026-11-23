@@ -1,6 +1,6 @@
 # 024: Batch form: untick uncovered knives, drag to order
 
-**Status:** Draft
+**Status:** Approved
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** admin
@@ -144,10 +144,12 @@ npm run check:bundle
 
 ## Open questions
 
-- **Position list.** Recommended: keep it in the batch next to the handle, for long moves and as the non-drag pointer way that WCAG 2.5.7 asks for. Remove it as well if you would rather have the handle alone and accept that cost.
-- **A hand tick across groups.** Recommended: a hand tick holds while its group stays picked; after Remove and a new pick, the new group decides again, so a knife it does not cover is unticked. Say if a hand tick should instead be remembered for the rest of the batch.
-- **New package.** None needed: the `@dnd-kit` packages of spec 017 cover the batch. Confirm you do not want `@dnd-kit/modifiers` to lock the drag to the vertical axis.
-- **Knife order page.** Out of scope here. Should it get the same handle in a later spec?
+None. Answered by the owner on 2026-11-23, as recommended:
+
+- Position list: kept in the batch, next to the handle.
+- A hand tick holds while its group stays picked; after Remove and a new pick, the new group decides again.
+- No new package: the `@dnd-kit` packages of spec 017, without `@dnd-kit/modifiers`.
+- The Knife order page stays out of scope; a drag handle there can be a later spec.
 
 ## Implementation notes
 
