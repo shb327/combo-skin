@@ -1,6 +1,6 @@
 # 025: Batch: uncovered knives go to the end
 
-**Status:** Implemented
+**Status:** Audited
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** admin
@@ -109,4 +109,34 @@ None. Answered by the owner on 2026-11-23: on Remove, the knives are ticked agai
 
 ## Audit
 
-Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
+**Date:** 2026-11-23 · **Branch:** 025-batch-uncovered-last (on 024-batch-form) · **Commit:** 3eb733d
+**Verdict:** Pass with follow-ups
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | Test Pattern moves the unticked knives to the end in their order; hand-unticked knives and existing combos stay | Pass | `admin/src/combos/batch.test.ts:101`, `:107`; that the last two are unticked is asserted for the same pick at `:27`. `npm test` |
+| 2 | No rating changes from the move, order open or locked | Pass | `batch.test.ts:120`: the moved order gives the ticked knives the same ratings as the same ticks in the old order |
+| 3 | Remove leaves the order | Pass | `batch.test.ts:133` |
+| 4 | Page: M9 Bayonet first, then Test Pattern: Karambit first, M9 Bayonet and Butterfly Knife after it, unticked; note and live region say "moved to the end" | Pass | `admin/src/pages/BatchPage.test.tsx:658` |
+| 5 | Gold Gem, top 9: Karambit 9.00, M9 Bayonet 8.95, Butterfly Knife last | Pass | `BatchPage.test.tsx:672` |
+| 6 | Commands exit 0; README updated | Pass | Table below; `admin/README.md`, Special patterns |
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Install | `npm ci` in `admin/`, after removing `node_modules` | Pass (exit 0) |
+| API types | `npm run api:types:check` | Pass (exit 0) |
+| Lint | `npm run lint` | Pass (exit 0) |
+| Types | `npm run typecheck` | Pass (exit 0) |
+| Tests | `npm test` | Pass (29 files, 436 tests) |
+| Build | `npm run build` | Pass (exit 0) |
+| Bundle | `npm run check:bundle` | Pass ("dist: bundle checks passed") |
+| Dependencies | `npm audit --omit=dev`; `admin/package.json` and lockfile unchanged from 024-batch-form | Pass (0 vulnerabilities) |
+| Secret scan | `gitleaks git` over the commits after 024-batch-form; `gitleaks dir .` | Pass (no leaks) |
+| Public exposure | manual review of the diff and log against 024-batch-form: five commits by shb327, one line, no trailers; `.claude/` and `CLAUDE.md` ignored and untracked | Pass |
+| Design conformance | manual review of `applyGroup` | Pass |
+
+**Findings**
+
+- (follow-up) Criterion 2 says the ratings are "the same before and after a pick"; the untick itself changes them (spec 024), so the test compares the moved order with the same ticks in the old order, which is what R2 means. The criterion's wording could say so.
+- (follow-up) R6 (the moved order kept with the unsaved values) has no test of its own; it uses `BatchText.order`, whose keeping is tested by spec 017's "keeps the order, lock and step when the page is left and opened again".
+- (follow-up) The note keeps saying "moved to the end" while the knives stay unticked, also after one of them is dragged elsewhere.
