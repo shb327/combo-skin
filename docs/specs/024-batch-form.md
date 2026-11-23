@@ -115,7 +115,7 @@ export interface RowText {
 9. Test: Space, Down, Escape leaves the order as it was and announces the cancel.
 10. Test: no button named "Move <knife> up" or "Move <knife> down" is in the batch; "Position of <knife>" works as today; after "Refill from top" no handle or position list is shown, and "Change order" brings them back.
 11. Test: the Knife order page tests pass unchanged, and it still has Up, Down and position controls.
-12. Manual, in the built dashboard (`npm run preview`) against a local stack: on a Gamma Doppler Phase 1 batch, picking Diamond Gem unticks the six knives without a seed and the page says so; a mouse drag of the last knife to the top with one row's own values open scrolls the page and drops it there; at 375 px wide with touch emulation, press and hold on a handle then move reorders, and a tap in a rating field does not start a drag; with a screen reader, the handle reads its instructions and a keyboard drag is announced; no CSP violation in the console.
+12. Manual, in the built dashboard (`npm run preview`) against a local stack: on a Gamma Doppler Phase 1 batch, picking Diamond Gem unticks the six knives without a seed and the page says so; a mouse drag of the last knife to the top with one row's own values open scrolls the page and drops it there; at 375 px wide with touch emulation, press and hold on a handle then move reorders, and a tap in a rating field does not start a drag; no CSP violation in the console.
 13. In `admin/`: `npm ci`, `npm run api:types:check`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` and `npm run check:bundle` exit 0. `admin/README.md` describes the untick on a group pick and dragging in a batch.
 
 ## Test plan
@@ -178,6 +178,8 @@ None. Answered by the owner on 2026-11-23, as recommended:
 - 375 px wide with touch events: press and hold 400 ms on Karambit's handle, then move: it moved one place down. A touch in a rating field, moved 50 px, started no drag. No sideways scroll.
 - Keyboard: Space, Down, Down, Down, Space at about 150 ms per key moved a knife three places, announced "Butterfly Knife moved to position 4." and kept focus on the handle; Escape cancelled with "Moving Karambit was cancelled.". The handle reads the instructions through `aria-describedby`, with role description "sortable".
 - No CSP violation in the console; the page's policy keeps `style-src 'self'`. The only console error is the 401 of the session check on the login page.
+
+**Criterion 12 changed (2026-11-23).** The owner removed the screen reader step: the dashboard is used by the owner only. The handle's instructions and the drag announcements stay, checked by their texts in the tests and in the browser.
 
 **Agreed deviation (2026-11-23).** The owner kept the instant scroll. Design, "Sensors and handle", says the batch uses the same sensors as the finish list. In the browser, with batch rows that are much taller than combo rows, a second Down pressed within about 150 ms of the first was lost: dnd-kit's keyboard sensor scrolls smoothly after each key, and a key pressed during that scroll is measured against the old place. The batch's keyboard sensor now scrolls at once (`scrollBehavior: 'auto'`, an option of `useDragSensors`); the finish list keeps the smooth scroll. Keys pressed within a few milliseconds of picking up are still ignored while dnd-kit measures the list, which no person can type.
 
