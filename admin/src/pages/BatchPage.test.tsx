@@ -1,7 +1,8 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { COMBO_MESSAGES } from '../combos/messages'
 import { FakeApi, refusal } from '../test/fakeApi'
+import { layOutListItems } from '../test/layout'
 import { renderApp, where } from '../test/render'
 
 const BATCH = '/gloves/specialist/crimson-kimono/batch'
@@ -239,24 +240,22 @@ describe('the batch rows', () => {
 })
 
 describe('the batch order', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('reorders this batch only, and the fill follows the order', async () => {
     const fake = new FakeApi().withSession()
     const { user } = renderApp(RUBY, fake)
     await user.type(await screen.findByLabelText('Top rating'), '9.5')
-    expect(screen.queryByRole('button', { name: 'Move Karambit up' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Move Karambit down' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Move / })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Drag Karambit' })).toBeInTheDocument()
     await user.selectOptions(screen.getByLabelText('Position of M9 Bayonet'), '1')
     expect(names()).toEqual(['M9 Bayonet', 'Karambit', 'Butterfly Knife'])
     expect(screen.getByText('M9 Bayonet moved to position 1.')).toBeInTheDocument()
     expect(rating('M9 Bayonet')).toHaveValue('9.50')
     expect(rating('Karambit')).toHaveValue('9.45')
     expect(rating('Butterfly Knife')).toHaveValue('9.40')
-
-    screen.getByRole('button', { name: 'Move Karambit down' }).focus()
-    await user.keyboard('{Enter}')
-    expect(names()).toEqual(['M9 Bayonet', 'Butterfly Knife', 'Karambit'])
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Move Karambit up' })).toHaveFocus())
-    expect(screen.getByText('Karambit moved to position 3.')).toBeInTheDocument()
     expect(fake.to('PUT /admin/knife-order')).toHaveLength(0)
 
     // Another knife finish starts from the shared order.
@@ -265,17 +264,51 @@ describe('the batch order', () => {
     await waitFor(() => expect(names()).toEqual(['Karambit', 'Butterfly Knife', 'M9 Bayonet']))
   })
 
+  it('moves a knife by dragging its handle with the keyboard, and the fill follows', async () => {
+    layOutListItems()
+    const fake = new FakeApi().withSession()
+    const { user } = renderApp(RUBY, fake)
+    await user.type(await screen.findByLabelText('Top rating'), '9.5')
+    const handle = screen.getByRole('button', { name: 'Drag M9 Bayonet' })
+    handle.focus()
+    await user.keyboard('[Space]')
+    await user.keyboard('[ArrowUp]')
+    await user.keyboard('[ArrowUp]')
+    await user.keyboard('[Space]')
+    await waitFor(() => expect(names()).toEqual(['M9 Bayonet', 'Karambit', 'Butterfly Knife']))
+    expect(rating('M9 Bayonet')).toHaveValue('9.50')
+    expect(rating('Karambit')).toHaveValue('9.45')
+    expect(rating('Butterfly Knife')).toHaveValue('9.40')
+    expect(await screen.findByText('M9 Bayonet moved to position 1.')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Drag M9 Bayonet' })).toHaveFocus())
+    expect(fake.to('PUT /admin/knife-order')).toHaveLength(0)
+  })
+
+  it('leaves the order as it was when a drag is cancelled', async () => {
+    layOutListItems()
+    const { user } = renderApp(RUBY, new FakeApi().withSession())
+    await screen.findByLabelText('Top rating')
+    screen.getByRole('button', { name: 'Drag Karambit' }).focus()
+    await user.keyboard('[Space]')
+    await user.keyboard('[ArrowDown]')
+    await user.keyboard('[Escape]')
+    expect(await screen.findByText('Moving Karambit was cancelled.')).toBeInTheDocument()
+    expect(names()).toEqual(['Karambit', 'Butterfly Knife', 'M9 Bayonet'])
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Drag Karambit' })).toHaveFocus())
+  })
+
   it('locks the order after Refill from top until Change order, and saves in the batch order', async () => {
     const fake = new FakeApi().withSession()
     const { user } = renderApp(RUBY, fake)
     await user.type(await screen.findByLabelText('Top rating'), '9.5')
     await user.selectOptions(screen.getByLabelText('Position of M9 Bayonet'), '1')
     await user.click(screen.getByRole('button', { name: 'Refill from top' }))
-    expect(screen.queryByRole('button', { name: /^Move / })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Drag / })).toBeNull()
     expect(screen.queryByLabelText(/^Position of /)).toBeNull()
     await user.click(screen.getByRole('button', { name: 'Change order' }))
     expect(screen.queryByRole('button', { name: 'Change order' })).toBeNull()
     expect(screen.getByLabelText('Position of Karambit')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Drag Karambit' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Refill from top' }))
     expect(screen.queryByLabelText('Position of Karambit')).toBeNull()
     expect(screen.getByRole('button', { name: 'Change order' })).toBeInTheDocument()
