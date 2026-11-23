@@ -1,6 +1,6 @@
 # 025: Batch: uncovered knives go to the end
 
-**Status:** Approved
+**Status:** Implemented
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** admin
@@ -92,7 +92,20 @@ None. Answered by the owner on 2026-11-23: on Remove, the knives are ticked agai
 
 ## Implementation notes
 
-Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+| Criterion | Covered by |
+| --- | --- |
+| 1 | `admin/src/combos/batch.test.ts:101`, "moves the knives it unticks to the end, in their order"; `:107`, "leaves knives unticked by hand and combos that exist in their places" |
+| 2 | `admin/src/combos/batch.test.ts:120`, "changes no rating with the order open" and "... locked" |
+| 3 | `admin/src/combos/batch.test.ts:133`, "leaves the order as it is when the group is removed" |
+| 4 | `admin/src/pages/BatchPage.test.tsx:658`, "moves the knives the group unticks to the end of the batch" |
+| 5 | `admin/src/pages/BatchPage.test.tsx:672`, "changes no rating when it moves knives" |
+| 6 | The commands below; `admin/README.md`, Special patterns |
+
+- `applyGroup` returns the new `order` with the new `rows`. It keeps `order` as it was when nothing moves, so a batch that still follows the shared order keeps an empty `order`.
+- R4 (a knife ticked again by hand stays where it is): `BatchPage.test.tsx:680`, "sends a knife ticked again by hand with any pattern", now checks Butterfly Knife stays last and is sent last.
+- The announcement says "moved it" for one knife and "moved them" for more (R5 gives the plural).
+- Browser check, 2026-11-23, in the built dashboard against a separate local stack: on the Gamma Doppler Phase 1 batch with top rating 9, picking Diamond Gem listed Karambit, Bayonet, Flip Knife and Gut Knife first (9.00, 8.95, 8.90, 8.85), then the six unticked knives in their earlier order, and announced "Unticked 6 knives with no Diamond Gem and moved them to the end: ...".
+- Commands, from `admin/`, all exit 0: `npm ci`, `npm run api:types:check`, `npm run lint`, `npm run typecheck`, `npm test` (29 files, 436 tests), `npm run build`, `npm run check:bundle`.
 
 ## Audit
 
