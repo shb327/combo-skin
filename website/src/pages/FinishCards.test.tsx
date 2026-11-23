@@ -264,7 +264,7 @@ describe('pages without counts', () => {
     expect(await screen.findByText('1 combo')).toBeInTheDocument()
     await settle()
     expect(api.requests.map((r) => new URL(r.url).pathname)).toEqual([
-      '/gloves/specialist/crimson-kimono/combos',
+      '/data/gloves/specialist/crimson-kimono.json',
     ])
   })
 })

@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+# The real settings: the account, project and bucket names. Only the example is committed.
+publish.toml

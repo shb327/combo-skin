@@ -6,9 +6,12 @@ import App from './App.tsx'
 import { createApi } from './api/client'
 import { createQueryClient } from './api/queries'
 import { Providers } from './Providers'
+import { reloadOnStaleChunk } from './staleChunks'
 
-const api = createApi({ baseUrl: import.meta.env.VITE_API_BASE_URL })
+// The data files are deployed with the site, on its own origin.
+const api = createApi({ baseUrl: window.location.origin })
 const queryClient = createQueryClient()
+reloadOnStaleChunk()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

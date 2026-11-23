@@ -1,5 +1,7 @@
-/** A fake of the API for tests: a `fetch` function that records every request and answers from a
- * queue, from the combos set for a path, or with the counts set for `/combo-counts`. Bodies are typed from the generated schema. */
+/** A fake of the site's data files for tests: a `fetch` function that records every request and
+ * answers from a queue, from the combos set for a finish, or with the counts set for
+ * `/data/combo-counts.json`. Any other path gets what Pages serves for a file it does not have:
+ * the app's page, as HTML, with 200. Bodies are typed from the generated schema. */
 import type { components } from '../api/schema'
 
 type Item = components['schemas']['Item']
@@ -7,10 +9,11 @@ type PublicCombo = components['schemas']['PublicCombo']
 type ComboCounts = components['schemas']['ComboCounts']
 type Screenshot = components['schemas']['Screenshot']
 
-export const ORIGIN = 'http://localhost:8000'
+/** The site's own origin, where the data files are. */
+export const ORIGIN = 'http://localhost:3000'
 /** The storage service's origin, the origin of VITE_IMAGE_BASE_URL's default. */
 export const SCREENSHOT_ORIGIN = 'http://localhost:9000'
-export const COUNTS_PATH = '/combo-counts'
+export const COUNTS_PATH = '/data/combo-counts.json'
 const IMAGE = 'https://community.akamai.steamstatic.com/economy/image'
 
 export interface Recorded {
@@ -33,6 +36,21 @@ export function json(body: unknown, status = 200): Response {
 
 export const notFound = () => json({ detail: 'Not Found' }, 404)
 
+/** What Pages answers for a path it has no file for: the app's page, with 200. */
+export const pagesFallback = () =>
+  new Response('<!doctype html><div id="root"></div>', {
+    status: 200,
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+  })
+
+/** The data file of a combos page: `/gloves/specialist/mogul/combos` is
+ * `/data/gloves/specialist/mogul.json`. */
+export function dataPath(page: string): string {
+  const match = /^\/(gloves|knives)\/([^/]+)\/([^/]+)\/combos$/.exec(page)
+  if (!match) throw new Error(`Not a combos page: ${page}`)
+  return `/data/${match[1]}/${match[2]}/${match[3]}.json`
+}
+
 /** A reply that waits until `resolve` is called. */
 export function deferred(): { reply: Promise<Response>; resolve: (response: Response) => void } {
   let resolve!: (response: Response) => void
@@ -49,9 +67,10 @@ export interface FakeApi {
   signals: AbortSignal[]
   /** Answers for the next requests, in order, before any `combos` set for their path. */
   reply(...replies: Reply[]): void
-  /** The combos every later request for this path gets, e.g. `/gloves/specialist/mogul/combos`. */
-  combos(path: string, combos: PublicCombo[]): void
-  /** The body every later `/combo-counts` request gets. */
+  /** The combos every later request for this combos page's data file gets, e.g. for
+   * `/gloves/specialist/mogul/combos`. */
+  combos(page: string, combos: PublicCombo[]): void
+  /** The body every later `/data/combo-counts.json` request gets. */
   counts(counts: ComboCounts): void
 }
 
@@ -66,7 +85,7 @@ export function fakeApi(): FakeApi {
     requests,
     signals,
     reply: (...replies) => queue.push(...replies),
-    combos: (path, combos) => byPath.set(path, combos),
+    combos: (page, combos) => byPath.set(dataPath(page), combos),
     counts: (counts) => {
       countsBody = counts
     },
@@ -80,7 +99,7 @@ export function fakeApi(): FakeApi {
       const { pathname } = new URL(url)
       if (pathname === COUNTS_PATH && countsBody) return json(countsBody)
       const combos = byPath.get(pathname)
-      return combos ? json(combos) : notFound()
+      return combos ? json(combos) : pagesFallback()
     },
   }
 }

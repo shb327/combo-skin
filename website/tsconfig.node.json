@@ -22,5 +22,5 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["vite.config.ts", "src/api/origin.ts", "scripts/dependencies.test.ts"]
+  "include": ["vite.config.ts", "src/api/origin.ts", "src/api/devData.ts", "scripts/removedSettings.ts", "scripts/removedSettings.test.ts", "scripts/dependencies.test.ts"]
 }
