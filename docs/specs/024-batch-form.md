@@ -1,6 +1,6 @@
 # 024: Batch form: untick uncovered knives, drag to order
 
-**Status:** Approved
+**Status:** Implemented
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** admin
@@ -153,7 +153,42 @@ None. Answered by the owner on 2026-11-23, as recommended:
 
 ## Implementation notes
 
-Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+**Criteria and tests**
+
+| Criterion | Covered by |
+| --- | --- |
+| 1 | `admin/src/pages/BatchPage.test.tsx:640`, "unticks the knife the group does not cover, and says why" |
+| 2 | `admin/src/pages/BatchPage.test.tsx:658`, "sends a knife ticked again by hand with any pattern" |
+| 3 | `admin/src/pages/BatchPage.test.tsx:675`, "ticks the knife again when the group is removed, and another group decides again"; `:690`, "never ticks a knife unticked by hand" |
+| 4 | `admin/src/pages/BatchPage.test.tsx:699`, "unticks a knife ticked by hand again after the group is removed and picked again" |
+| 5 | `admin/src/pages/BatchPage.test.tsx:710`, "leaves a combo that exists and a knife with own knife values ticked" |
+| 6 | `admin/src/combos/batch.test.ts:27`, `:40`, `:50`, `:60`, `:71`, `:87` |
+| 7 | `admin/src/combos/drafts.test.tsx:251`, "comes back in a batch after the session ends": the unticked knife, its text, the note and its mark (Remove ticks it again) |
+| 8 | `admin/src/pages/BatchPage.test.tsx:267`, "moves a knife by dragging its handle with the keyboard, and the fill follows" |
+| 9 | `admin/src/pages/BatchPage.test.tsx:287`, "leaves the order as it was when a drag is cancelled" |
+| 10 | `admin/src/pages/BatchPage.test.tsx:247`, "reorders this batch only, and the fill follows the order" (no Move buttons, the position list); `:300`, "locks the order after Refill from top until Change order, and saves in the batch order" |
+| 11 | `admin/src/pages/KnifeOrderPage.test.tsx`, unchanged and passing |
+| 12 | Manual, below |
+| 13 | The commands below; `admin/README.md`, Batch and Special patterns |
+
+**Manual check (criterion 12), 2026-11-23.** A separate local stack on other ports, the dashboard built against it and served with `vite preview`, in Chrome:
+
+- Gamma Doppler Phase 1 batch, Diamond Gem picked: Butterfly Knife, M9 Bayonet, Huntsman Knife, Falchion Knife, Bowie Knife and Shadow Daggers unticked, each with "Unticked: no Diamond Gem for this knife" as its checkbox's description; the Knife box listed the six; the live region said "Unticked 6 knives with no Diamond Gem: ..."; the button read "Save 4 as drafts".
+- Mouse, with Karambit's own values open: Shadow Daggers dragged from last to first; the page scrolled from 1550 px towards the top while the pointer was held at the top edge, and the fill followed.
+- 375 px wide with touch events: press and hold 400 ms on Karambit's handle, then move: it moved one place down. A touch in a rating field, moved 50 px, started no drag. No sideways scroll.
+- Keyboard: Space, Down, Down, Down, Space at about 150 ms per key moved a knife three places, announced "Butterfly Knife moved to position 4." and kept focus on the handle; Escape cancelled with "Moving Karambit was cancelled.". The handle reads the instructions through `aria-describedby`, with role description "sortable".
+- No CSP violation in the console; the page's policy keeps `style-src 'self'`. The only console error is the 401 of the session check on the login page.
+
+**Deviation (2026-11-23), to confirm with the owner.** Design, "Sensors and handle", says the batch uses the same sensors as the finish list. In the browser, with batch rows that are much taller than combo rows, a second Down pressed within about 150 ms of the first was lost: dnd-kit's keyboard sensor scrolls smoothly after each key, and a key pressed during that scroll is measured against the old place. The batch's keyboard sensor now scrolls at once (`scrollBehavior: 'auto'`, an option of `useDragSensors`); the finish list keeps the smooth scroll. Keys pressed within a few milliseconds of picking up are still ignored while dnd-kit measures the list, which no person can type.
+
+**Other notes**
+
+- `RowText.untickedFor` is cleared by any tick or untick by hand, and ignored for a combo that exists (a row that became "already exists" after a refused save is not ticked again).
+- The note under the group is part of `ConditionsFields` (`special.note`), so it sits in the Knife box under "Each knife gets its own ... seed."
+- dnd-kit's live region keeps only its latest message; on a keyboard pick up, the "in its place" message follows "Picked up ..." at once, so the test checks the drop and cancel messages.
+- Follow-up: the Knife order page could get the same handle (a later spec, as answered).
+
+**Commands**, from `admin/`, all exit 0: `npm ci`, `npm run api:types:check`, `npm run lint`, `npm run typecheck`, `npm test` (29 files, 429 tests), `npm run build`, `npm run check:bundle` ("dist: bundle checks passed"). `npm audit --omit=dev`: 0 vulnerabilities.
 
 ## Audit
 
