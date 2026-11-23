@@ -1,6 +1,6 @@
 # 024: Batch form: untick uncovered knives, drag to order
 
-**Status:** Implemented
+**Status:** Audited
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** admin
@@ -194,8 +194,10 @@ None. Answered by the owner on 2026-11-23, as recommended:
 
 ## Audit
 
-**Date:** 2026-11-23 · **Branch:** 024-batch-form · **Commit:** bbfe967
-**Verdict:** Fail
+**Date:** 2026-11-23 · **Branch:** 024-batch-form · **Commit:** 1c879a0 (re-audit; the code is the same as at bbfe967, only this spec changed)
+**Verdict:** Pass with follow-ups
+
+The first audit, at bbfe967, failed criterion 12 because its screen reader step was never run. The owner then removed that step (Implementation notes), and criterion 12 is checked again below. Every other result stands: no code changed.
 
 | # | Criterion | Result | Evidence |
 | --- | --- | --- | --- |
@@ -210,7 +212,7 @@ None. Answered by the owner on 2026-11-23, as recommended:
 | 9 | Space, Down, Escape: order kept, cancel announced | Pass | `BatchPage.test.tsx:287` |
 | 10 | No Move buttons; position list works; Refill hides handles and position lists, Change order shows them | Pass | `BatchPage.test.tsx:247`, `:300` |
 | 11 | Knife order page unchanged, with Up, Down and position | Pass | `admin/src/pages/KnifeOrderPage.tsx` and its test have no changes on the branch; `KnifeOrderPage.test.tsx` passes and uses Move buttons and position lists |
-| 12 | Manual: Diamond Gem, mouse drag with auto-scroll, touch at 375 px, screen reader, no CSP violation | Fail | Diamond Gem, auto-scroll, the 375 px layout and the CSP were checked in the built dashboard (Implementation notes). The mouse and touch drags were sent as DOM mouse and touch events from the page, not with Chrome's touch emulation or a real pointer. The screen reader step was not done with a screen reader: only the handle's description and the live region's text were read from the page |
+| 12 | Manual: Diamond Gem, mouse drag with auto-scroll, touch at 375 px, no CSP violation | Pass | Checked in the built dashboard against a separate local stack (Implementation notes): Diamond Gem unticked the six uncovered knives; a mouse drag from last to first scrolled the page with a row's own values open; at 375 px a press and hold then move reordered, and a touch in a rating field did not; no CSP violation. The mouse and touch drags were sent as DOM mouse and touch events from the page, which dnd-kit handles like a real pointer |
 
 | Check | Command | Result |
 | --- | --- | --- |
@@ -228,8 +230,7 @@ None. Answered by the owner on 2026-11-23, as recommended:
 
 **Findings**
 
-- (blocking) Criterion 12 is not fully checked: the screen reader step needs a run with a screen reader (for example VoiceOver: the handle's instructions, then a keyboard drag). Either run it, or change the criterion to what was checked.
-- (follow-up) At pick up, a screen reader hears "Karambit is in its place, position 2.", not "Picked up Karambit." as Design says: dnd-kit announces the start and then at once the first "over" (the knife itself), and the live region shows only the second. R14 still holds (knife and position are named). Returning nothing from `onDragOver` while the knife is over its own place would keep "Picked up ...". The finish list (spec 017) does the same with "... is over ...".
+- (follow-up, screen readers only) At pick up, a screen reader hears "Karambit is in its place, position 2.", not "Picked up Karambit." as Design says: dnd-kit announces the start and then at once the first "over" (the knife itself), and the live region shows only the second. R14 still holds (knife and position are named). Returning nothing from `onDragOver` while the knife is over its own place would keep "Picked up ...". The finish list (spec 017) does the same with "... is over ...".
 - (follow-up) R15 and Design put the position list "next to the handle"; it is at the right end of the row's first line, with the handle at its start. Not recorded in Implementation notes.
 - (follow-up) Design says the jsdom layout helper matches a list's direct children; `layOutListItems()` uses the outermost `li` instead, with the same effect. Not recorded.
 - (follow-up) Criterion 5's existing combo is Butterfly Knife, not Karambit (see criterion 5). Not recorded.
