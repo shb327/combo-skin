@@ -117,7 +117,7 @@ The owner's list, with the finish each belongs to, what the community calls it, 
 | Group (slug) | Finish slug | Knife types | Sources | Example seed per knife |
 | --- | --- | --- | --- | --- |
 | Black Gem (`black-gem`) | `scorched` | 20 | "Master guide to Scorched Knifes (Black Gems)" by CuzImExige ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3142649856), Feb 2025); "Stiletto Scorched: Black Gems Patterns" by pliza ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3224675389), which credits dEAGLE-CS's research) | The master guide's best black pattern per knife |
-| Gold Gem (`gold-gem`) | `case-hardened` | 19 (not Kukri) | "The Complete Gold Gem Patterns Guide" by korenevskiy ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3313951742), Jun 2026), for 18 knives | The guide's first seed per knife; Shadow Daggers 511, the owner's |
+| Gold Gem (`gold-gem`) | `case-hardened` | 20 | "The Complete Gold Gem Patterns Guide" by korenevskiy ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3313951742), Jun 2026), for 18 knives | The guide's first seed per knife; Shadow Daggers 511 and Kukri 645, the owner's |
 | Blue Gem (`blue-gem`) | `case-hardened` | 20 | "The Complete Blue Gem Guide" by korenevskiy and Krieke 啤酒哥 ([index](https://steamcommunity.com/sharedfiles/filedetails/?id=3090086681), Aug 2026), one guide per knife | Each knife's "#1" seed (Karambit 387) |
 | Full Mesh (`full-mesh`) | `safari-mesh` | 20 | "Top 3 Patterns for Every Knife in CS2" by clu0od ([guide](https://steamcommunity.com/sharedfiles/filedetails/?id=3538425089), Aug 2025), three Safari Mesh picks per knife | The guide's first pick per knife (M9 Bayonet 199) |
 | Full Fade (`full-fade`) | `fade` | 20 | "csgo-fade-percentage-calculator" by chescos ([repository](https://github.com/chescos/csgo-fade-percentage-calculator), MIT); korenevskiy's Fade guides | The calculator's top-ranked seed per knife |
@@ -357,6 +357,7 @@ None. Answered by the owner on 2026-11-16, and recorded in Design as the owner's
 - **2026-11-21: Piss & Ice on four knives.** Like Fire & Ice, the pattern exists only on the Karambit, Bayonet, Flip and Gut. The owner picked the seeds (Karambit 769, Bayonet 609, Flip 92, Gut 722); the group has no sources.
 - **2026-11-21: Gamma Doppler gems on four knives.** The owner limited Diamond Gem, Full Cyan and Full Lime to the Karambit, Bayonet, Flip and Gut, the knives with small blades, as with Fire & Ice and Piss & Ice (Cyanbit is the Karambit's alone). Each keeps the guide seed for those knives and credits only their guides: korenevskiy's Bayonet, Flip, Gut and Karambit guides for Phase 4, and for Diamond Gem the Karambit guide, Glorp's Flip guide and korenevskiy's Bayonet and Gut Phase 1 guides.
 - **2026-11-23: Gold Gem on Shadow Daggers.** The group's 18 knives from korenevskiy's guide left out Shadow Daggers; the owner picked its seed, 511. It is added after import as a seed for a knife type the group did not cover (R2, R3, Design, Frozen groups); no other seed changes. Gold Gem now covers 19 knives, still not Kukri, and keeps its source for the other 18. Design, The groups, was updated to match.
+- **2026-11-23: Gold Gem on Kukri.** The owner picked the Kukri seed too, 645, added after import the same way (R2, R3, Design, Frozen groups); no other seed changes. Gold Gem now covers all 20 knives and keeps its source for the 18 from korenevskiy's guide. Design, The groups, was updated to match. Criteria 9 and 16 still use Kukri as Gold Gem's uncovered knife; their tests import their own groups, where Gold Gem still has no Kukri.
 
 ### Criteria and tests
 
@@ -364,7 +365,7 @@ None. Answered by the owner on 2026-11-16, and recorded in Design as the owner's
 | --- | --- |
 | 1 | `tests/test_migrations.py` (revision `0008`, both tables); `alembic upgrade head`, `downgrade base`, `upgrade head` and `alembic check` run against a fresh database on 2026-11-21 |
 | 2 | `tests/patterns/test_data.py`: `test_the_file_holds_the_owners_groups`, `test_the_file_is_valid_against_the_catalog`, `test_the_committed_file_imports`; `import --check` in the Compose run below |
-| 3 | `test_data.py`: `test_every_source_is_complete`, `test_a_group_without_sources_is_the_owners_pick`, `test_the_owners_own_picks` (Piss & Ice's seeds, no sources; Gold Gem's Shadow Daggers 511, no Kukri) |
+| 3 | `test_data.py`: `test_every_source_is_complete`, `test_a_group_without_sources_is_the_owners_pick`, `test_the_owners_own_picks` (Piss & Ice's seeds, no sources; Gold Gem's Shadow Daggers 511 and Kukri 645, 20 knives) |
 | 4 | Manual: 126 pictures, one per seed, in the review folder; see Picture review below |
 | 5 | `tests/patterns/test_import.py`: `test_import_inserts_and_is_safe_to_run_again`, `test_additions_are_imported` |
 | 6 | `test_data.py`: `test_the_file_format_refuses`, `test_a_duplicate_slug_is_refused`, `test_the_catalog_check_refuses`; `test_import.py`: `test_imported_groups_are_frozen` (name, kind, finish, a changed or removed seed, a group left out), `test_a_refused_file_writes_nothing`, `test_check_writes_nothing` |
@@ -403,6 +404,7 @@ None. Answered by the owner on 2026-11-16, and recorded in Design as the owner's
 - 2026-11-21: the owner checked the first ten in game and confirmed them: Blue Gem Karambit 387, Gold Gem M9 Bayonet 739, Black Gem Karambit 215, White Gem Stiletto 402, Full Mesh M9 Bayonet 199, Full Fade Butterfly 763, Mango Fade Butterfly 541, Fire & Ice Karambit 412, Piss & Ice Karambit 769 and Full Lime Flip 412.
 - 2026-11-21: the owner checked the other 116 in game and confirmed every one. All 126 pictures, one per seed of `groups.json`, are confirmed.
 - 2026-11-23: `gold-gem-shadow-daggers-511.png` added, drawn the same way, for the owner's Gold Gem Shadow Daggers seed; the folder holds 127 pictures, one per seed.
+- 2026-11-23: `gold-gem-kukri-645.png` added, drawn the same way, for the owner's Gold Gem Kukri seed; the folder holds 128 pictures, one per seed.
 
 ### Follow-ups
 
