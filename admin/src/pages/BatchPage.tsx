@@ -1,3 +1,6 @@
+import { DndContext, closestCenter, type Announcements, type DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useRef, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
 import { ApiError } from '../api/errors'
@@ -7,6 +10,7 @@ import { useTitle } from '../components/useTitle'
 import { AgentPicker } from '../combos/AgentPicker'
 import {
   EMPTY_BATCH,
+  applyGroup,
   batchRows,
   checkBatch,
   knifeBatchRange,
@@ -16,6 +20,7 @@ import {
   type BatchText,
   type Row,
   type RowText,
+  untickedNote,
 } from '../combos/batch'
 import { ConditionsFields, DescriptionField, RatingField } from '../combos/fields'
 import { Picture } from '../combos/Picture'
@@ -31,13 +36,17 @@ import { detailLabel, isRetired, useFinishPage } from '../combos/useFinishPage'
 import { useDraft } from '../combos/useDrafts'
 import { search } from '../combos/search'
 import { NO_CONDITIONS, formatRating, parseRating, parseStep, stepStep } from '../combos/values'
-import { OrderControls } from '../combos/OrderControls'
-import { moveSlug, movedText, useMoveFocus, type MoveAction } from '../combos/moves'
+import { useDragSensors } from '../combos/drag'
+import { PositionSelect } from '../combos/OrderControls'
+import { moveSlug, movedText } from '../combos/moves'
 
 type Saved = components['schemas']['BatchSaved']
 
 const rowId = (slug: string) => `batch-row-${slug}`
 const label = (key: string) => (key === 'row' ? 'Row' : (FIELD_LABELS[key] ?? key))
+
+const SCREEN_READER_INSTRUCTIONS =
+  'To move a knife, press Space on its handle. Use the Up and Down keys to move it, Space to drop it, or Escape to cancel.'
 
 /** Batch: one pair of gloves, one knife finish name, every knife type that has it. */
 export function BatchPage() {
@@ -148,7 +157,8 @@ function BatchRows({
   const [published, setPublished] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [announcement, setAnnouncement] = useState('')
-  const focus = useMoveFocus()
+  // Batch rows are tall: a keyboard move scrolls at once, so quick key presses all count.
+  const sensors = useDragSensors({ scrollBehavior: 'auto' })
 
   if (!candidates.data) return <QueryState error={candidates.error} onRetry={() => candidates.refetch()} />
   const knifeName = candidates.data.knife_finish.display_name ?? knifeFinish
@@ -200,11 +210,35 @@ function BatchRows({
   const changeRow = (row: Row, patch: Partial<RowText>) =>
     change((current) => ({ ...current, rows: { ...current.rows, [row.slug]: { ...row.text, ...patch } } }))
 
-  function move(row: Row, to: number, action?: MoveAction) {
+  /** Moves a row to position `to` of this batch's order. A drag is announced by dnd-kit, so
+   * only a move with the position list sets the page's live region. */
+  function move(row: Row, to: number, announce = true) {
     const next = moveSlug(rows.map((r) => r.slug), row.slug, to)
     change((current) => ({ ...current, order: next }))
-    setAnnouncement(movedText(row.candidate.knife.type_name, to))
-    focus.moved(row.slug, action)
+    if (announce) setAnnouncement(movedText(row.candidate.knife.type_name, to))
+  }
+
+  const canOrder = !text.orderLocked && rows.length > 1
+  const place = (id: string | number) => rows.findIndex((r) => r.slug === String(id))
+  const typeName = (id: string | number) => rows[place(id)]?.candidate.knife.type_name ?? 'The knife'
+  const announcements: Announcements = {
+    onDragStart: ({ active }) => `Picked up ${typeName(active.id)}.`,
+    onDragOver: ({ active, over }) => {
+      if (!over) return `${typeName(active.id)} is over no knife.`
+      if (over.id === active.id) return `${typeName(active.id)} is in its place, position ${place(over.id) + 1}.`
+      return `${typeName(active.id)} is over position ${place(over.id) + 1}, ${typeName(over.id)}.`
+    },
+    onDragEnd: ({ active, over }) =>
+      over && over.id !== active.id
+        ? movedText(typeName(active.id), place(over.id))
+        : `${typeName(active.id)} was dropped in its place.`,
+    onDragCancel: ({ active }) => `Moving ${typeName(active.id)} was cancelled.`,
+  }
+
+  function onDragEnd({ active, over }: DragEndEvent) {
+    const row = rows[place(active.id)]
+    if (!row || !over || over.id === active.id) return
+    move(row, place(over.id), false)
   }
 
   function toggleOpen(slug: string) {
@@ -354,8 +388,13 @@ function BatchRows({
           range={knifeBatchRange(rows)}
           showRange={false}
           errors={itemErrors(checked.batch, 'knife')}
-          special={{ choices: batchChoices(groups.data, knifeFinish), perKnife: true }}
-          onChange={(value) => change((current) => ({ ...current, knife: value }))}
+          special={{ choices: batchChoices(groups.data, knifeFinish), perKnife: true, note: untickedNote(rows, text) }}
+          onChange={(value) => {
+            // A new batch-wide group unticks the knives it has no seed for (spec 024).
+            const next = applyGroup(rows, text, value)
+            change(() => next.text)
+            if (next.announcement) setAnnouncement(next.announcement)
+          }}
         />
         <AgentPicker
           id="batch-agent"
@@ -387,34 +426,43 @@ function BatchRows({
         </p>
       )}
       {rows.length ? (
-        <ol className="mt-6 max-w-3xl space-y-3" aria-label="Knives">
-          {rows.map((row, index) => (
-            <BatchRow
-              key={row.slug}
-              order={
-                text.orderLocked || rows.length < 2 ? undefined : (
-                  <OrderControls
-                    slug={row.slug}
-                    name={row.candidate.knife.type_name}
-                    index={index}
-                    count={rows.length}
-                    focus={focus}
-                    onMove={(to, action) => move(row, to, action)}
-                  />
-                )
-              }
-              row={row}
-              batch={text}
-              gloveRange={gloveRange}
-              gloveChoices={gloveChoices}
-              knifeChoices={itemChoices(groups.data, 'knife', row.slug, knifeFinish)}
-              errors={rowErrors(row.slug)}
-              open={open.has(row.slug)}
-              onToggleOpen={() => toggleOpen(row.slug)}
-              onChange={(patch) => changeRow(row, patch)}
-            />
-          ))}
-        </ol>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          accessibility={{ announcements, screenReaderInstructions: { draggable: SCREEN_READER_INSTRUCTIONS } }}
+          onDragEnd={onDragEnd}
+        >
+          <SortableContext items={rows.map((r) => r.slug)} strategy={verticalListSortingStrategy} disabled={!canOrder}>
+            <ol className="mt-6 max-w-3xl space-y-3" aria-label="Knives">
+              {rows.map((row, index) => (
+                <BatchRow
+                  key={row.slug}
+                  orderable={canOrder}
+                  order={
+                    canOrder ? (
+                      <PositionSelect
+                        slug={row.slug}
+                        name={row.candidate.knife.type_name}
+                        index={index}
+                        count={rows.length}
+                        onMove={(to) => move(row, to)}
+                      />
+                    ) : undefined
+                  }
+                  row={row}
+                  batch={text}
+                  gloveRange={gloveRange}
+                  gloveChoices={gloveChoices}
+                  knifeChoices={itemChoices(groups.data, 'knife', row.slug, knifeFinish)}
+                  errors={rowErrors(row.slug)}
+                  open={open.has(row.slug)}
+                  onToggleOpen={() => toggleOpen(row.slug)}
+                  onChange={(patch) => changeRow(row, patch)}
+                />
+              ))}
+            </ol>
+          </SortableContext>
+        </DndContext>
       ) : (
         <p className="mt-6 text-white/60">No knife has this finish.</p>
       )}
@@ -432,6 +480,7 @@ function BatchRows({
 }
 
 function BatchRow({
+  orderable,
   order,
   row,
   batch,
@@ -443,7 +492,9 @@ function BatchRow({
   onToggleOpen,
   onChange,
 }: {
-  /** The row's order controls, while the batch order can change. */
+  /** The batch order can change: the row has a drag handle. */
+  orderable: boolean
+  /** The row's position list, while the batch order can change. */
   order?: ReactNode
   row: Row
   batch: BatchText
@@ -462,6 +513,11 @@ function BatchRow({
   const ratingBox = useRef<HTMLInputElement>(null)
   const range = row.vanilla ? 'No float range' : `Float ${row.range.min} – ${row.range.max}`
   const pattern = row.text.ticked ? rowPattern(row, batch) : null
+  // Unticked by the batch-wide group, which has no seed for this knife (spec 024).
+  const why =
+    !row.text.ticked && !row.existing && row.text.untickedFor !== undefined && batch.knife.group
+      ? `Unticked: no ${batch.knife.group.name} for this knife`
+      : null
   // Errors shown next to their own fields; the rest are listed under the row.
   const inFields = (key: string) =>
     key === 'rating' ||
@@ -470,22 +526,51 @@ function BatchRow({
     (key === 'description' && row.text.description !== undefined && open) ||
     (key === 'agent' && row.text.agent !== undefined && open)
   const listed = Object.entries(errors).filter(([key]) => !inFields(key))
+  // Only the handle starts a drag, so the row's fields work as before (spec 024).
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
+    id: row.slug,
+    disabled: !orderable,
+  })
   return (
-    <li className="rounded-lg border border-white/10 p-3" aria-label={name}>
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
+      className={`rounded-lg border p-3 ${isDragging ? 'relative z-10 border-accent bg-background' : 'border-white/10'}`}
+      aria-label={name}
+    >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        {orderable && (
+          <button
+            type="button"
+            ref={setActivatorNodeRef}
+            {...attributes}
+            {...listeners}
+            aria-label={`Drag ${name}`}
+            className={`${SECONDARY} cursor-grab touch-manipulation px-2`}
+          >
+            <span aria-hidden="true">⠿</span>
+          </button>
+        )}
         <Picture url={row.candidate.knife.image_url} fallback={row.candidate.knife.fallback_image_url} size="sm" />
         <input
           id={id}
           type="checkbox"
           checked={row.text.ticked}
           aria-label={`${row.existing ? 'Update' : 'Include'} ${name}`}
-          onChange={() => onChange({ ticked: !row.text.ticked })}
+          aria-describedby={why ? `${id}-why` : undefined}
+          // A tick by hand is the owner's own choice: the group no longer decides for the row.
+          onChange={() => onChange({ ticked: !row.text.ticked, untickedFor: undefined })}
         />
         <label htmlFor={id} className="font-semibold">
           {name}
         </label>
         <span className="text-xs text-white/50">{range}</span>
         {pattern && <span className="text-xs text-white/80">{pattern}</span>}
+        {why && (
+          <span id={`${id}-why`} className="text-xs text-white/80">
+            {why}
+          </span>
+        )}
         {order && <span className="ml-auto flex flex-wrap items-center gap-2">{order}</span>}
         {row.existing && (
           <span className="flex items-center gap-2 text-sm text-white/70">

@@ -2,7 +2,7 @@ import type { MoveAction, useMoveFocus } from './moves'
 import { SECONDARY } from './styles'
 
 /** Move up, Move down and a position list for one item of an ordered list, as on the knife
- * order page and in a batch. */
+ * order page. A batch has a drag handle and the position list (spec 024). */
 export function OrderControls({
   slug,
   name,
@@ -42,6 +42,27 @@ export function OrderControls({
           Down
         </button>
       )}
+      <PositionSelect slug={slug} name={name} index={index} count={count} onMove={(to) => onMove(to)} />
+    </>
+  )
+}
+
+/** The position list of one item of an ordered list: 1 to `count`. */
+export function PositionSelect({
+  slug,
+  name,
+  index,
+  count,
+  onMove,
+}: {
+  slug: string
+  name: string
+  index: number
+  count: number
+  onMove(to: number): void
+}) {
+  return (
+    <>
       <label className="sr-only" htmlFor={`position-${slug}`}>
         Position of {name}
       </label>

@@ -1,15 +1,5 @@
-import {
-  DndContext,
-  KeyboardSensor,
-  MouseSensor,
-  TouchSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  type Announcements,
-  type DragEndEvent,
-} from '@dnd-kit/core'
-import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { DndContext, closestCenter, type Announcements, type DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState, type ReactNode } from 'react'
@@ -17,6 +7,7 @@ import { Link, useLocation, useSearchParams } from 'react-router'
 import { ApiError } from '../api/errors'
 import { useApi } from '../api/useApi'
 import { ListRating, type RatingState } from './ListRating'
+import { useDragSensors } from './drag'
 import { Picture } from './Picture'
 import { rememberScroll, readView, takeScroll, viewParams, type ListView, type StatusFilter } from './listView'
 import { COMBO_MESSAGES, comboErrorMessage, isCode } from './messages'
@@ -63,11 +54,7 @@ export function ComboList({ side, filters }: { side: Kind; filters: ComboFilters
   const [frozen, setFrozen] = useState<string[] | null>(null)
   // A combo dropped in a new place, shown there with its new rating while it saves.
   const [dropping, setDropping] = useState<{ id: string; rating: number } | null>(null)
-  const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  )
+  const sensors = useDragSensors()
   const loaded = combos.data !== undefined
 
   useEffect(() => {

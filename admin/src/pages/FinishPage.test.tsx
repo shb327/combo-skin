@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { COMBO_MESSAGES } from '../combos/messages'
 import { FakeApi, error, json, routeOf } from '../test/fakeApi'
 import { AGENTS } from '../test/fakeCatalog'
+import { layOutListItems } from '../test/layout'
 import { renderApp, where } from '../test/render'
 
 const GLOVES = '/gloves/specialist/crimson-kimono'
@@ -428,17 +429,6 @@ describe('editing a rating in the list', () => {
   })
 })
 
-/** dnd-kit measures elements; jsdom has no layout, so each combo gets a box by its place. */
-function layOutCombos() {
-  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-    const item = this.closest('li')
-    const index = item?.parentElement ? Array.from(item.parentElement.children).indexOf(item) : 0
-    const top = item ? 1000 + index * 100 : 0
-    const height = item ? 90 : 0
-    return { x: 0, y: top, top, left: 0, right: 600, bottom: top + height, width: 600, height, toJSON: () => ({}) }
-  })
-}
-
 function withRatings() {
   const fake = new FakeApi().withSession()
   const s = fake.store
@@ -455,7 +445,7 @@ describe('dragging a combo to a new place', () => {
   })
 
   it('gives it a rating between its new neighbours, with the keyboard', async () => {
-    layOutCombos()
+    layOutListItems()
     const fake = withRatings()
     const { user } = renderApp(GLOVES, fake)
     await screen.findByRole('listitem', { name: BUTTERFLY })
@@ -471,7 +461,7 @@ describe('dragging a combo to a new place', () => {
   })
 
   it('refuses a place where no rating fits, and sends nothing', async () => {
-    layOutCombos()
+    layOutListItems()
     const fake = withRatings()
     const { user } = renderApp(GLOVES, fake)
     await screen.findByRole('listitem', { name: BUTTERFLY })
@@ -496,7 +486,7 @@ describe('dragging a combo to a new place', () => {
     ['above the first', [10, 9], 'Butterfly Knife | Doppler (Ruby)', '[ArrowUp]', 'No rating fits above 10.00. Change a rating first.'],
     ['below the last', [0.04, 0], 'Karambit | Doppler (Ruby)', '[ArrowDown]', 'No rating fits below 0.00. Change a rating first.'],
   ])('names the end of the list when no rating fits %s', async (_, [first, second], dragged, key, message) => {
-    layOutCombos()
+    layOutListItems()
     const fake = new FakeApi().withSession()
     fake.store.add({ glove: 'specialist/crimson-kimono', knife: 'karambit/doppler-ruby', rating: first })
     fake.store.add({ glove: 'specialist/crimson-kimono', knife: 'butterfly/doppler-ruby', rating: second })
@@ -511,7 +501,7 @@ describe('dragging a combo to a new place', () => {
   })
 
   it('shows the combo in its new place after a rating saved in place kept the order', async () => {
-    layOutCombos()
+    layOutListItems()
     const fake = withRatings()
     const { user } = renderApp(GLOVES, fake)
     await screen.findByRole('listitem', { name: BUTTERFLY })
