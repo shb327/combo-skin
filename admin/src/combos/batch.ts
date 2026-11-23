@@ -179,9 +179,11 @@ const decidedByGroup = (row: Row) => !row.existing && !row.vanilla && row.text.k
 const knives = (count: number) => `${count} ${count === 1 ? 'knife' : 'knives'}`
 
 /** The batch with new batch-wide knife values. When the group changes, the old one is removed
- * first: the rows it unticked are ticked again. A new group then unticks the ticked rows it has
- * no seed for and marks them, so removing it ticks them again (spec 024). `announcement` says
- * what changed, or is null. */
+ * first: the rows it unticked are ticked again, where they are. A new group then unticks the
+ * ticked rows it has no seed for and marks them, so removing it ticks them again (spec 024), and
+ * moves them to the end of the batch's order, so the rows it covers come first (spec 025). The
+ * fill counts ticked rows only, so no rating changes. `announcement` says what changed, or is
+ * null. */
 export function applyGroup(rows: Row[], text: BatchText, knife: ConditionsText): { text: BatchText; announcement: string | null } {
   if ((text.knife.group?.slug ?? null) === (knife.group?.slug ?? null)) return { text: { ...text, knife }, announcement: null }
   const next = { ...text.rows }
@@ -206,11 +208,16 @@ export function applyGroup(rows: Row[], text: BatchText, knife: ConditionsText):
     }
     if (own !== row.text) next[row.slug] = own
   }
+  const marked = (row: Row) => next[row.slug]?.untickedFor !== undefined && !row.existing
+  const moved = rows.some(marked) ? [...rows.filter((r) => !marked(r)), ...rows.filter(marked)].map((r) => r.slug) : null
+  const order = moved && moved.join() !== rows.map((r) => r.slug).join() ? moved : text.order
   const said = [
-    unticked.length && knife.group ? `Unticked ${knives(unticked.length)} with no ${knife.group.name}: ${unticked.join(', ')}.` : '',
+    unticked.length && knife.group
+      ? `Unticked ${knives(unticked.length)} with no ${knife.group.name} and moved ${unticked.length === 1 ? 'it' : 'them'} to the end: ${unticked.join(', ')}.`
+      : '',
     ticked.length ? `Ticked again: ${ticked.join(', ')}.` : '',
   ].filter(Boolean)
-  return { text: { ...text, knife, rows: next }, announcement: said.length ? said.join(' ') : null }
+  return { text: { ...text, knife, rows: next, order }, announcement: said.length ? said.join(' ') : null }
 }
 
 /** The rows the batch-wide group unticked, in batch order (spec 024). */
@@ -223,7 +230,7 @@ export function untickedNote(rows: Row[], text: BatchText): string | null {
   const shown = untickedByGroup(rows)
   if (!group || !shown.length) return null
   const names = shown.map((row) => row.candidate.knife.type_name).join(', ')
-  return `${knives(shown.length)} with no ${group.name} unticked: ${names}. Tick one to include it with any pattern.`
+  return `${knives(shown.length)} with no ${group.name} unticked and moved to the end: ${names}. Tick one to include it with any pattern.`
 }
 
 export interface BatchCheck {
