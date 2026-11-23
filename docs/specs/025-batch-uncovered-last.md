@@ -1,6 +1,6 @@
 # 025: Batch: uncovered knives go to the end
 
-**Status:** Draft
+**Status:** Approved
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** admin
@@ -88,7 +88,7 @@ npm run check:bundle
 
 ## Open questions
 
-- On Remove, the knives are ticked again at the end, not where they were (Design, On Remove). Recommended as written; say if Remove should put them back.
+None. Answered by the owner on 2026-11-23: on Remove, the knives are ticked again at the end, as in Design.
 
 ## Implementation notes
 
