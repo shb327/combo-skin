@@ -157,7 +157,8 @@ function BatchRows({
   const [published, setPublished] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [announcement, setAnnouncement] = useState('')
-  const sensors = useDragSensors()
+  // Batch rows are tall: a keyboard move scrolls at once, so quick key presses all count.
+  const sensors = useDragSensors({ scrollBehavior: 'auto' })
 
   if (!candidates.data) return <QueryState error={candidates.error} onRetry={() => candidates.refetch()} />
   const knifeName = candidates.data.knife_finish.display_name ?? knifeFinish
