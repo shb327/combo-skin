@@ -108,16 +108,16 @@ def test_a_group_without_sources_is_the_owners_pick() -> None:
 
 
 def test_the_owners_own_picks() -> None:
-    """Piss & Ice is the owner's: their seeds, and no sources. Gold Gem's Shadow Daggers seed
-    is the owner's too, added after import; the group still has no Kukri."""
+    """Piss & Ice is the owner's: their seeds, and no sources. Gold Gem's Shadow Daggers and
+    Kukri seeds are the owner's too, added after import."""
     groups = {g.slug: g for g in load_groups().groups}
     piss_and_ice = groups["piss-and-ice"]
     assert piss_and_ice.seeds == {"karambit": 769, "bayonet": 609, "flip": 92, "gut": 722}
     assert piss_and_ice.sources == []
     gold_gem = groups["gold-gem"]
     assert gold_gem.seeds["shadow-daggers"] == 511
-    assert "kukri" not in gold_gem.seeds
-    assert len(gold_gem.seeds) == 19
+    assert gold_gem.seeds["kukri"] == 645
+    assert len(gold_gem.seeds) == 20
 
 
 @pytest.mark.anyio
