@@ -92,3 +92,21 @@ def test_each_limit_stops_the_publish_before_any_upload(world: World, limit: str
     assert world.public.puts == []
     assert world.deploys() == []
     assert load(world.settings_path)  # settings untouched
+
+
+@pytest.mark.parametrize(
+    "relative", ["assets/index-a1.css", "assets/index-a1.js", "assets/x.mjs", "index.html"]
+)
+def test_an_inlined_data_image_in_code_fails(world: World, folder: Path, relative: str) -> None:
+    target = folder / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(".k{background:url(data:image/svg+xml;base64,PHN2Zz4=)}")
+    with pytest.raises(site.SiteError, match=rf"{relative} holds an inlined data: URL"):
+        check(world, folder)
+
+
+def test_an_image_file_is_not_searched_for_data_urls(world: World, folder: Path) -> None:
+    # Only code can inline an asset; a picture's own bytes may hold any text.
+    (folder / "assets").mkdir()
+    (folder / "assets" / "1-abc.png").write_bytes(b"\x89PNG\r\n\x1a\ndata:image/png;base64,")
+    assert check(world, folder).files == 4
