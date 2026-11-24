@@ -49,6 +49,8 @@ export default defineConfig(({ mode }) => {
       allowedHosts,
     },
     build: {
+      // Every asset is a file: the CSP allows no data: images or fonts.
+      assetsInlineLimit: 0,
       rollupOptions: {
         output: {
           // The generated catalog is most of the app's data: give it its own chunk.
