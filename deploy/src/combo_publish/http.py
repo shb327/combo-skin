@@ -5,9 +5,12 @@ import urllib.error
 import urllib.request
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Protocol
+from importlib.metadata import version
+from typing import Any, Protocol
 
 TIMEOUT_S = 30
+# Cloudflare answers 403 to Python's default user agent, so every request names this command.
+USER_AGENT = f"combo-publish/{version('combo-publish')}"
 
 
 class HttpError(Exception):
@@ -35,14 +38,21 @@ class _NoRedirects(urllib.request.HTTPRedirectHandler):
         return None
 
 
+class Opener(Protocol):
+    def open(self, request: urllib.request.Request, /, *, timeout: float) -> Any: ...
+
+
 class UrlHttp:
-    def __init__(self) -> None:
-        self._opener = urllib.request.build_opener(_NoRedirects)
+    def __init__(self, opener: Opener | None = None) -> None:
+        self._opener: Opener = opener or urllib.request.build_opener(_NoRedirects)
 
     def get(self, url: str, headers: Mapping[str, str] | None = None) -> Response:
         if not url.startswith(("http://", "https://")):
             raise HttpError(f"Refused a URL that is not http(s): {url}")
-        request = urllib.request.Request(url, headers=dict(headers or {}))  # noqa: S310
+        given = dict(headers or {})
+        if not any(name.lower() == "user-agent" for name in given):
+            given["User-Agent"] = USER_AGENT
+        request = urllib.request.Request(url, headers=given)  # noqa: S310
         try:
             with self._opener.open(request, timeout=TIMEOUT_S) as answer:
                 return Response(answer.status, answer.read(), _headers(answer.headers.items()))
