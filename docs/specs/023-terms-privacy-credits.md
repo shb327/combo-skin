@@ -1,6 +1,6 @@
 # 023: Terms of Usage, Privacy Policy and Credits
 
-**Status:** Draft
+**Status:** Approved
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** website (with a small export in api)
@@ -26,7 +26,7 @@ The footer links to `/terms` and `/privacy`, and neither page exists. This spec 
 - A cookie or consent banner. None is needed today (Design, Consent banner).
 - Covering later features: our own visitor counts, Steam login, votes, ads, partner links, on-site submissions, prices. Each is named as a trigger for an update (Design, Triggers for an update), not covered.
 - A Polish translation of the texts (Honest limits).
-- The 3D viewer's own repository: any notice or page on `view.combo.skin` itself is that repository's work (Open questions, 2).
+- The 3D viewer's own repository: any notice or page on `view.combo.skin` itself is that repository's work. Serving the viewer's licences on `view.combo.skin` is a follow-up for that repository (Design, ChainSkins credit).
 - Legal advice. These texts are a careful draft by the owner, not a lawyer's opinion (Honest limits).
 
 ## Context
@@ -34,7 +34,7 @@ The footer links to `/terms` and `/privacy`, and neither page exists. This spec 
 The site, checked against the code on `main` at the merge of spec 021's publish fixes:
 
 - `website/src/App.tsx`: routes for `/`, `/gloves`, `/knives`, their type pages and combos pages. No `/terms`, `/privacy` or `/credits`, and no catch-all (spec 022 adds one).
-- `website/src/components/Footer.tsx`: links to `/terms` ("Terms of Usage") and `/privacy` ("Privacy Policy"), which today fall through to an empty `<main>`. It also shows "Powered by Steam.", "Not affiliated with Valve Corp." and "2026 @ CHOOSE, LLC." (Open questions, 1).
+- `website/src/components/Footer.tsx`: links to `/terms` ("Terms of Usage") and `/privacy` ("Privacy Policy"), which today fall through to an empty `<main>`. It also shows "Powered by Steam.", "Not affiliated with Valve Corp." and "2026 @ CHOOSE, LLC." (Design, Footer).
 - `website/src/pages/Home.tsx`: three `mailto:` cards, `bugs@combo.skin`, `combos@combo.skin` ("Submit a Combo") and `partners@combo.skin`. The About text says the site is a solo project seeking partnerships with marketplaces and creators, with "price integrations" on the roadmap. No form posts anywhere: the CSP has `form-action 'none'`.
 - `website/src/staleChunks.ts`: after a new deployment, a page from the old one that fails to load a code chunk reloads once. It writes one `sessionStorage` entry, `combo-skin:reloaded-for-a-missing-chunk`, holding a timestamp, only when that happens. This is the site's only browser storage. `website/src` has no `localStorage`, `IndexedDB`, Cache API, service worker or `document.cookie` use.
 - `website/src/api/images.ts`: screenshots load only from `img.combo.skin`. Catalog pictures load from our copies there, and if one fails, once from the game's host `https://community.akamai.steamstatic.com`. Images are sent with no referrer (`website/README.md`).
@@ -49,6 +49,7 @@ The site, checked against the code on `main` at the merge of spec 021's publish 
 - The viewer's repository credits the ChainSkins 3D Viewer (MIT), which it started from, and ValveResourceFormat (MIT), which its asset pipeline uses.
 - Spec 022 (Approved, not started): one prerendered HTML file per route, with its title, description, canonical and Open Graph tags and its content as plain HTML in `#root`; a `document.title` function shared by the app and the prerender; `sitemap.xml` and `robots.txt`.
 - The website has Vitest, ESLint and a build (`website/package.json`); the api has pytest, ruff and mypy.
+- Email: on 24 November `combo.skin` has no MX records, so none of the four addresses receive mail yet. The owner is setting up Cloudflare Email Routing to forward `bugs@`, `combos@`, `partners@` and `privacy@combo.skin` to a personal Gmail mailbox. `deploy/README.md`'s Going live runbook has no email step.
 
 **Corrections to the brief.** Three points differ from what the code does, and the texts below follow the code: the 3D frame loads on the click on "View in 3D", and "Load 3D view" is an extra step only on phones, Save-Data and shared links; the viewer's standalone pages do use `localStorage` (the embed the site frames does not); and the footer names "CHOOSE, LLC", which is not the operator.
 
@@ -56,7 +57,7 @@ The site, checked against the code on `main` at the merge of spec 021's publish 
 
 **Pages**
 
-- R1. `/terms`, `/privacy` and `/credits` each render their page inside the site's app bar and footer. The footer's two links reach their pages; the footer itself changes only as Open questions, 1 decides.
+- R1. `/terms`, `/privacy` and `/credits` each render their page inside the site's app bar and footer. The footer's two links reach their pages. The footer's last line reads "© 2026 Combo Skin" (the name from `OPERATOR.name`), "Powered by Steam." is gone, and "Not affiliated with Valve Corp." and the two links stay as they are.
 - R2. Terms and Privacy show a "Last updated" date under their heading, in a `<time>` element with an ISO `dateTime`, written as "24 November 2026".
 - R3. The Terms of Usage page shows exactly the text of Design, The Terms of Usage, with the operator settings filled in. Its "Who owns what" section links to `/credits`.
 - R4. The Privacy Policy page shows exactly the text of Design, The Privacy Policy, with the operator settings filled in.
@@ -67,7 +68,8 @@ The site, checked against the code on `main` at the merge of spec 021's publish 
 **Operator settings**
 
 - R8. One module, `website/src/legal/operator.ts`, holds the operator's public name ("Combo Skin"), an optional legal identity (`null` today), the contact address and the country. Both documents and the Credits page read only from it. Setting the legal identity to a name and address shows "Combo Skin is run by <name>, <address>" in both documents, and nothing else needs to change.
-- R9. The contact address in both documents is `privacy@combo.skin` (Open questions, 3). It exists and delivers before go-live (criterion 14).
+- R9. The contact address in both documents is `privacy@combo.skin`. It and the site's three other addresses receive mail before go-live (criterion 14).
+- R18. `deploy/README.md`'s Going live runbook gains a step before the domain moves: "Send a test email from an outside address to each of `bugs@`, `combos@`, `partners@` and `privacy@combo.skin`, and check each arrives in the mailbox." Going live stops if one doesn't.
 
 **Credits data**
 
@@ -91,15 +93,17 @@ The site, checked against the code on `main` at the merge of spec 021's publish 
 | Decision | Chosen | Alternatives rejected, and why |
 | --- | --- | --- |
 | Operator name (owner's choice) | "Combo Skin" with a contact address, from one setting with an optional legal identity (R8). The risk is spelled out in Operator identity below | The owner's full name now: the most compliant, but the owner chose not to yet. A company name: there is no company |
-| Contact address | `privacy@combo.skin`, one address for privacy, legal questions and complaints | `bugs@`: mixes bug reports with rights requests, which have a one-month deadline. A personal mailbox: shows the owner's name |
+| Footer (owner's choice) | "© 2026 Combo Skin" in place of "2026 @ CHOOSE, LLC.", which names a company that doesn't exist; "Powered by Steam." dropped, as the site uses no Steam service and Valve's Steam Web API Terms forbid implying endorsement; "Not affiliated with Valve Corp." and the two links kept | Keeping the footer as it is: it contradicts the operator named in both texts |
+| Contact address (owner's choice) | `privacy@combo.skin`, one address for privacy, legal questions and complaints | `bugs@`: mixes bug reports with rights requests, which have a one-month deadline. A personal mailbox: shows the owner's name |
 | Where the texts live | TypeScript data in `website/src/legal/` (`terms.ts`, `privacy.ts`): a document is a title, a date and sections of paragraphs, lists and links. One `LegalDocument` component renders them, and spec 022's prerender renders the same data to HTML | Markdown files: needs a parser package and an HTML sanitiser. Text written straight into JSX: the prerender can't reuse it, and the date test can't hash it |
 | Credits data for guides | A generated `website/src/data/pattern-guides.json`, written by an api command with `--check` in CI, as the catalog does (R10) | Importing `groups.json` into the website: crosses into the api's files and needs Vite's file-system allow list widened. A public API route and a publish data file: an API route, an export step and a fetch for data that changes only with a commit. Reading the database at publish: the file is already the source of truth |
 | Groups without sources | Not listed. Their seeds are the owner's picks, credited to no one | "Picked by Combo Skin" lines: credit to ourselves on a credits page |
 | Open-source notices | A build step writes `/licences.txt` from the packages actually in the bundle (R12), a small Vite plugin in `website/scripts/` with no new dependency | A hand-kept list: goes stale with every dependency bump. A licence plugin package: a new dependency for 40 lines. Nothing: MIT and ISC ask for their notice with copies, and the bundle is a copy |
 | Licence texts on Credits | CSGO-API's MIT and Montserrat's OFL in `<details>` blocks, from `.txt` files imported with Vite's `?raw`, tested against `THIRD_PARTY_NOTICES.md` (R13) | Linking to the repository's notices file: links the site to the owner's GitHub account, which the operator choice avoids |
-| ChainSkins credit | Credited on Credits, with ValveResourceFormat, under "3D viewer" (Open questions, 2) | Leaving it to the viewer's repository: the visitor sees the viewer only through combo.skin |
-| Credit on cards ("pattern from <guide>") | No. The Credits page covers every guide | A link on each special-pattern card: long, repeated on every card, and spec 020 decided against credits on cards (Open questions, 4) |
-| Terms → Credits link | One line in "Who owns what". Privacy doesn't link to Credits | Footer link: the owner keeps the footer as it is. Both documents: Privacy is about data, not credit |
+| ChainSkins credit (owner's choice) | Credited on Credits, with ValveResourceFormat, under "3D viewer". MIT asks for its notice in copies of the code, which the viewer's bundle on `view.combo.skin` is; serving those licences there is a follow-up for the viewer's repository, not this spec | Leaving it to the viewer's repository: the visitor sees the viewer only through combo.skin |
+| Credit on cards ("pattern from <guide>") (owner's choice) | No. The Credits page covers every guide | A link on each special-pattern card: long, repeated on every card, and spec 020 decided against credits on cards |
+| Email (owner's choice) | Cloudflare Email Routing forwards the four addresses to a personal Gmail mailbox. The Privacy Policy names both: Cloudflare as processor, Google as the mailbox's provider under its own terms. Moving to a paid mailbox with a data processing agreement is a trigger before the site earns anything | A paid mailbox now: a monthly cost before any income. Leaving the provider unnamed: Art. 13(1)(e) asks for recipients |
+| Terms → Credits link | One line in "Who owns what". Privacy doesn't link to Credits | A footer link: the footer keeps only its two links. Both documents: Privacy is about data, not credit |
 | Language | English, the site's language | Polish too: a second text to keep in step; see Honest limits |
 | Previous versions | Kept in the repository's history; the texts say "ask us for an earlier version" | A versions page: one more page for a text that changes rarely |
 | External links | Same tab, `rel="noreferrer"` | New tabs: the site opens nothing in new tabs today |
@@ -129,12 +133,12 @@ The owner runs the site alone from Poland, not as a registered business, and cho
 
 ### Consent banner
 
-**Not needed today.** The site sets no cookies (criterion 12 checks every host's responses), stores nothing that isn't strictly necessary, and runs no ads or third-party trackers.
+**Not needed today.** The site sets no cookies (criterion 13 checks every host's responses), stores nothing that isn't strictly necessary, and runs no ads or third-party trackers.
 
 - The rule is Art. 5(3) of the ePrivacy Directive, in Poland Art. 399 of the Electronic Communications Law (Prawo komunikacji elektronicznej, in force since 10 November 2024): storing information on, or gaining access to information in, a visitor's device needs consent, unless it is strictly necessary to provide the service the visitor asked for (or only to carry a transmission). It covers any technology, not only cookies: `localStorage`, `sessionStorage`, and scripts that read device information (EDPB Guidelines 2/2023).
 - The `sessionStorage` flag is strictly necessary: it exists only to recover a page the visitor asked for after a new deployment, is written only when that fails, holds no identifier, never leaves the browser and is gone when the tab closes.
 - The viewer's standalone pages keep the settings a visitor chooses there in `localStorage`. The Article 29 Working Party's opinion on the exemption (WP194, 3.6) treats user-interface customisation as exempt for a session or slightly longer, and persistent customisation as defensible when the visitor chose it and is told. The settings are the visitor's own choices and never leave the device, and the Privacy Policy discloses them. These are pages of the viewer, not of `combo.skin`.
-- Cloudflare Web Analytics sets no cookie and stores nothing on the device (no cookies, `localStorage`, `sessionStorage` or IndexedDB), and Cloudflare drops the IP at the nearest data centre. Its script does read page-load timings and the page address and send them to Cloudflare. The EDPB's guidelines put tracking pixels and scripts that have the browser send information in scope, WP194 (4.3) says first-party analytics are not exempt, and Polish law has no analytics exemption. This is the one judgement call (Honest limits). The texts disclose it, its data is aggregated and not used to identify anyone, and if a lawyer or UODO reads it the strict way, the fix is to turn Web Analytics off and keep Cloudflare's zone traffic numbers, which come from the edge with no script (Open questions, 5).
+- Cloudflare Web Analytics sets no cookie and stores nothing on the device (no cookies, `localStorage`, `sessionStorage` or IndexedDB), and Cloudflare drops the IP at the nearest data centre. Its script does read page-load timings and the page address and send them to Cloudflare. The EDPB's guidelines put tracking pixels and scripts that have the browser send information in scope, WP194 (4.3) says first-party analytics are not exempt, and Polish law has no analytics exemption. This is the one judgement call (Honest limits). The texts disclose it, its data is aggregated and not used to identify anyone, and if a lawyer or UODO reads it the strict way, the fix is to turn Web Analytics off and keep Cloudflare's zone traffic numbers, which come from the edge with no script. The owner's choice: Web Analytics goes on at go-live as planned, with no banner, and this stays listed as a judgement call.
 - Cloudflare's documentation says that on Free plans its automatically injected beacon leaves out visitors from the EEA, the UK and Switzerland by default. If that holds for Web Analytics on a Pages project, EU visitors aren't measured at all, and the judgement call shrinks to visitors elsewhere. Going live checks which applies (criterion 13), and the Privacy Policy's statistics section says it.
 
 **What would make a banner necessary later:** any cookie or storage that isn't strictly necessary (a visitor ID, an A/B test, "remember me" beyond a login session); any ad network or affiliate tracker; analytics that store an identifier or a hashed IP across visits; a third-party embed (YouTube, Twitch, Discord, social buttons); marketing pixels; a chat widget. Steam login's own session cookie would be strictly necessary and need no banner, but its disclosure would.
@@ -149,7 +153,8 @@ Each of these needs both documents reviewed, and the CSP test (R14) catches most
 | Steam login | Steam ID and profile data from Valve (Art. 14 items for data from another source), a session cookie, account deletion, a longer retention table |
 | Votes | Stored votes tied to a Steam ID, abuse prevention, retention |
 | On-site combo submissions | A form (the CSP's `form-action` changes), stored submissions, a licence for submitted text and images with the fields of use Polish copyright law asks for. Storing visitors' content makes the site a hosting service under the Digital Services Act (Art. 3(g)), with its duties: points of contact (Arts. 11 and 12), notice and action (Art. 16), reasons for removals (Art. 17). Today the site hosts only its own content, so the DSA doesn't reach it |
-| Ads or partner and affiliate links | The legal identity (Operator identity), an ad network as a recipient, almost certainly a consent banner, labelling of paid content, and UŚUDE in full |
+| Before any income | Move the four addresses from the personal Gmail mailbox to a paid mailbox with a data processing agreement (for example a business plan of the same provider), and rewrite the email recipients and transfer lines of the Privacy Policy |
+| Ads or partner and affiliate links | The legal identity (Operator identity), the paid mailbox (the row above), an ad network as a recipient, almost certainly a consent banner, labelling of paid content, and UŚUDE in full |
 | Prices or market integrations | A third party as a recipient, and the "not advice" section rewritten around prices |
 | Newsletters or any marketing email | Prior consent to commercial information (Electronic Communications Law, Art. 398, which replaced UŚUDE Art. 10), labelling as UŚUDE Art. 9 asks, unsubscribe |
 | Registering a business | The legal identity, the business's registry details, possibly a Polish version |
@@ -342,14 +347,15 @@ The texts are written to hold whichever way these fall: they already include eve
 > ## Who receives data
 >
 > - **Cloudflare, Inc.** delivers the site, the images and the 3D viewer, and runs Web Analytics, as our processor under its Data Processing Addendum, which is part of our agreement with Cloudflare. Cloudflare has servers around the world, and a request is usually handled at the one nearest you. Cloudflare publishes the list of its own sub-processors.
-> - **\<Our email provider\>** handles the email you send us, as our processor.
+> - **Cloudflare** also receives the email you send to our combo.skin addresses and forwards it to our mailbox (Cloudflare Email Routing), as our processor.
+> - **Google** provides that mailbox (Gmail). For now it's a personal Gmail account, so Google handles the email in it under its own terms and privacy policy, not under a processing agreement with us. For accounts in the EEA, that's Google Ireland Limited. We'll move to a mailbox with a processing agreement before Combo Skin earns anything.
 > - **Valve Corporation** receives your request when a picture loads from Steam's image server, as an independent controller (see Pictures from Steam).
 >
 > We don't sell personal data, don't share it for advertising and don't give it to anyone else, unless the law requires it.
 >
 > ## Data outside the European Economic Area
 >
-> Cloudflare is based in the United States and may handle a request, or store our images, outside the EEA. It is certified under the EU-US Data Privacy Framework, which the European Commission has found to give adequate protection, and its Data Processing Addendum includes the European Commission's Standard Contractual Clauses as well, should the Framework lapse. You can ask us for a copy of these safeguards. \<A line for the email provider.\> Valve, also in the United States, handles the picture requests under its own policy.
+> Cloudflare is based in the United States and may handle a request, or store our images, outside the EEA. It is certified under the EU-US Data Privacy Framework, which the European Commission has found to give adequate protection, and its Data Processing Addendum includes the European Commission's Standard Contractual Clauses as well, should the Framework lapse. You can ask us for a copy of these safeguards. Google may handle email in the mailbox outside the EEA, under its own terms and safeguards. Valve, also in the United States, handles the picture requests under its own policy.
 >
 > ## Your rights
 >
@@ -486,7 +492,7 @@ No API route changes, no database changes.
 - S1. The CSP doesn't change, and the three pages load nothing from another host (R16).
 - S2. Links on the pages are only site paths, `#` anchors, `mailto:` and `https:` URLs; the renderer refuses any other scheme, so a guide URL in the data can never be `javascript:`. External links carry `rel="noreferrer"`.
 - S3. Text from data (guide titles, authors, group names, credited names) is rendered as text, never as HTML, and escaped in the prerender (spec 022, S1).
-- S4. No personal name, address or private mailbox is in the repository while `legalIdentity` is `null`. The committed texts contain only `combo.skin` addresses.
+- S4. No personal name, address or private mailbox is in the repository while `legalIdentity` is `null`. The committed texts contain only `combo.skin` addresses; the Privacy Policy names Gmail as the provider, never the mailbox's address.
 - S5. `/licences.txt` is built from files inside `node_modules` only; the plugin reads no path outside it.
 
 ## Acceptance criteria
@@ -494,7 +500,7 @@ No API route changes, no database changes.
 1. `/terms`, `/privacy` and `/credits` render their headings in the app bar and footer, and the footer's two links navigate to their pages (Vitest).
 2. Terms and Privacy show "Last updated" with a `<time>` whose `dateTime` is the document's `updated` date (Vitest).
 3. The Terms page contains the Valve notice sentence of Design word for word, and a link to `/credits` in "Who owns what" (Vitest).
-4. Both documents' rendered text equals the text of Design for its document, with the operator settings filled in (Vitest against a fixture copied from this spec; differences only where Open questions are answered and recorded in Implementation notes).
+4. Both documents' rendered text equals the text of Design for its document, with the operator settings filled in (Vitest against a fixture copied from this spec; any wording change made in review is recorded in Implementation notes).
 5. With `legalIdentity` set to a test name and address, both documents show "run by <name>, <address>"; with `null`, neither shows any name but "Combo Skin" (Vitest).
 6. Every link on the three pages is a site path, `#` anchor, `mailto:` or `https:`; a document with a `javascript:` link fails to render that link (Vitest).
 7. Changing one word of a document without changing its date and `updated.json` fails the date test with the document's name (Vitest, run against a modified copy).
@@ -504,10 +510,10 @@ No API route changes, no database changes.
 11. The Credits page's CSGO-API and Montserrat licence texts equal their blocks in `THIRD_PARTY_NOTICES.md` (Vitest).
 12. `npm run build` writes `dist/licences.txt`, which names every package with a module in the bundle (checked against Rollup's module list in a test of the plugin) and contains React's MIT licence text.
 13. No cookies, no outside hosts: on the `pages.dev` preview, `curl -sI` of `/`, `/terms`, a combos page, a picture on `img.combo.skin`, `view.combo.skin/combo` and a file on `assets.combo.skin` shows no `Set-Cookie`; in Chrome, opening the three pages and a combo in 3D shows no CSP violation, and DevTools' Application panel shows no cookies, local storage, IndexedDB or Cache Storage for `combo.skin` or the framed viewer (manual, recorded in Implementation notes with the date). At going live, the Web Analytics settings of the new project show whether EEA, UK and Swiss visitors are left out; the Privacy Policy's bracketed sentence is kept or removed to match, with its date changed if the text changes.
-14. Before go-live: `privacy@combo.skin`, `bugs@combo.skin`, `combos@combo.skin` and `partners@combo.skin` each receive a test email from an outside address and the reply goes out from the same domain (manual, recorded with the date).
+14. All four addresses receive mail: `dig MX combo.skin` shows Cloudflare Email Routing's records, and a test email from an outside address to each of `bugs@`, `combos@`, `partners@` and `privacy@combo.skin` arrives in the mailbox (manual, recorded with the date). `deploy/README.md`'s Going live runbook holds the step of R18 before the domain moves (read in review).
 15. With spec 022 in place: `terms.html`, `privacy.html` and `credits.html` are in the deploy with the titles and descriptions of Design, Titles, each holds its full text in `#root`, and `sitemap.xml` lists all three (Vitest in the prerender's tests).
 16. At 375 px wide, the three pages have no horizontal scroll (Vitest can't check layout: manual in Chrome's device mode, recorded).
-17. The footer matches the answer to Open questions, 1 (Vitest).
+17. The footer shows "© 2026 Combo Skin" and "Not affiliated with Valve Corp.", no "Powered by Steam." and no "CHOOSE", and its two links (Vitest).
 18. Lint, tests and build pass in `website/` and `api/` with the commands below; `gitleaks` finds nothing.
 
 ## Test plan
@@ -546,6 +552,7 @@ What in these texts is a judgement call, not settled law:
 - **The combo ideas clause.** Rests on ideas being unprotected; a sender who attaches their own screenshots keeps their rights in them, which is why the text promises to ask.
 - **English only.** The Polish Language Act asks for Polish in dealings with consumers in Poland, for traders; whether that reaches a free fan site's terms is unclear. Worth adding a Polish version when the site becomes a business.
 - **Cloudflare's own retention.** Cloudflare publishes no fixed retention period for request logs on self-serve plans, only that IPs are kept for a limited time, if at all; the policy can say no more than that.
+- **A personal mailbox.** Google holds the emails under its consumer terms, not as our processor, until the move to a paid mailbox. And Email Routing only receives: a reply written in Gmail goes out from the personal address, with its display name, which shows the sender who the operator is. Until there is a way to send as a `combo.skin` address, replying is the owner's call, case by case.
 - **Where the images are stored.** An R2 bucket is kept in a region near where it was created unless it was made with the EU jurisdiction, which can't be added later. The policy says data may be outside the EEA, which holds either way.
 
 **When a one-time review by a Polish lawyer pays for itself:** before the first income from ads, partners or affiliate links, or when registering a business, whichever comes first. A fixed-fee review of these two texts, with the Polish version, the ad-consent setup and the legal identity, is the point where the risk moves from low to real. Bring this spec's Honest limits list.
@@ -578,12 +585,14 @@ What in these texts is a judgement call, not settled law:
 
 ## Open questions
 
-1. **The footer's "2026 @ CHOOSE, LLC." and "Powered by Steam."** There is no company called CHOOSE, LLC, so the line names an operator that doesn't exist, contradicting both texts. "Powered by Steam" suggests the site uses Steam's services, which it doesn't (it uses no Steam API, only picture fallbacks). Valve's Steam Web API Terms allow its names on pages that use the API and forbid implying endorsement; no Valve page grants fan sites more. *Recommendation:* replace the first with "© 2026 Combo Skin" (from `OPERATOR.name`) and drop "Powered by Steam."; keep "Not affiliated with Valve Corp." and the two links. This is the one footer change in this spec.
-2. **Credit ChainSkins?** *Recommendation:* yes, with ValveResourceFormat, under "3D viewer" (Design, The Credits page). MIT asks for its notice in copies of the code, which the viewer's bundle on `view.combo.skin` is; the viewer's repository should also serve its licences there (its own follow-up). Crediting costs one line and is the honest thing for code the viewer grew from.
-3. **The contact address.** *Recommendation:* create `privacy@combo.skin` before go-live, delivering wherever the other three do. It must exist before go-live (criterion 14).
-4. **"Pattern from <guide>" on cards?** *Recommendation:* no. The Credits page credits every guide; a link on every special-pattern card is long and repeated, and spec 020 already chose against card credits.
-5. **Web Analytics at go-live.** *Recommendation:* turn it on as planned, with no banner, and keep the judgement call in Honest limits; if a lawyer or UODO says otherwise, turn it off and use Cloudflare's zone traffic numbers, which need no script.
-6. **Where the combo.skin addresses deliver.** The Privacy Policy must name the email provider as a processor, and its transfer basis. *Recommendation:* tell the spec which service receives the four addresses and which mailbox they forward to. If they forward to a free personal mailbox, move them to a mailbox under a business plan with a data processing agreement before the site earns anything, and in the meantime name the provider plainly.
+None. Answered by the owner on 2026-11-24, and recorded in Design:
+
+- Footer: "© 2026 Combo Skin", "Powered by Steam." dropped, "Not affiliated with Valve Corp." kept (R1, Design, Footer).
+- ChainSkins and ValveResourceFormat: credited under "3D viewer". Serving the viewer's licences on `view.combo.skin` is a follow-up for the viewer's repository.
+- Contact: `privacy@combo.skin` (R9).
+- No "pattern from <guide>" link on cards.
+- Web Analytics on at go-live, no banner, kept as a judgement call (Consent banner, Honest limits).
+- Email: Cloudflare Email Routing forwarding the four addresses to a personal Gmail mailbox, both named in the Privacy Policy; a paid mailbox with a data processing agreement before any income (Triggers for an update); all four addresses receiving mail in the go-live runbook and the criteria (R18, criterion 14).
 
 ## Implementation notes
 
