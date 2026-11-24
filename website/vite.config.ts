@@ -5,6 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 import * as path from "node:path";
 import { devApiOrigin, imageBaseUrl, viewerOrigin } from "./src/api/origin";
 import { refuseRemovedSettings } from "./scripts/removedSettings";
+import { licencesPlugin } from "./scripts/licences";
 import { dataProxy } from "./src/api/devData";
 
 export default defineConfig(({ mode }) => {
@@ -30,6 +31,8 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       tailwindcss(),
+      // /licences.txt: every npm package in the bundle and its licence (Credits links to it).
+      licencesPlugin(),
       {
         // Production serves /data/ as files; the dev and preview servers ask the local API.
         name: 'combo-skin-dev-data',

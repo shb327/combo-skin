@@ -1,0 +1,91 @@
+Privacy Policy
+
+In short
+
+Combo Skin has no accounts, no forms, no ads and no cookies, and doesn't sell or share data for advertising. Like every website, the services that deliver it see your IP address when you visit. If you email us, we have what you send. This policy explains each of these: what, why, on what legal basis and for how long.
+
+Who is responsible
+
+The controller of your personal data is Combo Skin, run by one person in Poland. Contact: privacy@combo.skin.
+
+We don't have a data protection officer, as the law doesn't require one for a site like this.
+
+When you visit the site
+
+Combo Skin is a set of static files served by Cloudflare from these addresses: combo.skin (the site), img.combo.skin (screenshots and pictures), view.combo.skin (the 3D viewer) and assets.combo.skin (the 3D viewer's files). Like any web server, Cloudflare receives with each request your IP address, the date and time, the address asked for, what your browser reports about itself (its name, version and operating system), the address of the referring page (on our site, only its domain), and the approximate location that follows from your IP address.
+
+- Why: to deliver the pages you ask for, and to protect the site from attacks and abuse.
+- Legal basis: our legitimate interest in running a working, secure website (Article 6(1)(f) GDPR).
+- How long: we keep no request logs ourselves. We see only totals in Cloudflare's dashboard, such as the number of requests per day and per country. Cloudflare says it keeps visitors' IP addresses only for a limited time, if at all (see Who receives data).
+
+Visitor statistics
+
+We use Cloudflare Web Analytics to see which pages are visited. It doesn't use cookies, doesn't store anything on your device, doesn't fingerprint your browser and doesn't follow you to other sites. When a page loads, its script sends Cloudflare the page's address, the referring page, page-load timings, and your browser, operating system and device type. Cloudflare uses your IP address only to tell the country and drops it at the data centre nearest you. Query strings in page addresses aren't recorded. We see only totals.
+
+- Why: to learn which pages are useful and how fast the site is.
+- Legal basis: our legitimate interest in understanding how the site is used (Article 6(1)(f) GDPR).
+- How long: Cloudflare keeps the detailed records for 7 days; after that, only a sample remains for the longer-term charts.
+
+Pictures from Steam
+
+We show our own copies of the game's item pictures. If one of ours fails to load, your browser loads that picture once from Steam's image server instead (community.akamai.steamstatic.com, run for Valve over Akamai's network). That server then receives your IP address, your browser's name and version and which picture was asked for, but not which of our pages you were on.
+
+- Why: so the page still shows the item when our copy fails.
+- Legal basis: our legitimate interest in showing complete pages (Article 6(1)(f) GDPR).
+- Who decides: Valve, as an independent controller, under its own privacy policy. We receive nothing from it.
+
+When you email us
+
+If you write to bugs@, combos@, partners@ or privacy@combo.skin, we receive your email address, your name if you include it, your message and anything you attach.
+
+- Why: to answer you, fix what you report, consider your combo, credit you if you ask, discuss working together, and handle requests about your data.
+- Legal basis: our legitimate interest in answering messages sent to us (Article 6(1)(f) GDPR); for partnership talks, steps you ask for before an agreement (Article 6(1)(b)); for requests about your data, our legal duty to answer them (Article 6(1)(c)).
+- How long: up to 12 months after our last message to each other. A name you asked us to credit stays for as long as the credited combo is on the site. If an email leads to an agreement, we keep what the law requires us to keep, such as for tax.
+- Emailing us is up to you; nothing on the site needs it. Please don't send us sensitive information, or anyone else's personal data.
+
+For each legitimate interest named here, you can ask us for the balancing of our interest against your rights.
+
+What the site stores in your browser
+
+No cookies. The site stores one thing, and only sometimes: if we've published a new version while your page was open and the page can't load a part of itself, it reloads once and notes that in your browser's session storage (a key starting with "combo-skin:"), so it can't reload in a loop. The note is deleted when you close the tab, and it never leaves your browser. The law allows this without asking, as it's strictly necessary for the page you asked for.
+
+The 3D view inside combo.skin stores nothing in your browser. If you open the 3D viewer directly at view.combo.skin, it remembers the settings you choose there, such as lighting and the items you picked, in your browser's local storage, so they're there next time. That stays on your device; you can clear it in your browser's settings.
+
+Your browser also keeps its usual cache of the files it downloaded, such as pictures and the 3D view's files, so they load faster next time.
+
+Who receives data
+
+- Cloudflare, Inc. delivers the site, the images and the 3D viewer, and runs Web Analytics, as our processor under its Data Processing Addendum, which is part of our agreement with Cloudflare. Cloudflare has servers around the world, and a request is usually handled at the one nearest you. Cloudflare publishes the list of its own sub-processors.
+- Cloudflare also receives the email you send to our combo.skin addresses and forwards it to our mailbox (Cloudflare Email Routing), as our processor.
+- Google provides that mailbox (Gmail). For now it's a personal Gmail account, so Google handles the email in it under its own terms and privacy policy, not under a processing agreement with us. For accounts in the EEA, that's Google Ireland Limited. We'll move to a mailbox with a processing agreement before Combo Skin earns anything.
+- Valve Corporation receives your request when a picture loads from Steam's image server, as an independent controller (see Pictures from Steam).
+
+We don't sell personal data, don't share it for advertising and don't give it to anyone else, unless the law requires it.
+
+Data outside the European Economic Area
+
+Cloudflare is based in the United States and may handle a request, or store our images, outside the EEA. It is certified under the EU-US Data Privacy Framework, which the European Commission has found to give adequate protection, and its Data Processing Addendum includes the European Commission's Standard Contractual Clauses as well, should the Framework lapse. You can ask us for a copy of these safeguards. Google may handle email in the mailbox outside the EEA, under its own terms and safeguards. Valve, also in the United States, handles the picture requests under its own policy.
+
+Your rights
+
+You have the right to ask us for access to your personal data and a copy of it, to correct it, to delete it, to restrict how we use it, and, where it applies, to receive it in a portable form. You can object at any time to processing based on our legitimate interests, and we'll stop unless we have compelling reasons. To use any of these rights, email privacy@combo.skin. We'll answer within one month.
+
+We keep no request logs and can't tell who a visitor is from the statistics, so we usually can't find data about a visit. If you tell us the email address you wrote from, we can find your emails.
+
+You also have the right to complain to the Polish data protection authority: the President of the Personal Data Protection Office (Prezes Urzędu Ochrony Danych Osobowych, uodo.gov.pl), or to the authority in the EU country where you live or work.
+
+No automated decisions
+
+We don't make decisions about anyone by automated means, and we don't profile visitors.
+
+Children
+
+Combo Skin is meant for people aged 16 and over. If you're younger, please don't email us. If we learn we've received an email from someone under 16, we'll delete it.
+
+Changes to this policy
+
+We'll update this policy before the site starts doing anything new with personal data, and change the date at the top. Earlier versions are available on request.
+
+Contact
+
+privacy@combo.skin

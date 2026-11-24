@@ -231,7 +231,10 @@ The file's order is the order the dashboard lists the groups in.
 ```bash
 uv run python -m combo_api.patterns import           # load groups.json into the database
 uv run python -m combo_api.patterns import --check   # check it against the catalog and the database, writing nothing
+uv run python -m combo_api.patterns export-website [--check]   # write (or check) the website's guide credits
 ```
+
+The website's Credits page lists every guide from the groups' `sources`. `export-website` writes them to `website/src/data/pattern-guides.json`, one entry per guide link with the names of the groups it informs; groups without sources add nothing. Run it whenever the sources change: CI fails on a stale copy.
 
 The import checks the file against the catalog (an active type of that kind must have the finish, and every seed's type must have it) and against the groups already imported, then writes it, all or nothing. It prints how many groups it inserted, updated and left unchanged; running it again changes nothing. In Compose, the one-shot `patterns` service runs it after `catalog`, before the API starts.
 
@@ -388,7 +391,7 @@ A missing or invalid setting stops startup with an error that names the variable
 | `src/combo_api/health.py` | Health endpoints |
 | `src/combo_api/openapi.py` | Snapshot export and check |
 | `src/combo_api/catalog/` | Catalog data (knives, gloves, agents), commands, tables, import and endpoints |
-| `src/combo_api/patterns/` | `groups.json`, its file model and catalog checks, pattern group tables, the import command and the admin endpoint |
+| `src/combo_api/patterns/` | `groups.json`, its file model and catalog checks, pattern group tables, the import command, the website's guide credits export and the admin endpoint |
 | `src/combo_api/combos/` | Combo, knife order and screenshot settings tables, admin and public endpoints, catalog checks, batches, agents |
 | `src/combo_api/admins/` | Admin tables, accounts command, passwords, sessions, rate limits, `require_admin` and login endpoints |
 | `src/combo_api/screenshots/` | Storage (S3 and in memory), screenshot tables, workers and `require_worker`, render inputs and the queue, uploads, images and the watermark logo, admin and worker endpoints, commands |

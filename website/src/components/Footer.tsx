@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import logo from '@/assets/logo.svg'
+import { OPERATOR } from '@/legal/operator'
 
 export function Footer() {
   const location = useLocation()
@@ -13,9 +14,8 @@ export function Footer() {
             <img src={logo} alt="ComboSkin" className="h-[54px] w-auto select-none" draggable={false} />
           </Link>
           <div className="flex flex-col gap-2.5 text-white/50">
-            <span className="text-xs">Powered by Steam.</span>
             <span className="text-xs">Not affiliated with Valve Corp.</span>
-            <span className="text-sm">2026 @ CHOOSE, LLC.</span>
+            <span className="text-sm">© 2026 {OPERATOR.name}</span>
           </div>
         </div>
 

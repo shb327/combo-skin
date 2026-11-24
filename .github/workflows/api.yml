@@ -73,6 +73,7 @@ jobs:
       - run: uv run mypy
       - run: uv run python -m combo_api.openapi --check
       - run: uv run python -m combo_api.catalog export-website --check
+      - run: uv run python -m combo_api.patterns export-website --check
       - run: uv run pytest
 
   docker:
