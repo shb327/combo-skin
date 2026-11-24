@@ -8,6 +8,9 @@ import { SearchKnives } from './pages/SearchKnives'
 import { GloveFinishes } from './pages/GloveFinishes'
 import { KnifeFinishes } from './pages/KnifeFinishes'
 import { Combos } from './pages/Combos'
+import { Credits } from './pages/legal/Credits'
+import { Privacy } from './pages/legal/Privacy'
+import { Terms } from './pages/legal/Terms'
 
 function App() {
   return (
@@ -23,6 +26,9 @@ function App() {
           <Route path="/knives" element={<SearchKnives />} />
           <Route path="/knives/:knifeId" element={<KnifeFinishes />} />
           <Route path="/knives/:itemId/:finishId/combos" element={<Combos />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/credits" element={<Credits />} />
         </Routes>
       </main>
       <Footer />
