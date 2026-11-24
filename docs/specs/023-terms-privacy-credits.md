@@ -1,6 +1,6 @@
 # 023: Terms of Usage, Privacy Policy and Credits
 
-**Status:** Approved
+**Status:** Implemented
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** website (with a small export in api)
@@ -596,7 +596,41 @@ None. Answered by the owner on 2026-11-24, and recorded in Design:
 
 ## Implementation notes
 
-Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+### Criteria and tests
+
+| Criterion | Test or check |
+| --- | --- |
+| 1 | `website/src/pages/legal/LegalPages.test.tsx:14` (each page between app bar and footer), `:25` (the footer's links open their pages) |
+| 2 | `LegalPages.test.tsx:35` (`<time>` with the version's date), `:46` (Credits has none); `website/src/legal/legal.test.ts:75` (`longDate`) |
+| 3 | `LegalPages.test.tsx:51`; `legal.test.ts:55` |
+| 4 | `legal.test.ts:50`: both texts equal `src/legal/fixtures/terms.txt` and `privacy.txt`, generated from this spec's Design text with the settings filled in (the go-live sentence left out, Deviations 3) |
+| 5 | `legal.test.ts:63` |
+| 6 | `legal.test.ts:111`, `:118`, `:124`; `LegalPages.test.tsx:120` (a `javascript:` link renders as text); `:68` (`mailto:` and `rel="noreferrer"`) |
+| 7 | `legal.test.ts:83` (today's versions match), `:87` (a changed text, and dates going backwards, fail with the document's name) |
+| 8 | `legal.test.ts:98` (today's `_headers`), `:104` (an added host is caught by name) |
+| 9 | `api/tests/patterns/test_export.py:17`, `:21`, `:30`, `:50`, `:61`, `:67`; `.github/workflows/api.yml:76` |
+| 10 | `LegalPages.test.tsx:79`, `:92`, `:106` |
+| 11 | `legal.test.ts:134` |
+| 12 | `website/scripts/licences.test.ts:11`, `:19`, `:35`, `:41`, `:48` (the plugin on a bundle's module list); `.github/workflows/website.yml:57` checks the real build's `dist/licences.txt`. A local build lists 9 packages: `@tanstack/query-core`, `@tanstack/react-query`, `lucide-react`, `react`, `react-dom`, `react-icons`, `react-router`, `scheduler`, `swiper` |
+| 13 | Partly, 24 November, on a local `vite preview` of the build in Chrome: `/terms`, `/privacy` and `/credits` load nothing from another host, set no cookie and leave local and session storage empty; no console errors. Still to do on the `pages.dev` preview: the `curl -sI` checks of every host, a combo in 3D, and at going live the Web Analytics EEA check (`deploy/README.md`, Going live, step 5) |
+| 14 | Pending the owner's Email Routing setup; the step is in `deploy/README.md`, Going live, step 1 (R18) |
+| 15 | Pending spec 022, which is not built yet; whichever lands second adds the three pages to the prerender and the sitemap |
+| 16 | 24 November, Chrome at 375 × 812: `scrollWidth` equals the viewport on all three pages, with the licence texts open too |
+| 17 | `LegalPages.test.tsx:137` |
+| 18 | `website`: `npm run api:types:check`, `npm run lint`, `npm test` (24 files, 413 tests), `npm run build`. `api`: ruff format and check, mypy, `openapi --check`, `catalog export-website --check`, `patterns export-website --check`, `pytest` (575 passed, on a throwaway database and storage). `deploy`: ruff, mypy, `pytest` (128 passed). `gitleaks git`: no leaks |
+
+### Deviations
+
+1. **The Privacy Policy's wording with a legal identity (R8, criterion 5).** Design's bracket reads "\<name\>, \<address\>, Poland, who runs Combo Skin.", but R8 and criterion 5 want "run by \<name\>, \<address\>" in both documents. The text uses "The controller of your personal data is Combo Skin, run by \<name\>, \<address\>, Poland.", the same shape as today's "Combo Skin, run by one person in Poland." It shows only once `legalIdentity` is set. For the owner to confirm.
+2. **`updated.json` keeps every version** (`{date, sha256}` per version, newest last) instead of one date and hash per document. The page's date is the newest entry's, and the test also fails when dates don't go forward, so a changed text can't pass by changing only the hash.
+3. **The EEA sentence of "Visitor statistics" is left out** until going live shows whether Cloudflare leaves out EEA, UK and Swiss visitors. `deploy/README.md`, Going live, step 5 says where to add it, with a new version.
+4. **Tests are grouped:** the Test plan's `text`, `updated`, `hosts` and `licences` tests are one file, `src/legal/legal.test.ts`. It reads `_headers` and `THIRD_PARTY_NOTICES.md` from disk, as Vite won't import files outside `website/`.
+5. **`/licences.txt` exists only in builds**; the dev server doesn't serve it (`website/README.md`, Legal pages).
+
+### Follow-ups
+
+- The viewer's repository: serve its licences, ChainSkins' MIT included, on `view.combo.skin` (Design, ChainSkins credit).
+- Spec 022: add `terms.html`, `privacy.html` and `credits.html` to the prerender and the sitemap (R17), with the titles and descriptions now in each document's data (`title`, `description`).
 
 ## Audit
 
