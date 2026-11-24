@@ -114,12 +114,13 @@ Before the test run, the viewer's own repository adds the `pages.dev` addresses 
 
 When the owner says so, after the credits page is merged:
 
-1. `publish`, then `status`.
-2. Remove `combo.skin` from the coming-soon project's custom domains, and add it to the new project (Custom domains › Set up a domain).
-3. Check `https://combo.skin`: `curl -sI` for the headers and HSTS, the pages, the images and "View in 3D".
-4. Turn on Web Analytics for the new project, and check `combo.skin`'s history stays in its Web Analytics site.
-5. Keep the `www` redirect rule as it is.
-6. Keep the coming-soon project for a week as the fallback (going back is moving the domain back), then delete it if the owner wants.
+1. Send a test email from an outside address to each of `bugs@`, `combos@`, `partners@` and `privacy@combo.skin`, and check each arrives in the mailbox (`dig MX combo.skin` shows Email Routing's records). Going live stops if one doesn't: the site and its Terms and Privacy Policy name all four.
+2. `publish`, then `status`.
+3. Remove `combo.skin` from the coming-soon project's custom domains, and add it to the new project (Custom domains › Set up a domain).
+4. Check `https://combo.skin`: `curl -sI` for the headers and HSTS, the pages (with `/terms`, `/privacy`, `/credits` and `/licences.txt`), the images and "View in 3D".
+5. Turn on Web Analytics for the new project, and check `combo.skin`'s history stays in its Web Analytics site. Check whether it leaves out visitors from the EEA, the UK and Switzerland. If it does, add to the Privacy Policy's "Visitor statistics" (`website/src/legal/privacy.ts`, after "We see only totals."): "Cloudflare leaves out visitors from the EEA, the UK and Switzerland by default, so if you're there, your visits aren't counted." Add its new date and hash to `website/src/legal/updated.json` (the website's tests say what's missing) and publish again (spec 023, criterion 13).
+6. Keep the `www` redirect rule as it is.
+7. Keep the coming-soon project for a week as the fallback (going back is moving the domain back), then delete it if the owner wants.
 
 ### Rollback
 

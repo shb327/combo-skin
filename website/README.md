@@ -14,6 +14,7 @@ In Counter-Strike 2, players equip cosmetic gloves and knives, each available in
 - **See combos for a glove or knife finish**: the knives that suit a glove finish, or the gloves that suit a knife finish, best rated first, each with a rating, both finish pictures, the pattern seeds and float ranges that suit it ("Any" where any will do), and sometimes a short description.
 - **View a combo in 3D**: "View in 3D" on a card opens the combo in first person in a window over the page, with the game's inspect and knife swings and a choice of map and agent (see View in 3D).
 - **Search** gloves and knives by name from the top bar.
+- **Read the Terms of Usage, the Privacy Policy and the Credits** at `/terms`, `/privacy` and `/credits` (see Legal pages).
 
 Combos come from the Combo Skin API ([`api/`](../api/README.md)): they are entered in the admin dashboard, and only published combos are shown. The live site has no server: the publish command ([`deploy/`](../deploy/README.md)) builds it with the published combos inside it as static data files and deploys it to Cloudflare Pages (see Publishing). Each card shows the combo's in-game screenshot, drawn by a screenshot worker and watermarked by the API; a combo without one yet, or whose screenshot fails to load, shows the catalog pictures of its gloves and knife instead.
 
@@ -104,16 +105,27 @@ Without it, Vite answers requests for any other host with 403. `DEV_ALLOWED_HOST
 
 | Path | Contents |
 | --- | --- |
-| `src/pages/` | One component per route: `Home`, `SearchGloves`, `GloveFinishes`, `SearchKnives`, `KnifeFinishes`, `Combos`. Routes are defined in `src/App.tsx`. |
+| `src/pages/` | One component per route: `Home`, `SearchGloves`, `GloveFinishes`, `SearchKnives`, `KnifeFinishes`, `Combos`, and `legal/` for `Terms`, `Privacy` and `Credits` with the view they share. Routes are defined in `src/App.tsx`. |
+| `src/legal/` | The texts of the Terms, the Privacy Policy and the Credits as data (`terms.ts`, `privacy.ts`, `credits.ts`), who runs the site (`operator.ts`), each text's versions (`updated.json`) and the licence texts Credits shows. |
 | `src/components/` | Shared UI: app bar with search, hero, item cards, footer. |
 | `src/viewer/` | "View in 3D": the viewer's address and load fields for a combo (`params.ts`), its events and the page's error text (`messages.ts`), what the viewer can do (`features.ts`), the agents to choose from (`agents.ts`), the WebGL2 and data-saving checks (`webgl.ts`), the open window and the visit's flags and choice (`state.ts`), the window's address and opening (`ViewerHost.tsx`, `open.ts`), the window (`ViewerWindow.tsx`), its controls (`ViewerControls.tsx`) and the iframe (`ComboViewer.tsx`). The card's box with its button is `src/components/ComboPictures.tsx`. |
 | `src/api/` | The data client (`client.ts`, the only module that makes requests), its types generated from the API's OpenAPI snapshot (`schema.d.ts`), the combos and counts queries (`queries.ts`, with the count helpers in `counts.ts`), the dev and preview servers' `/data/` answers from the API (`devData.ts`), and the image origin, picture and screenshot host rules. |
-| `src/data/` | The generated knife and glove catalog (`catalog.json`, read by `gloves.ts` and `knives.ts`) and agent list (`agents.json`, read by `src/viewer/agents.ts`). |
+| `src/data/` | The generated knife and glove catalog (`catalog.json`, read by `gloves.ts` and `knives.ts`) and agent list (`agents.json`, read by `src/viewer/agents.ts`), and the pattern guides Credits lists (`pattern-guides.json`). |
 | `src/assets/` | Images bundled with the site: logos, glove and knife type images, the home page artwork (`hero/`). |
 | `src/test/` | Test helpers: the fake API, a fake viewer (`viewer.ts`) and a renderer for the whole site. Tests sit next to the code as `*.test.ts(x)`. |
 | `CS2_FINISHES.md` | Why knife finish counts differ between knives in CS2. |
 
 The `@` import alias points to `src/`.
+
+## Legal pages
+
+The Terms of Usage, the Privacy Policy and the Credits page (spec 023) are data in `src/legal/`, rendered by `src/pages/legal/LegalDocumentView.tsx`.
+
+- **Who runs the site** is one setting, `src/legal/operator.ts`: the name both texts and the footer use, the contact address, and `legalIdentity`, `null` until the owner chooses to be named. Setting it to a name and address puts "run by <name>, <address>" in both texts.
+- **Changing a text** needs a new version: add its date and the SHA-256 of its text to `src/legal/updated.json`. The tests fail on a changed text without one, and compare both texts with the wording approved in the spec (`src/legal/fixtures/`).
+- **A new host** in the site's CSP (`deploy/tests/golden/_headers`) fails a test until the Privacy Policy names it (`PRIVACY_HOSTS`).
+- **Pattern guides** on Credits come from `src/data/pattern-guides.json`, written from the pattern groups' sources by the API's `uv run python -m combo_api.patterns export-website`; never edit it by hand. Credits' licence texts match `THIRD_PARTY_NOTICES.md` (a test checks).
+- **`/licences.txt`** is written by the build (`scripts/licences.ts`): every npm package with code in the bundle, its version, licence and licence text. The dev server doesn't serve it.
 
 ## Data
 
