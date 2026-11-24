@@ -54,6 +54,12 @@ jobs:
             exit 1
           fi
           ls dist/assets | grep -q 'montserrat-latin-400-normal-.*\.woff2'
+      # Credits links to /licences.txt: every npm package in the bundle with its licence.
+      - name: Check the build lists the bundle's packages and licences
+        run: |
+          for package in react react-dom react-router swiper @tanstack/react-query; do
+            grep -q "^$package@" dist/licences.txt || { echo "::error::$package is missing from licences.txt"; exit 1; }
+          done
       # The client reads its data files from its own origin: the old API setting is gone.
       - name: Check VITE_API_BASE_URL is gone and stops the build
         run: |
