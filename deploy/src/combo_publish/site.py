@@ -22,6 +22,10 @@ MAX_HEADER_LINE = 2_000
 # Libraries such as React Router parse relative URLs against a bare "http://localhost", which
 # is not an address the site loads, so localhost without a port is allowed.
 LOCAL = re.compile(rb"localhost:\d|127\.0\.0\.1|\[::1\]", re.IGNORECASE)
+# An asset the build inlined: the CSP allows images and fonts only from real hosts, never data:.
+# Only the build's code can inline one; pictures and fonts are not searched.
+INLINED = re.compile(rb"data:(?:image|font)/[\w.+-]+", re.IGNORECASE)
+CODE = (".js", ".mjs", ".css", ".html")
 
 
 class SiteError(Exception):
@@ -67,7 +71,8 @@ class Summary:
 
 
 def check(site: Path, settings: Settings, schema: PublicSchema) -> Summary:
-    """Pages' limits, valid data files, and no local URL anywhere in the site."""
+    """Pages' limits, valid data files, no local URL anywhere in the site, and no asset inlined
+    as a data: URL in its code."""
     paths = sorted(path for path in site.rglob("*") if path.is_file())
     if len(paths) > MAX_FILES:
         raise SiteError(f"The site has {len(paths)} files; Pages takes at most {MAX_FILES}")
@@ -88,6 +93,12 @@ def check(site: Path, settings: Settings, schema: PublicSchema) -> Summary:
         )
         if hit is not None:
             raise SiteError(f"{relative} holds a local URL ({hit})")
+        inlined = INLINED.search(body) if relative.endswith(CODE) else None
+        if inlined is not None:
+            raise SiteError(
+                f"{relative} holds an inlined data: URL ({inlined.group().decode()}), which the "
+                "CSP blocks; the build must emit every asset as a file"
+            )
         if relative.startswith("data/"):
             _check_data(relative, body, schema)
     headers = (site / "_headers").read_text()

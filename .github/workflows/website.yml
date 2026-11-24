@@ -39,6 +39,13 @@ jobs:
             echo "::error::The build references /src/ paths; import the files instead."
             exit 1
           fi
+      # The CSP allows no data: images or fonts, so every asset must be a file.
+      - name: Check the build inlines no assets as data URLs
+        run: |
+          if grep -rlEi --include='*.js' --include='*.css' --include='*.html' 'data:(image|font)/' dist; then
+            echo "::error::The build inlines an asset as a data: URL, which the CSP blocks."
+            exit 1
+          fi
       # The site bundles Montserrat and loads nothing from Google's font hosts.
       - name: Check the build bundles Montserrat and no Google fonts
         run: |

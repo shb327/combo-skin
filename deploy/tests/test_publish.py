@@ -177,6 +177,34 @@ def test_a_bare_localhost_base_in_a_library_is_not_a_local_url(ready: World) -> 
     assert result.code == 0, result.err
 
 
+@pytest.mark.parametrize(
+    ("inlined", "hit"),
+    [
+        ("data:image/svg+xml,%3csvg%20width='140'", "data:image/svg+xml"),
+        ("data:image/png;base64,iVBORw0KGgo=", "data:image/png"),
+        ("url(data:font/woff2;base64,d09GMgAB)", "data:font/woff2"),
+        ("DATA:IMAGE/GIF;base64,R0lGOD", "DATA:IMAGE/GIF"),
+    ],
+)
+def test_an_inlined_data_url_in_the_build_stops_before_any_upload(
+    ready: World, inlined: str, hit: str
+) -> None:
+    # The CSP allows images and fonts only from real hosts, so an inlined asset is blocked.
+    (ready.root / "extra.js").write_text(f'var k="{inlined}";')
+    result = ready.run("publish")
+    assert result.code == 1
+    assert f"assets/index-a1.js holds an inlined data: URL ({hit})" in result.err
+    assert ready.public.puts == []
+    assert ready.deploys() == []
+
+
+def test_a_data_key_in_the_bundle_is_not_a_data_url(ready: World) -> None:
+    # Real bundles are full of object keys named "data".
+    (ready.root / "extra.js").write_text('f({data:null});g({data:n.data,image:x});"data:text";')
+    result = ready.run("publish")
+    assert result.code == 0, result.err
+
+
 # Criterion 8
 
 
