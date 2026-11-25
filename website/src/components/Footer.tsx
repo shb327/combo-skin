@@ -22,13 +22,13 @@ export function Footer() {
         <div className="flex flex-col md:flex-row gap-4 md:gap-8 text-sm">
           <Link
             to="/terms"
-            className="text-white/50 hover:text-white transition-colors"
+            className="text-white/50 hover:text-white focus-visible:text-white transition-colors"
           >
             Terms of Usage
           </Link>
           <Link
             to="/privacy"
-            className="text-white/50 hover:text-white transition-colors"
+            className="text-white/50 hover:text-white focus-visible:text-white transition-colors"
           >
             Privacy Policy
           </Link>

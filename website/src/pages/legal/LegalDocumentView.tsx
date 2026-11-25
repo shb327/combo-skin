@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { isRoute, longDate, safeHref, type Block, type Inline, type LegalDocument } from '@/legal/document'
 
-const LINK = 'text-accent underline underline-offset-2 hover:text-white transition-colors'
+const LINK = 'text-accent underline underline-offset-2 hover:text-white focus-visible:text-white transition-colors'
 
 function InlineView({ part }: { part: Inline }) {
   if (typeof part === 'string') return part

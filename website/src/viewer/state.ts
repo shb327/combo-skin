@@ -30,8 +30,6 @@ export interface ViewerState {
   cannotDraw: ReadonlySet<string>
   /** The visitor's map and agent: the next window opens with them. */
   choice: Choice
-  /** The window closed last, so its card's button can take the focus back. */
-  closed: { comboId: string; count: number } | null
 }
 
 type Attempt = { comboId: string; attempt: number }
@@ -54,7 +52,6 @@ export const INITIAL: ViewerState = {
   noWebGL2: false,
   cannotDraw: new Set(),
   choice: DEFAULT_CHOICE,
-  closed: null,
 }
 
 const NO_PROGRESS = { loaded: 0, total: 0 }
@@ -89,7 +86,7 @@ export function viewerReducer(state: ViewerState, action: ViewerAction): ViewerS
       return { ...update({ phase: 'loading' }), warned: state.warned || active.dataWarning }
     case 'close':
       if (!active) return state
-      return { ...state, active: null, closed: { comboId: active.comboId, count: (state.closed?.count ?? 0) + 1 } }
+      return { ...state, active: null }
     case 'retry':
       if (active?.phase !== 'error' || !active.failure?.retryable) return state
       return update({ phase: 'loading', attempt: active.attempt + 1, progress: NO_PROGRESS, failure: null })

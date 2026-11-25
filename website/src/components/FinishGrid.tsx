@@ -39,7 +39,7 @@ export function FinishGrid({ kind, type, subtitle }: FinishGridProps) {
           <button
             type="button"
             onClick={() => setFiltered(false)}
-            className="mt-4 px-4 py-2 rounded-lg bg-white/10 text-white text-sm md:text-base hover:bg-white/20 transition-colors cursor-pointer"
+            className="mt-4 px-4 py-2 rounded-lg bg-white/10 text-white text-sm md:text-base hover:bg-white/20 focus-visible:bg-white/20 transition-colors cursor-pointer"
           >
             Show all finishes
           </button>
@@ -77,13 +77,13 @@ function FinishCard({
       to={to}
       className="group relative bg-white/5 rounded-lg overflow-hidden cursor-pointer w-full"
     >
-      <div className="absolute inset-0 bg-radial-[circle_at_center] from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+      <div className="absolute inset-0 bg-radial-[circle_at_center] from-white/10 to-transparent opacity-0 group-hover:opacity-100 in-focus-visible:opacity-100 transition-opacity duration-300 pointer-events-none" />
       <div className="aspect-square">
         <CatalogImage
           src={copyUrl(finish.image_key)}
           fallback={pictureUrl(finish.image)}
           alt={alt}
-          className="w-full h-full object-contain p-4 select-none transition-transform duration-300 group-hover:scale-110"
+          className="w-full h-full object-contain p-4 select-none transition-transform duration-300 group-hover:scale-110 in-focus-visible:scale-110"
           draggable={false}
           loading="lazy"
         />

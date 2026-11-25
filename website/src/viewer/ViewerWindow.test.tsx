@@ -212,8 +212,43 @@ describe('events the page ignores', () => {
   })
 })
 
+/** Each button's focus look is its hover look: every `hover:` class has its `focus-visible:` twin
+ * (`group-hover:` an `in-focus-visible:` one), and no outline or ring shows. */
+function expectHoverFocus() {
+  const buttons = Array.from(document.querySelectorAll('button'))
+  expect(buttons.length).toBeGreaterThan(0)
+  for (const button of buttons) {
+    const classes = button.className.split(/\s+/)
+    expect(classes.filter((c) => /(^|:)(outline-(?!none$)|ring)/.test(c)), button.outerHTML).toEqual([])
+    for (const c of classes.filter((c) => c.includes('hover:'))) {
+      const twin = c.replace('group-hover:', 'in-focus-visible:').replace('hover:', 'focus-visible:')
+      expect(classes, `${button.textContent}: ${c}`).toContain(twin)
+    }
+  }
+}
+
+describe('keyboard focus', () => {
+  it('shows only each button’s hover look, with no outline, on the card and in the window', async () => {
+    stubWebGL2()
+    stubMatchMedia(true)
+    stubFullscreen()
+    await site()
+    expectHoverFocus()
+    await open(0)
+    expectHoverFocus()
+    await userEvent.click(inWindow().getByRole('button', { name: 'Load 3D view' }))
+    viewer.ready2()
+    viewer.loaded(null, { actions: ['inspect', 'light', 'heavy'] })
+    expect(inWindow().getByRole('button', { name: /^Map: / })).toBeInTheDocument()
+    expectHoverFocus()
+    viewer.error('context-lost', true)
+    expect(inWindow().getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+    expectHoverFocus()
+  })
+})
+
 describe('closing', () => {
-  it('Close removes the iframe while it is still in the page, restores the page and returns focus', async () => {
+  it('Close removes the iframe while it is still in the page, restores the page and leaves the focus off View in 3D', async () => {
     stubWebGL2()
     await site()
     await open(0)
@@ -234,7 +269,7 @@ describe('closing', () => {
     expect(iframe.isConnected).toBe(false)
     expect(dialogs()).toHaveLength(0)
     expect(document.documentElement.style.overflow).toBe('')
-    expect(inCard(0).getByRole('button', { name: 'View in 3D' })).toHaveFocus()
+    expect(inCard(0).getByRole('button', { name: 'View in 3D' })).not.toHaveFocus()
     act(() => {
       window.dispatchEvent(
         new MessageEvent('message', {
@@ -278,7 +313,7 @@ describe('closing', () => {
     expect(dialogs()).toHaveLength(0)
     expect(url()).toBe(PATH)
     expect(document.documentElement.style.overflow).toBe('')
-    await waitFor(() => expect(inCard(0).getByRole('button', { name: 'View in 3D' })).toHaveFocus())
+    expect(inCard(0).getByRole('button', { name: 'View in 3D' })).not.toHaveFocus()
     act(() => {
       window.dispatchEvent(
         new MessageEvent('message', {
@@ -300,7 +335,7 @@ describe('closing', () => {
     expect(dialogs()).toHaveLength(0)
     expect(frames()).toHaveLength(0)
     expect(document.documentElement.style.overflow).toBe('')
-    expect(inCard(0).getByRole('button', { name: 'View in 3D' })).toHaveFocus()
+    expect(inCard(0).getByRole('button', { name: 'View in 3D' })).not.toHaveFocus()
   })
 
   it('closes when the browser closes the dialog itself, without a cancel event', async () => {
@@ -314,7 +349,7 @@ describe('closing', () => {
     expect(iframe.isConnected).toBe(false)
     expect(dialogs()).toHaveLength(0)
     expect(document.documentElement.style.overflow).toBe('')
-    expect(inCard(0).getByRole('button', { name: 'View in 3D' })).toHaveFocus()
+    expect(inCard(0).getByRole('button', { name: 'View in 3D' })).not.toHaveFocus()
   })
 
   it('ignores a close event while the dialog is still open', async () => {
@@ -339,7 +374,7 @@ describe('closing', () => {
     expect(iframe.getAttribute('src')).toBe('about:blank')
     expect(dialogs()).toHaveLength(0)
     expect(document.documentElement.style.overflow).toBe('')
-    expect(inCard(0).getByRole('button', { name: 'View in 3D' })).toHaveFocus()
+    expect(inCard(0).getByRole('button', { name: 'View in 3D' })).not.toHaveFocus()
   })
 
   it.each([
@@ -528,7 +563,7 @@ describe('phones and small screens', () => {
     expect(frames()).toHaveLength(0)
     await userEvent.click(inWindow().getByRole('button', { name: 'Cancel' }))
     expect(dialogs()).toHaveLength(0)
-    expect(inCard(0).getByRole('button', { name: 'View in 3D' })).toHaveFocus()
+    expect(inCard(0).getByRole('button', { name: 'View in 3D' })).not.toHaveFocus()
     await open(0)
     await userEvent.click(inWindow().getByRole('button', { name: 'Load 3D view' }))
     expect(frames()).toHaveLength(1)
@@ -597,9 +632,6 @@ describe('errors', () => {
       await userEvent.click(inWindow().getByRole('button', { name: 'Close' }))
       expect(inCard(0).queryByRole('button', { name: 'View in 3D' })).toBeNull()
       expect(inCard(1).getByRole('button', { name: 'View in 3D' })).toBeInTheDocument()
-      // The button is gone: focus stays in the card's box instead of falling to the page.
-      expect(document.activeElement).not.toBe(document.body)
-      expect(screen.getAllByRole('article')[0]).toContainElement(document.activeElement as HTMLElement)
     },
   )
 

@@ -16,13 +16,13 @@ interface ItemCardProps {
 export function ItemCard({ name, images, count, comboCount, onSwiperInit }: ItemCardProps) {
   return (
     <div className="group relative bg-white/5 rounded-lg overflow-hidden cursor-pointer w-full">
-      <div className="absolute inset-0 bg-radial-[circle_at_center] from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+      <div className="absolute inset-0 bg-radial-[circle_at_center] from-white/10 to-transparent opacity-0 group-hover:opacity-100 in-focus-visible:opacity-100 transition-opacity duration-300 pointer-events-none" />
       <div className="aspect-square">
         <Swiper
           speed={800}
           loop
           {...LINK_CAROUSEL}
-          className="w-full h-full transition-transform duration-300 group-hover:scale-110"
+          className="w-full h-full transition-transform duration-300 group-hover:scale-110 in-focus-visible:scale-110"
           onSwiper={onSwiperInit}
         >
           {images.map((image, index) => (

@@ -27,11 +27,10 @@ export type OnViewerLoaded = (view: { comboId: string; ms: number | null }) => v
 const SIZES = '(min-width: 1024px) calc(100vw - 378px), (min-width: 768px) calc(100vw - 154px), 100vw'
 const FADE_MS = 200
 
-// Focus shows as the hover's background, not an outline: Close takes the focus when the window opens.
+// Focus shows as the hover's look, as on every button of the site (index.css).
 const HEADER_BUTTON =
   'flex items-center justify-center gap-1.5 min-h-11 min-w-11 roomy:min-h-9 roomy:min-w-9 px-2 rounded-lg ' +
-  'text-white/70 text-sm hover:text-white hover:bg-white/10 focus-visible:outline-none focus-visible:text-white ' +
-  'focus-visible:bg-white/10 ' +
+  'text-white/70 text-sm hover:text-white hover:bg-white/10 focus-visible:text-white focus-visible:bg-white/10 ' +
   'cursor-pointer transition-colors'
 
 const prefersReducedMotion = () =>
@@ -85,7 +84,12 @@ export default function ViewerWindow({
     // On a phone the page behind is hidden too (index.css): iOS Safari's floating toolbar shows
     // the page below the viewport, where the window cannot reach.
     document.documentElement.classList.add('viewer-open')
-    if (!element.open) element.showModal()
+    if (!element.open) {
+      // The browser gives the focus back on closing to what had it on opening: let it go first,
+      // so closing leaves the focus on no button ("View in 3D" would show as hovered).
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+      element.showModal()
+    }
     closeButton.current?.focus()
     return () => {
       if (element.open) element.close()
@@ -448,14 +452,14 @@ function Warning({ dataWarning, onLoad, onCancel }: { dataWarning: boolean; onLo
         <button
           type="button"
           onClick={onLoad}
-          className="min-h-11 roomy:min-h-9 px-4 rounded-lg bg-white/20 text-white text-sm hover:bg-white/30 focus-visible:outline-2 focus-visible:outline-white cursor-pointer"
+          className="min-h-11 roomy:min-h-9 px-4 rounded-lg bg-white/20 text-white text-sm hover:bg-white/30 focus-visible:bg-white/30 cursor-pointer"
         >
           Load 3D view
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="min-h-11 roomy:min-h-9 px-4 rounded-lg text-white/80 text-sm hover:text-white focus-visible:outline-2 focus-visible:outline-white cursor-pointer"
+          className="min-h-11 roomy:min-h-9 px-4 rounded-lg text-white/80 text-sm hover:text-white focus-visible:text-white cursor-pointer"
         >
           Cancel
         </button>
@@ -489,7 +493,7 @@ function Strip({
           ref={retry}
           type="button"
           onClick={onRetry}
-          className="min-h-11 roomy:min-h-8 px-3 rounded-md bg-white/15 text-white text-xs roomy:text-sm hover:bg-white/25 focus-visible:outline-2 focus-visible:outline-white cursor-pointer"
+          className="min-h-11 roomy:min-h-8 px-3 rounded-md bg-white/15 text-white text-xs roomy:text-sm hover:bg-white/25 focus-visible:bg-white/25 cursor-pointer"
         >
           Try again
         </button>

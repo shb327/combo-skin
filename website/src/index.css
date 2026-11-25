@@ -22,6 +22,14 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* No focus ring anywhere: a control the keyboard focuses shows its hover look instead (its
+   focus-visible classes), and nothing changes for the mouse or touch. */
+@layer base {
+  :focus-visible {
+    outline: none;
+  }
+}
+
 body {
   margin: 0;
   min-height: 100vh;
