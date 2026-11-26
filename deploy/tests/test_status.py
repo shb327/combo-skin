@@ -53,7 +53,7 @@ def test_status_after_a_rollback_reads_the_rolled_back_deployment(world: World) 
     world.add(combo("b", ("specialist", "mogul"), ("bayonet", "lore")))
     assert world.run("publish").code == 0
     assert world.state()["live"]["deployment"] == "dep4"
-    world.rolled_back_to = "dep2"
+    world.roll_back("dep2")
     # Rolled back to the first publish (dep2), whose data lacks combo b.
     result = world.run("status")
     assert "Live: deployment dep2" in result.out

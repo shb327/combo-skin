@@ -1,10 +1,11 @@
 """What every command runs with. `cli.py` builds the real one; tests build one of fakes."""
 
 import json
+import os
 import tempfile
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -35,6 +36,8 @@ class Deps:
     sleep: Callable[[float], None]
     # Where temporary build folders go; the system's temporary folder by default.
     temp_root: Path | None = None
+    # This process's environment: what CI gives `deploy-code` (spec 026).
+    environ: Mapping[str, str] = field(default_factory=lambda: dict(os.environ))
 
     def settings(self) -> Settings:
         return load(self.settings_path)

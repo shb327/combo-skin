@@ -330,6 +330,8 @@ if sys.argv[1:] == ["run", "build"]:
     body = f"const images={json.dumps(images)};const viewer={json.dumps(viewer)};"
     body += (ROOT / "extra.js").read_text() if (ROOT / "extra.js").exists() else ""
     (dist / "assets" / "index-a1.js").write_text(body)
+    if (ROOT / "extra.html").exists():
+        (dist / "extra.html").write_text((ROOT / "extra.html").read_text())
 print("ok")
 """
 
@@ -526,8 +528,11 @@ class World:
             }
         )
         self.http = FakeHttp(self)
-        # The deployment a dashboard rollback made live; None means the newest production one.
+        # The deployment a rollback made live, and the newest deployment number at the time:
+        # a newer production deployment goes live again, as on Pages.
         self.rolled_back_to: str | None = None
+        self.rolled_back_at = 0
+        self.environ: dict[str, str] = {}
         self.today = TODAY
         self.now = datetime(2026, 11, 22, 3, 0, 0)
         self.temp = root / "tmp"
@@ -578,6 +583,7 @@ class World:
             now=lambda: datetime.combine(self.today, self.now.time()),
             sleep=lambda _: None,
             temp_root=self.temp,
+            environ=self.environ,
         )
 
     def run(self, *argv: str) -> Result:
@@ -644,10 +650,18 @@ class World:
             )
         return sorted(found, key=lambda one: -int(one["number"]))
 
+    def roll_back(self, deployment: str) -> None:
+        self.rolled_back_to = deployment
+        self.rolled_back_at = max(
+            (int(one["number"]) for one in self.pages_deployments()), default=0
+        )
+
     def canonical_id(self) -> str | None:
-        if self.rolled_back_to is not None:
-            return self.rolled_back_to
         production = self.pages_deployments("production")
+        if self.rolled_back_to is not None and not any(
+            int(one["number"]) > self.rolled_back_at for one in production
+        ):
+            return self.rolled_back_to
         return str(production[0]["id"]) if production else None
 
     def pages_get(self, url: str) -> Response:
@@ -684,7 +698,7 @@ class World:
             return json_response({"success": False}, 404)
         rest = path.removeprefix(prefix)
         if method == "POST" and rest.endswith("/rollback"):
-            self.rolled_back_to = rest.removesuffix("/rollback")
+            self.roll_back(rest.removesuffix("/rollback"))
             return json_response({"success": True, "result": {}})
         if method == "DELETE" and "/" not in rest:
             if rest == self.canonical_id():
