@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from combo_publish import site
+from combo_publish import manifest, site
 from combo_publish.headers import generate
 from combo_publish.schema import PublicSchema
 from combo_publish.settings import load
@@ -19,22 +19,34 @@ def folder(world: World, tmp_path: Path) -> Path:
     (path / "index.html").write_text("<!doctype html>")
     (path / "_headers").write_text(generate(world.settings))
     (path / "data").mkdir()
-    (path / "data" / "combo-counts.json").write_text('{"gloves": {}, "knives": {}}')
+    counts = b'{"gloves": {}, "knives": {}}'
+    (path / "data" / "combo-counts.json").write_bytes(counts)
+    (path / "data" / "manifest.json").write_bytes(
+        manifest.make(
+            {"data/combo-counts.json": counts},
+            data_version="a" * 64,
+            exported_at="2026-11-22T03:00:00",
+            exported_with="b" * 40,
+            origins=world.settings,
+        ).encode()
+    )
     return path
 
 
 def check(world: World, folder: Path) -> site.Summary:
-    return site.check(folder, world.settings, PublicSchema(json.loads(REAL_OPENAPI.read_text())))
+    return site.check(
+        folder, world.settings.local_urls, PublicSchema(json.loads(REAL_OPENAPI.read_text()))
+    )
 
 
 def test_a_normal_folder_passes(world: World, folder: Path) -> None:
-    assert check(world, folder).files == 3
+    assert check(world, folder).files == 4
 
 
 def test_20001_files_fail(world: World, folder: Path) -> None:
     many = folder / "many"
     many.mkdir()
-    for index in range(20_001 - 3):
+    for index in range(20_001 - 4):
         (many / f"{index}.txt").write_bytes(b"")
     with pytest.raises(site.SiteError, match="20001 files"):
         check(world, folder)
@@ -109,4 +121,4 @@ def test_an_image_file_is_not_searched_for_data_urls(world: World, folder: Path)
     # Only code can inline an asset; a picture's own bytes may hold any text.
     (folder / "assets").mkdir()
     (folder / "assets" / "1-abc.png").write_bytes(b"\x89PNG\r\n\x1a\ndata:image/png;base64,")
-    assert check(world, folder).files == 4
+    assert check(world, folder).files == 5

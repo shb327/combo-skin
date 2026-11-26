@@ -11,6 +11,7 @@ import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass, fields
 from pathlib import Path
+from typing import Protocol
 from urllib.parse import urlsplit
 
 DEFAULT_STATE_DIR = "~/Library/Application Support/combo-skin/publish"
@@ -19,6 +20,39 @@ DEFAULT_BACKUP_DIR = "~/Library/Application Support/combo-skin/backups"
 
 class SettingsError(Exception):
     """A missing, unknown or invalid setting. The message names the setting."""
+
+
+def origin_of(base_url: str) -> str:
+    parts = urlsplit(base_url)
+    return f"{parts.scheme}://{parts.netloc}"
+
+
+class SiteOrigins(Protocol):
+    """What the site is built and served for: its origin, the image base URL and the viewer.
+    The publish settings have them, and so does a data manifest (spec 026)."""
+
+    @property
+    def site_origin(self) -> str: ...
+
+    @property
+    def image_base_url(self) -> str: ...
+
+    @property
+    def image_origin(self) -> str: ...
+
+    @property
+    def viewer_origin(self) -> str: ...
+
+
+@dataclass(frozen=True)
+class Origins:
+    site_origin: str
+    image_base_url: str
+    viewer_origin: str
+
+    @property
+    def image_origin(self) -> str:
+        return origin_of(self.image_base_url)
 
 
 @dataclass(frozen=True)
@@ -42,8 +76,16 @@ class Settings:
 
     @property
     def image_origin(self) -> str:
-        parts = urlsplit(self.image_base_url)
-        return f"{parts.scheme}://{parts.netloc}"
+        return origin_of(self.image_base_url)
+
+    @property
+    def origins(self) -> Origins:
+        return Origins(self.site_origin, self.image_base_url, self.viewer_origin)
+
+    @property
+    def local_urls(self) -> tuple[str, str]:
+        """The back office's addresses, which nothing deployed may hold."""
+        return (self.local_api_url, self.local_image_base_url)
 
     @property
     def keychain_services(self) -> tuple[str, str, str]:
@@ -54,7 +96,7 @@ NAME = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
 SERVICE = re.compile(r"^[A-Za-z0-9._-]{1,100}$")
 
 
-def _https_origin(name: str, value: str) -> str:
+def https_origin(name: str, value: str) -> str:
     parts = urlsplit(value)
     if (
         parts.scheme != "https"
@@ -67,7 +109,7 @@ def _https_origin(name: str, value: str) -> str:
     return value
 
 
-def _https_base(name: str, value: str) -> str:
+def https_base(name: str, value: str) -> str:
     parts = urlsplit(value)
     if parts.scheme != "https" or not parts.hostname or parts.username or parts.query:
         raise SettingsError(f"{name} must be an https URL such as https://images.example.com")
@@ -126,9 +168,9 @@ def parse(raw: Mapping[str, object]) -> Settings:
     return Settings(
         account_id=text("account_id"),
         pages_project=text("pages_project"),
-        site_origin=_https_origin("site_origin", text("site_origin")),
-        image_base_url=_https_base("image_base_url", text("image_base_url")),
-        viewer_origin=_https_origin("viewer_origin", text("viewer_origin")),
+        site_origin=https_origin("site_origin", text("site_origin")),
+        image_base_url=https_base("image_base_url", text("image_base_url")),
+        viewer_origin=https_origin("viewer_origin", text("viewer_origin")),
         public_bucket=text("public_bucket"),
         backup_bucket=text("backup_bucket"),
         local_api_url=_loopback("local_api_url", text("local_api_url")),

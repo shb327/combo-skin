@@ -6,29 +6,25 @@ from tests.support import PAGES_TOKEN, SECRETS, World, combo, git
 def publish_and_point_canonical(world: World) -> str:
     world.add(combo("a", ("specialist", "mogul"), ("karambit", "fade")))
     assert world.run("publish").code == 0
-    commit = git(world.repo, "rev-parse", "origin/main")
-    world.canonical = {
-        "id": "dep2",
-        "url": "https://dep2.combo-test.pages.dev",
-        "created_on": "2026-11-22T03:00:00Z",
-        "deployment_trigger": {"metadata": {"commit_hash": commit}},
-    }
-    return commit
+    return git(world.repo, "rev-parse", "origin/main")
 
 
 def test_status_prints_the_live_deployment_and_that_nothing_changed(world: World) -> None:
     commit = publish_and_point_canonical(world)
     deploys = len(world.deploys())
+    seen = len(world.http.requests)
     result = world.run("status")
     assert result.code == 0, result.err
     assert result.out.splitlines() == [
-        f"Live: deployment dep2, commit {commit[:12]}, 2026-11-22T03:00:00Z",
+        f"Live: deployment dep2, commit {commit[:12]}, 2026-11-22T03:00:02.000000Z",
         "Behind origin/main: 0 commits",
         "Data: the local published combos match the live site",
     ]
     # It changes nothing, and asked the Pages API with the token in a header only.
     assert len(world.deploys()) == deploys
-    api = [(url, headers) for url, headers in world.http.requests if "api.cloudflare.com" in url]
+    api = [
+        (url, headers) for url, headers in world.http.requests[seen:] if "api.cloudflare.com" in url
+    ]
     assert api == [
         (
             "https://api.cloudflare.com/client/v4/accounts/0123456789abcdef0123456789abcdef"
@@ -57,6 +53,7 @@ def test_status_after_a_rollback_reads_the_rolled_back_deployment(world: World) 
     world.add(combo("b", ("specialist", "mogul"), ("bayonet", "lore")))
     assert world.run("publish").code == 0
     assert world.state()["live"]["deployment"] == "dep4"
+    world.rolled_back_to = "dep2"
     # Rolled back to the first publish (dep2), whose data lacks combo b.
     result = world.run("status")
     assert "Live: deployment dep2" in result.out

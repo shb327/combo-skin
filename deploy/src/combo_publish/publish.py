@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from combo_publish import images, site, state, wrangler
+from combo_publish import images, manifest, pages_api, site, state, wrangler
 from combo_publish.app import CommandError, Deps, megabytes
 from combo_publish.bucket import ObjectInfo
 from combo_publish.export import Export, export
@@ -17,6 +17,7 @@ from combo_publish.settings import Settings
 from combo_publish.smoke import smoke_test
 
 REBUILD = "docker compose up -d --wait --build"
+RACED = "A merge deploy went live during this publish; run it again."
 ROLLBACK = (
     "Roll back: Pages dashboard > {project} > Deployments > an earlier production deployment > "
     "Rollback to this deployment (deploy/README.md, Rollback)"
@@ -76,6 +77,9 @@ def _publish(
         f"Commit {commit[:12]} ({named}) to {target}{', dry run' if dry_run else ''}: "
         f"{git.subject(commit)}"
     )
+    # A merge deploy can go live while this runs; production must not overwrite it unseen.
+    token = None if preview or dry_run else deps.secret(settings.pages_token_service)
+    live_before = _live_id(deps, settings, token)
 
     with deps.workdir() as work:
         source = work / "source"
@@ -96,10 +100,22 @@ def _publish(
             "since the last production publish"
         )
 
+        data_manifest = manifest.make(
+            result.files,
+            data_version=result.sha256,
+            exported_at=deps.now().isoformat(timespec="seconds"),
+            exported_with=commit,
+            origins=settings,
+        ).encode()
         dist = site.build_website(deps.tools, source, settings)
         folder = work / "site"
-        site.assemble(dist, folder, result.files, generate(settings))
-        summary = site.check(folder, settings, PublicSchema(openapi))
+        site.assemble(
+            dist,
+            folder,
+            {**result.files, manifest.MANIFEST_FILE: data_manifest},
+            generate(settings),
+        )
+        summary = site.check(folder, settings.local_urls, PublicSchema(openapi))
 
         referenced = (
             result.screenshot_keys | result.picture_keys | images.picture_keys(catalog, agents)
@@ -136,7 +152,7 @@ def _publish(
 
         if bucket is None or listing is None:
             raise CommandError("No image bucket to upload to")
-        token = deps.secret(settings.pages_token_service)
+        token = token or deps.secret(settings.pages_token_service)
         uploaded = images.upload(deps.http, settings, bucket, plan.missing)
         out.print(
             f"Images: {len(referenced)} referenced, {uploaded.count} uploaded "
@@ -155,12 +171,22 @@ def _publish(
             message=message,
             work=work,
         )
-        smoke_test(deps.http, settings, first.url, result, noindex=True, sleep=deps.sleep)
+        smoke_test(
+            deps.http,
+            settings,
+            first.url,
+            result,
+            manifest=data_manifest,
+            noindex=True,
+            sleep=deps.sleep,
+        )
         out.print(f"Pages: {summary.files} files; preview {first.url} checked")
         if preview:
             out.print(f"Preview: {first.alias or first.url}, deployment {first.id}")
             return
 
+        if _live_id(deps, settings, token) != live_before:
+            raise CommandError(RACED)
         live = wrangler.deploy(
             deps.tools,
             settings,
@@ -191,6 +217,13 @@ def _publish(
         out.print(
             f"Pruned: {len(due)} images unused by production for {images.PRUNE_AFTER_DAYS} days"
         )
+
+
+def _live_id(deps: Deps, settings: Settings, token: str | None) -> str | None:
+    if token is None:
+        return None
+    found = pages_api.live_or_none(deps.http, settings, token)
+    return found.id if found else None
 
 
 def _changed(result: Export, previous: state.State | None) -> int:

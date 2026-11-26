@@ -1,5 +1,5 @@
-"""Plain HTTP GETs: the local API and bucket, the smoke test, and the Pages API for `status`.
-Redirects are not followed."""
+"""Plain HTTP requests: the local API and bucket, the smoke test, the image host, and the
+Pages API. Redirects are not followed."""
 
 import urllib.error
 import urllib.request
@@ -32,6 +32,11 @@ class Response:
 class Http(Protocol):
     def get(self, url: str, headers: Mapping[str, str] | None = None) -> Response: ...
 
+    def send(self, method: str, url: str, headers: Mapping[str, str] | None = None) -> Response:
+        """A request with no body: HEAD for the image host, POST and DELETE for the Pages
+        API."""
+        ...
+
 
 class _NoRedirects(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, *args: object, **kwargs: object) -> None:
@@ -47,12 +52,15 @@ class UrlHttp:
         self._opener: Opener = opener or urllib.request.build_opener(_NoRedirects)
 
     def get(self, url: str, headers: Mapping[str, str] | None = None) -> Response:
+        return self.send("GET", url, headers)
+
+    def send(self, method: str, url: str, headers: Mapping[str, str] | None = None) -> Response:
         if not url.startswith(("http://", "https://")):
             raise HttpError(f"Refused a URL that is not http(s): {url}")
         given = dict(headers or {})
         if not any(name.lower() == "user-agent" for name in given):
             given["User-Agent"] = USER_AGENT
-        request = urllib.request.Request(url, headers=given)  # noqa: S310
+        request = urllib.request.Request(url, headers=given, method=method)  # noqa: S310
         try:
             with self._opener.open(request, timeout=TIMEOUT_S) as answer:
                 return Response(answer.status, answer.read(), _headers(answer.headers.items()))

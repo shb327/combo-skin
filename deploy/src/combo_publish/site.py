@@ -6,13 +6,15 @@ import json
 import os
 import re
 import shutil
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 from combo_publish.headers import rule_count
+from combo_publish.manifest import MANIFEST_FILE, ManifestError, parse, verify
 from combo_publish.proc import Tools, base_env, run
 from combo_publish.schema import PublicSchema
-from combo_publish.settings import Settings
+from combo_publish.settings import SiteOrigins
 
 MAX_FILES = 20_000
 MAX_FILE_BYTES = 25 * 1024 * 1024
@@ -32,7 +34,7 @@ class SiteError(Exception):
     """The site cannot be deployed. Nothing has been uploaded."""
 
 
-def build_env(settings: Settings) -> dict[str, str]:
+def build_env(settings: SiteOrigins) -> dict[str, str]:
     """The build's environment: the production settings and nothing from the caller beyond
     PATH, HOME, the locale and the temporary folder. No `.env` file is written."""
     return base_env(
@@ -43,7 +45,7 @@ def build_env(settings: Settings) -> dict[str, str]:
     )
 
 
-def build_website(tools: Tools, source: Path, settings: Settings) -> Path:
+def build_website(tools: Tools, source: Path, settings: SiteOrigins) -> Path:
     """`npm ci` and `npm run build` in the archived commit's `website/`; returns `dist/`."""
     website = source / "website"
     env = build_env(settings)
@@ -70,13 +72,15 @@ class Summary:
     size: int
 
 
-def check(site: Path, settings: Settings, schema: PublicSchema) -> Summary:
-    """Pages' limits, valid data files, no local URL anywhere in the site, and no asset inlined
-    as a data: URL in its code."""
+def check(site: Path, local_urls: Sequence[str], schema: PublicSchema) -> Summary:
+    """Pages' limits, valid data files that match the data manifest, no local URL anywhere in
+    the site (`local_urls` are the back office's), and no asset inlined as a data: URL in its
+    code."""
     paths = sorted(path for path in site.rglob("*") if path.is_file())
     if len(paths) > MAX_FILES:
         raise SiteError(f"The site has {len(paths)} files; Pages takes at most {MAX_FILES}")
-    local = [settings.local_api_url.encode(), settings.local_image_base_url.encode()]
+    local = [url.encode() for url in local_urls]
+    data: dict[str, bytes] = {}
     total = 0
     for path in paths:
         relative = path.relative_to(site).as_posix()
@@ -99,8 +103,10 @@ def check(site: Path, settings: Settings, schema: PublicSchema) -> Summary:
                 f"{relative} holds an inlined data: URL ({inlined.group().decode()}), which the "
                 "CSP blocks; the build must emit every asset as a file"
             )
-        if relative.startswith("data/"):
+        if relative.startswith("data/") and relative != MANIFEST_FILE:
             _check_data(relative, body, schema)
+            data[relative] = body
+    _check_manifest(site, data)
     headers = (site / "_headers").read_text()
     if rule_count(headers) > MAX_HEADER_RULES:
         raise SiteError(f"_headers has {rule_count(headers)} rules; Pages takes at most 100")
@@ -108,6 +114,18 @@ def check(site: Path, settings: Settings, schema: PublicSchema) -> Summary:
     if longest > MAX_HEADER_LINE:
         raise SiteError(f"_headers has a line of {longest} characters; Pages takes at most 2,000")
     return Summary(len(paths), total)
+
+
+def _check_manifest(site: Path, data: dict[str, bytes]) -> None:
+    path = site / MANIFEST_FILE
+    if not path.is_file():
+        raise SiteError(f"The site has no {MANIFEST_FILE}")
+    try:
+        problems = verify(parse(path.read_bytes()), data)
+    except ManifestError as error:
+        raise SiteError(str(error)) from error
+    if problems:
+        raise SiteError(f"The data files do not match {MANIFEST_FILE}: {problems[0]}")
 
 
 def _check_data(relative: str, body: bytes, schema: PublicSchema) -> None:

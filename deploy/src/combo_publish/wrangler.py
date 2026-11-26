@@ -10,8 +10,8 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from combo_publish.pages_api import PagesTarget
 from combo_publish.proc import Tools, base_env, run
-from combo_publish.settings import Settings
 
 PRODUCTION_BRANCH = "main"
 PREVIEW_BRANCH = "preview"
@@ -29,7 +29,7 @@ class Deployment:
     environment: str
 
 
-def env(settings: Settings, token: str, work: Path) -> dict[str, str]:
+def env(settings: PagesTarget, token: str, work: Path) -> dict[str, str]:
     home = work / "wrangler-home"
     (home / "config").mkdir(parents=True, exist_ok=True)
     found = base_env()
@@ -49,7 +49,7 @@ def env(settings: Settings, token: str, work: Path) -> dict[str, str]:
 
 def deploy(
     tools: Tools,
-    settings: Settings,
+    settings: PagesTarget,
     token: str,
     site: Path,
     *,
@@ -96,7 +96,7 @@ def deploy(
     raise DeployError("wrangler reported no deployment")
 
 
-def whoami(tools: Tools, settings: Settings, token: str, work: Path) -> str:
+def whoami(tools: Tools, settings: PagesTarget, token: str, work: Path) -> str:
     return run(
         [tools.wrangler, "whoami"], cwd=work, env=env(settings, token, work), what="wrangler whoami"
     ).decode(errors="replace")
