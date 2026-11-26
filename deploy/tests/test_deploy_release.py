@@ -361,3 +361,28 @@ def test_a_folder_built_from_another_branch_is_never_deployed(ci: World) -> None
     assert result.code == 1
     assert f"The built commit {side[:12]} is not on main; only main deploys." in result.err
     assert branches(ci) == ["preview", "main"]
+
+
+def test_a_failed_rollback_after_a_race_says_older_data_is_live(ci: World) -> None:
+    landed: list[str] = []
+    on_list_call(
+        ci, 2, lambda: landed.append(ci.add_deployment("main", "Combo Skin newer", like="dep2"))
+    )
+    real = ci.pages_send
+
+    def refuse_rollback(method: str, url: str) -> object:
+        if url.endswith("/rollback"):
+            from tests.support import json_response
+
+            return json_response({"success": False}, 403)
+        return real(method, url)
+
+    ci.pages_send = refuse_rollback  # type: ignore[method-assign,assignment]
+    code, _, err = release(ci)
+    assert code == 1
+    assert err.strip().startswith(
+        f"Failed: A publish (deployment {landed[0]}) went live during the production deploy, "
+        "and this deploy put older data over it. Roll back to it in the Pages dashboard now"
+    )
+    assert ci.canonical_id() == "dep5"
+    assert not [sent for sent in ci.http.sent if sent[0] == "DELETE"]

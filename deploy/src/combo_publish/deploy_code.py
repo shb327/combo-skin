@@ -461,7 +461,15 @@ def _after_production(
     ]
     if between:
         restore = max(between, key=lambda one: one.created)
-        pages_api.rollback(deps.http, target, token, restore.id)
+        try:
+            pages_api.rollback(deps.http, target, token, restore.id)
+        except pages_api.PagesError as error:
+            raise CommandError(
+                f"A publish (deployment {restore.id}) went live during the production deploy, "
+                "and this deploy put older data over it. Roll back to it in the Pages dashboard "
+                f"now (Deployments > {restore.id} > Rollback to this deployment); the automatic "
+                f"rollback failed: {error}"
+            ) from error
         note = ""
         try:
             pages_api.delete(deps.http, target, token, ours)
