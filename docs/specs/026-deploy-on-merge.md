@@ -1,6 +1,6 @@
 # 026: Deploy code on merge
 
-**Status:** Approved
+**Status:** Implemented
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** deploy (with the CI workflows)
@@ -277,7 +277,58 @@ None. On 26 November the owner approved every recommendation of the draft: a cod
 
 ## Implementation notes
 
-Filled in during implementation: deviations from the design and why, follow-ups discovered, and which test covers each acceptance criterion.
+Implemented on 26 November. Test ids are `deploy/tests/<file>::<test>`.
+
+### Criteria and tests
+
+| Criterion | Covered by |
+| --- | --- |
+| 1 | `test_deploy_build.py`: `test_the_build_holds_the_live_data_and_a_folder_and_plan`, `test_a_file_that_changes_mid_download_starts_over_once`, `test_a_file_that_keeps_changing_stops_the_build`, `test_a_data_file_served_as_html_stops_the_build`, `test_a_live_deployment_without_a_manifest_needs_a_publish`; `test_deploy_release.py::test_a_live_deployment_without_a_manifest_needs_a_publish` |
+| 2 | `test_deploy_build.py`: `test_a_public_schema_change_needs_a_publish_before_npm_runs`, `test_a_change_to_titles_and_descriptions_only_builds` |
+| 3 | `test_deploy_build.py`: `test_a_new_finish_gets_an_empty_file_and_a_manifest_entry`, `test_a_finish_that_left_the_catalog_empty_is_dropped`, `test_a_finish_that_left_the_catalog_with_combos_needs_a_publish` |
+| 4 | `test_deploy_build.py`: `test_the_build_uses_the_manifest_origins_and_the_publish_headers`, `test_a_manifest_origin_that_is_not_https_stops_the_build`, `test_the_site_check_stops_the_build_as_it_stops_a_publish`, `test_live_data_outside_the_public_schema_stops_the_build` |
+| 5 | `test_deploy_build.py`: `test_a_missing_link_preview_image_needs_a_publish`, `test_a_missing_catalog_copy_is_a_warning`, `test_the_build_never_opens_a_bucket_or_reads_a_credential`, `test_the_deploy_code_module_has_no_way_to_a_bucket` |
+| 6 | `test_deploy_build.py::test_the_build_refuses_a_cloudflare_token_in_its_environment` |
+| 7 | `test_deploy_release.py`: `test_a_live_deployment_without_a_manifest_needs_a_publish`, `test_rolled_back_data_needs_a_publish`, `test_a_code_rollback_pauses_a_push_and_a_run_by_hand_deploys`, `test_data_that_changed_since_the_build_stops`, `test_a_commit_already_live_is_not_deployed`, `test_a_live_commit_that_is_not_on_main_stops` |
+| 8 | `test_deploy_release.py`: `test_a_merge_goes_live_after_its_preview_is_checked`, `test_the_order_is_preview_smoke_recheck_production_check`, `test_nothing_reaches_production_after_a_failed_preview` (preview and smoke) |
+| 9 | `test_deploy_release.py::test_a_deployment_going_live_before_production_stops_it` |
+| 10 | `test_deploy_release.py`: `test_a_publish_landing_during_production_is_restored`, `test_a_publish_after_this_deploy_is_left_live` |
+| 11 | `test_deploy_release.py::test_a_merge_deploy_says_so_in_its_commit_message`; `test_status.py::test_status_after_a_merge_deploy_is_not_a_rollback` |
+| 12 | `test_deploy_release.py`: `test_no_secret_or_project_name_appears_anywhere`, `test_release_needs_the_token_account_and_project`; `test_deploy_build.py::test_the_project_comes_from_the_environment_in_ci` |
+| 13 | `Live:` `test_a_merge_goes_live_after_its_preview_is_checked`; `Not deployed:` `test_a_commit_already_live_is_not_deployed` and the gate's tests (off, another branch); `Needs a publish from the Mac:` `test_failures_are_annotated_on_github_actions`, `test_a_build_that_stops_writes_the_reason_to_the_summary`; `Paused:` `test_a_code_rollback_pauses_a_push_and_a_run_by_hand_deploys`; `Failed:` `test_nothing_reaches_production_after_a_failed_preview`, `test_a_built_folder_without_a_plan_fails` (all in `test_deploy_release.py`) |
+| 14 | `test_manifest.py`: `test_publish_writes_the_manifest_of_its_export`, `test_the_smoke_test_checks_the_manifest`, `test_the_changed_files_count_leaves_the_manifest_out`, `test_a_merge_deploy_going_live_during_a_publish_stops_it`, `test_a_first_publish_needs_no_live_deployment`, `test_a_preview_publish_does_not_read_the_live_deployment`, `test_a_manifest_reads_back_as_written`, `test_a_bad_manifest_is_refused`, `test_the_site_check_refuses_data_that_does_not_match_its_manifest` |
+| 15 | `test_status.py`: `test_status_after_a_publish`, `test_status_after_a_merge_deploy_is_not_a_rollback`, `test_status_after_a_rollback_to_an_older_publish`, `test_status_after_a_code_rollback`, `test_status_names_a_pending_schema_change`, `test_status_of_a_deployment_without_a_manifest` |
+| 16 | `test_workflows.py`: `test_the_check_job_is_unchanged`, `test_the_new_jobs_run_only_for_main_or_by_hand_in_this_repository`, `test_only_the_release_step_holds_the_cloudflare_credential`, `test_the_build_job_has_no_environment_and_no_credential`, `test_the_deploy_job_never_installs_the_website` |
+| 17 | `test_workflows.py::test_every_workflow_is_read_only_and_pinned` (every workflow file) |
+| 18 | `test_workflows.py`: `test_deploys_are_never_cancelled`, `test_the_website_workflow_can_be_called_without_cancelling_its_own_run` |
+| 19 | `test_workflows.py`: `test_the_gate_reads_the_switch`, `test_the_gate_deploys_only_when_the_switch_is_on` (the gate's script run under bash), and `test_the_report_says_why_when_a_job_stopped` |
+| 20 | `deploy/README.md` (Merge deploys: what a run does, outcomes, the switch, rollbacks, setup; the Rollback runbook), `docs/static-publishing.md`, the root README; the comment in `deploy.yml` (`test_workflows.py::test_the_header_comment_says_what_ci_can_do_now`) |
+| 21 | `gitleaks git --no-banner --redact --log-opts="origin/main..HEAD"`: no leaks. The account id, project name and token are read only from the environment; tests use fakes |
+| 22 to 26 | **Pending the merge and the setup** (`deploy/README.md`, Merge deploys, Setup) |
+
+### Deviations
+
+1. **`status`'s data line is `Live data:`** (R14 says `Data:`). Spec 021's `Data:` line, which compares the local combos with the live site, is still printed last, and two lines named `Data:` would read as one.
+2. **PyYAML and its type stubs.** The workflow tests use PyYAML as the spec says, plus `types-pyyaml`, since `mypy` runs in strict mode. Both are dev-only dependencies of `deploy/`, added with the owner's go-ahead.
+3. **The build's summary.** `deploy-code build` writes the run summary only when it stops. On success its lines go to the log, and its warnings go into `plan.json`, which `release` repeats in its own summary. So the first line of a run's summary is always the outcome (R11): from `gate` on a branch or with the switch off, from `build-site` or `deploy-site` when they stop, or `Live:` from `deploy-site`.
+4. **`release --by-hand`.** The release reads whether the run was started by hand from a flag, which the workflow sets for `workflow_dispatch`, rather than from GitHub's environment, so the rule can be tested and run alike anywhere.
+5. **`Http.send`.** The HTTP client gained `send(method, url, headers)` for the image host's `HEAD` and the Pages API's rollback (`POST`) and delete (`DELETE`). `get` is `send("GET", ...)`.
+6. **The manifest is required.** `site.check` now refuses a site with no `data/manifest.json`, or one whose files differ from it, for `publish` and `deploy-code` alike (R1: every deploy holds one). It takes the back office's addresses as an argument instead of the settings, since CI has no settings file.
+7. **The report job exits 0.** The run is red because of the job that failed; the report only adds its line. `deploy/README.md`'s outcome table says "red" or "green" for the run rather than an exit code.
+8. **After production.** If its own deployment does not appear in the Pages API's list after five tries, three seconds apart, the release stops with `Failed:` and asks to check production, rather than guess.
+9. **Masking.** The project name is registered as a secret, so it is masked as `***` everywhere the command prints, including a local path that happens to contain the same word.
+10. **Spec 021's originals grep** (`test_headers.py::test_the_settings_have_no_originals_bucket`) now skips binary files (`grep -I`). Running the package writes `__pycache__` files into `src/`, whose compiled docstring matched.
+
+### Check against the live site (26 November)
+
+- `PAGES_PROJECT=<project> uv run --project deploy python -m combo_publish deploy-code build --dry-run` printed the commit and then `Needs a publish from the Mac: the live deployment has no data manifest.`, exit 1, as expected before the first publish of this code.
+- The same build, with a manifest made locally from the live files (the live site has none yet) and the image host's `HEAD` answered locally (only `pages.dev` was fetched): 671 live data files downloaded and checked, 640 combos, `Data files: 671 kept, 0 added, 0 dropped`, 733 catalog copies, `Site: 785 files (7.1 MB), checked`, in 12 seconds. The built CSP equals the one the live site sends, and the counts file and a finish file are byte-equal to the live ones. Nothing was deployed or uploaded, and the folder was deleted afterwards.
+
+### Follow-ups
+
+- Criteria 22 to 26, after the merge: the first `publish` (it writes the manifest), the setup in `deploy/README.md` (Merge deploys, Setup), then the test run.
+- Spec 022's implementation keeps the rules in Design (Spec 022): the prerender in the shared assembly that `publish` and `deploy-code build` both call, reading only the commit, the data folder and the origins.
+- The website checks were not run here: this branch changes no website code, only `website.yml`'s triggers and concurrency group, which `test_workflows.py` reads.
 
 ## Audit
 
