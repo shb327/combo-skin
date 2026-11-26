@@ -3,14 +3,23 @@ name: deploy
 on:
   push:
   pull_request:
+  # By hand: on main, a merge deploy even while production is rolled back; on another branch,
+  # a build and check only (spec 026).
+  workflow_dispatch:
 
-# Read-only, and no secrets: nothing in CI can publish.
+# The check job is read-only, with no secrets. The merge deploy jobs (spec 026) put the
+# website's code live on the data that is already live, after the website's and this
+# package's checks pass. Only deploy-site holds a Cloudflare credential, in the production
+# environment, which deploys from main only. Combos still change only with a publish from the
+# Mac.
 permissions:
   contents: read
 
 concurrency:
   group: deploy-${{ github.ref }}
-  cancel-in-progress: true
+  # A run on main is never cut off mid-deploy: a newer push waits, and replaces any older
+  # waiting run.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 defaults:
   run:
@@ -33,3 +42,149 @@ jobs:
       - run: uv run ruff check
       - run: uv run mypy
       - run: uv run pytest
+
+  # The merged commit's website lint, tests and build.
+  website:
+    if: >-
+      github.repository == 'shb327/combo-skin' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      github.event_name == 'workflow_dispatch')
+    uses: ./.github/workflows/website.yml
+
+  # Whether this run builds and deploys, and why not when it doesn't.
+  gate:
+    if: >-
+      github.repository == 'shb327/combo-skin' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: .
+    outputs:
+      build: ${{ steps.decide.outputs.build }}
+      deploy: ${{ steps.decide.outputs.deploy }}
+    steps:
+      - id: decide
+        env:
+          SWITCH: ${{ vars.MERGE_DEPLOY }}
+          REF: ${{ github.ref }}
+        run: |
+          if [ "$REF" != "refs/heads/main" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "Not deployed: a run by hand on another branch builds and checks only; only main deploys." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$SWITCH" = "on" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "Not deployed: merge deploys are off (repository variable MERGE_DEPLOY)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # The site of this commit on the live data, built and checked with no Cloudflare credential:
+  # the website's npm packages never share a machine with the token.
+  build-site:
+    needs: [check, website, gate]
+    if: needs.gate.outputs.build == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The live data's export commit, for its public schema.
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.6"
+          enable-cache: true
+          cache-dependency-glob: deploy/uv.lock
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - run: uv sync --locked
+      - run: uv run python -m combo_publish deploy-code build --ref "$GITHUB_SHA" --out "$RUNNER_TEMP/merge-deploy"
+        env:
+          PAGES_PROJECT: ${{ secrets.PAGES_PROJECT }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: merge-deploy
+          path: ${{ runner.temp }}/merge-deploy
+          if-no-files-found: error
+          retention-days: 1
+
+  # Preview, smoke test, then production, on a fresh machine with the token. It installs only
+  # this package and its pinned wrangler.
+  deploy-site:
+    needs: [gate, build-site]
+    if: needs.gate.outputs.deploy == 'true'
+    runs-on: ubuntu-24.04
+    environment: production
+    concurrency:
+      group: merge-deploy-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The live commit, to tell an older deploy from a newer one.
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.6"
+          enable-cache: true
+          cache-dependency-glob: deploy/uv.lock
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: deploy/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: uv sync --locked
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: merge-deploy
+          path: ${{ runner.temp }}/merge-deploy
+      - run: uv run python -m combo_publish deploy-code release "$RUNNER_TEMP/merge-deploy" $BY_HAND
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PAGES_PROJECT: ${{ secrets.PAGES_PROJECT }}
+          BY_HAND: ${{ github.event_name == 'workflow_dispatch' && '--by-hand' || '' }}
+
+  # One summary line when an earlier job stopped without saying why itself.
+  report:
+    needs: [check, website, gate, build-site, deploy-site]
+    if: always() && needs.gate.result != 'skipped'
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - env:
+          CHECK: ${{ needs.check.result }}
+          WEBSITE: ${{ needs.website.result }}
+          GATE: ${{ needs.gate.result }}
+          BUILD: ${{ needs.build-site.result }}
+          DEPLOY: ${{ needs.deploy-site.result }}
+        run: |
+          reason=""
+          if [ "$WEBSITE" = "failure" ]; then
+            reason="the website checks failed"
+          elif [ "$CHECK" = "failure" ]; then
+            reason="the deploy package's checks failed"
+          elif [ "$GATE" = "failure" ]; then
+            reason="the gate job failed"
+          elif [ "$BUILD" = "failure" ]; then
+            reason="build-site stopped; its summary says why"
+          elif [ "$DEPLOY" = "failure" ]; then
+            reason="deploy-site stopped; its summary says why"
+          elif [ "$WEBSITE" = "cancelled" ] || [ "$CHECK" = "cancelled" ] || [ "$BUILD" = "cancelled" ] || [ "$DEPLOY" = "cancelled" ]; then
+            reason="the run was cancelled"
+          fi
+          if [ -n "$reason" ]; then
+            echo "Not deployed: $reason." >> "$GITHUB_STEP_SUMMARY"
+          fi
