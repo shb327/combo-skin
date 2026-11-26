@@ -1,6 +1,6 @@
 # 026: Deploy code on merge
 
-**Status:** Draft
+**Status:** Approved
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** deploy (with the CI workflows)
