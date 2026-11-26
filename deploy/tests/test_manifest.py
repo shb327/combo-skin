@@ -177,3 +177,69 @@ def test_the_site_check_refuses_data_that_does_not_match_its_manifest(
     (folder / "data" / "manifest.json").unlink()
     with pytest.raises(site.SiteError, match=r"no data/manifest\.json"):
         site.check(folder, world.settings.local_urls, schema)
+
+
+# After the production deploy: a merge deploy that went live over this publish (the Pages
+# API's list can lag, so its own check after production may have missed this publish).
+
+LIST = "/deployments?env=production"
+
+
+def land_after_production(world: World, old: str) -> list[str]:
+    """Before the publish's first list of production deployments, which comes right after its
+    production deploy, CI puts a merge deploy of the older data live."""
+    landed: list[str] = []
+
+    def hook(url: str) -> None:
+        if LIST in url and not landed:
+            landed.append(
+                world.add_deployment("main", "Combo Skin abc merge deploy, data def", like=old)
+            )
+
+    world.http.before.append(hook)
+    return landed
+
+
+def test_a_merge_deploy_over_this_publish_is_rolled_back(ready: World) -> None:
+    assert ready.run("publish").code == 0  # dep1, dep2
+    ready.add(combo("c", ("specialist", "mogul"), ("bayonet", "lore")))
+    landed = land_after_production(ready, "dep2")
+    result = ready.run("publish")  # dep3, dep4; then the merge deploy is dep5
+    assert result.code == 0, result.err
+    assert landed == ["dep5"]
+    assert ready.canonical_id() == "dep4"
+    assert "dep5" not in [one["id"] for one in ready.pages_deployments()]
+    assert (
+        "Merge deploy dep5 went live over this publish with older data: production was rolled "
+        "back to this publish and dep5 was deleted. Run the deploy workflow by hand on main to "
+        "put the newer code live."
+    ) in result.out.splitlines()
+    assert ready.state()["live"]["deployment"] == "dep4"
+
+
+def test_a_publish_with_nothing_after_it_changes_nothing_more(ready: World) -> None:
+    assert ready.run("publish").code == 0
+    assert not [sent for sent in ready.http.sent if sent[0] in ("POST", "DELETE")]
+    assert ready.canonical_id() == "dep2"
+
+
+def test_a_failed_rollback_after_a_publish_says_what_to_do(ready: World) -> None:
+    assert ready.run("publish").code == 0
+    ready.add(combo("c", ("specialist", "mogul"), ("bayonet", "lore")))
+    land_after_production(ready, "dep2")
+    real = ready.pages_send
+
+    def refuse(method: str, url: str) -> object:
+        from tests.support import json_response
+
+        return json_response({}, 403) if url.endswith("/rollback") else real(method, url)
+
+    ready.pages_send = refuse  # type: ignore[method-assign,assignment]
+    result = ready.run("publish")
+    assert result.code == 1
+    assert result.err.strip().startswith(
+        "Merge deploy dep5 went live over this publish with older data. Roll back to this "
+        "publish (deployment dep4) in the Pages dashboard now"
+    )
+    # The publish itself is recorded, so its images are protected.
+    assert ready.state()["live"]["deployment"] == "dep4"

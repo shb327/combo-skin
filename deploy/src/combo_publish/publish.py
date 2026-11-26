@@ -210,6 +210,9 @@ def _publish(
         state.save(settings.state_dir, current)
         out.print(f"Live: {settings.site_origin}, deployment {live.id}")
         out.print(ROLLBACK.format(project=settings.pages_project))
+        overwritten = _merge_deploy_over(deps, settings, token, live.id)
+        if overwritten:
+            out.print(overwritten)
         if due:
             bucket.delete(due)
             images.forget(current, due)
@@ -224,6 +227,49 @@ def _live_id(deps: Deps, settings: Settings, token: str | None) -> str | None:
         return None
     found = pages_api.live_or_none(deps.http, settings, token)
     return found.id if found else None
+
+
+def _merge_deploy_over(deps: Deps, settings: Settings, token: str, ours: str) -> str | None:
+    """A merge deploy that went live after this publish's production deploy carries older data:
+    its own check after production can miss this publish while the Pages API's list lags. Roll
+    production back to this publish and delete it (spec 026, Audit)."""
+    own = None
+    for attempt in range(5):
+        own = next(
+            (one for one in pages_api.production(deps.http, settings, token) if one.id == ours),
+            None,
+        )
+        if own is not None:
+            break
+        if attempt < 4:
+            deps.sleep(3.0)
+    canonical = pages_api.live_or_none(deps.http, settings, token)
+    if (
+        own is None
+        or canonical is None
+        or canonical.id == ours
+        or not canonical.merge_deploy
+        or canonical.created <= own.created
+    ):
+        return None
+    try:
+        pages_api.rollback(deps.http, settings, token, ours)
+    except pages_api.PagesError as error:
+        raise CommandError(
+            f"Merge deploy {canonical.id} went live over this publish with older data. Roll back "
+            f"to this publish (deployment {ours}) in the Pages dashboard now (Deployments > "
+            f"{ours} > Rollback to this deployment); the automatic rollback failed: {error}"
+        ) from error
+    note = f"{canonical.id} was deleted"
+    try:
+        pages_api.delete(deps.http, settings, token, canonical.id)
+    except pages_api.PagesError as error:
+        note = f"{canonical.id} could not be deleted ({error}); delete it in the dashboard"
+    return (
+        f"Merge deploy {canonical.id} went live over this publish with older data: production was "
+        f"rolled back to this publish and {note}. Run the deploy workflow by hand on main to put "
+        "the newer code live."
+    )
 
 
 def _changed(result: Export, previous: state.State | None) -> int:
