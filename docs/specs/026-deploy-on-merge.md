@@ -1,6 +1,6 @@
 # 026: Deploy code on merge
 
-**Status:** Implemented
+**Status:** Audited
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** deploy (with the CI workflows)
@@ -332,4 +332,57 @@ Implemented on 26 November. Test ids are `deploy/tests/<file>::<test>`.
 
 ## Audit
 
-Filled in by the audit: one line per acceptance criterion (pass or fail, with evidence), the results of lint, tests, build and the secret scan, and a verdict of Pass, Pass with follow-ups, or Fail.
+**Date:** 2026-11-26 · **Branch:** 026-deploy-on-merge · **Commit:** 4ac405c
+**Verdict:** Pass with follow-ups
+
+Audited from 503e5b1. Three small defects found on the way were fixed test first, each in its own commit (Findings, fixed); the table is for 4ac405c. Criteria 22 to 26 are manual and wait for the merge, the first publish and the setup. Test ids are `deploy/tests/<file>::<test>`, run with `uv run pytest` in `deploy/`.
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | Download, hashes, HTML, no manifest | Pass | `test_deploy_build.py`: `test_the_build_holds_the_live_data_and_a_folder_and_plan` (only the files the manifest lists, no request with credentials), `test_a_file_that_changes_mid_download_starts_over_once`, `test_a_file_that_keeps_changing_stops_the_build`, `test_a_data_file_served_as_html_stops_the_build`, `test_a_live_deployment_without_a_manifest_needs_a_publish`; `test_deploy_release.py::test_a_live_deployment_without_a_manifest_needs_a_publish` |
+| 2 | Schema change refused before npm; titles and descriptions ignored | Pass | `test_a_public_schema_change_needs_a_publish_before_npm_runs` (names `ComboCounts, PublicCombo`, no new `npm run build`), `test_a_change_to_titles_and_descriptions_only_builds` |
+| 3 | Catalog fitting, byte-equal data, manifest kept | Pass | `test_a_new_finish_gets_an_empty_file_and_a_manifest_entry` (every other file byte-equal, the five manifest fields kept), `test_a_finish_that_left_the_catalog_empty_is_dropped`, `test_a_finish_that_left_the_catalog_with_combos_needs_a_publish` |
+| 4 | Origins, `_headers`, bad origin, site checks | Pass | `test_the_build_uses_the_manifest_origins_and_the_publish_headers` (`_headers` byte-equal to the publish's), `test_a_manifest_origin_that_is_not_https_stops_the_build`, `test_the_site_check_stops_the_build_as_it_stops_a_publish`, `test_live_data_outside_the_public_schema_stops_the_build` |
+| 5 | Preview images, catalog copies, no bucket | Pass | `test_a_missing_link_preview_image_needs_a_publish`, `test_a_missing_catalog_copy_is_a_warning`, `test_the_build_never_opens_a_bucket_or_reads_a_credential` (only anonymous `HEAD`s on the image host), `test_the_deploy_code_module_has_no_way_to_a_bucket`; read: `deploy_code.py` uses `images` only for `picture_keys`, and never `deps.bucket`, `deps.r2`, `deps.secret` or `deps.local_json` |
+| 6 | Token in the build's environment | Pass | `test_the_build_refuses_a_cloudflare_token_in_its_environment` (no request, no npm) |
+| 7 | Every stop of R3 step 3 | Pass | `test_deploy_release.py`: `test_a_live_deployment_without_a_manifest_needs_a_publish`, `test_a_live_commit_that_is_not_on_main_stops`, `test_a_commit_already_live_is_not_deployed` (exit 0), `test_rolled_back_data_needs_a_publish`, `test_a_code_rollback_pauses_a_push_and_a_run_by_hand_deploys`, `test_data_that_changed_since_the_build_stops`; each asserts no new deployment. Read: `deploy_code.py` `release` checks them in R3's order, all before the first `wrangler` call |
+| 8 | Order; no production after a failure | Pass | `test_the_order_is_preview_smoke_recheck_production_check`, `test_nothing_reaches_production_after_a_failed_preview` (preview and smoke), `test_a_merge_goes_live_after_its_preview_is_checked` |
+| 9 | L or N changes before production | Pass | `test_a_deployment_going_live_before_production_stops_it` |
+| 10 | Race during production | Pass | `test_a_publish_landing_during_production_is_restored` (rollback, delete, exit 1), `test_a_publish_after_this_deploy_is_left_live` (exit 0, no rollback or delete), and since the audit `test_a_failed_rollback_after_a_race_says_older_data_is_live` |
+| 11 | Commit messages | Pass | `test_a_merge_deploy_says_so_in_its_commit_message` (publish's unchanged); `test_status.py::test_status_after_a_merge_deploy_is_not_a_rollback` |
+| 12 | No secret or project name anywhere | Pass | `test_no_secret_or_project_name_appears_anywhere` (stdout, stderr, summary, `plan.json`, the folder; wrangler's environment), `test_release_needs_the_token_account_and_project`, `test_the_project_comes_from_the_environment_in_ci` |
+| 13 | Summary first lines and exit codes | Pass | `Live:` and `Not deployed:` (`test_a_merge_goes_live_after_its_preview_is_checked`, `test_a_commit_already_live_is_not_deployed`); `Needs a publish from the Mac:` (`test_failures_are_annotated_on_github_actions`, `test_a_build_that_stops_writes_the_reason_to_the_summary`); `Paused:` (`test_a_code_rollback_pauses_a_push_and_a_run_by_hand_deploys`); `Failed:` (`test_nothing_reaches_production_after_a_failed_preview`, `test_a_built_folder_without_a_plan_fails`); the gate's off and branch lines in `test_workflows.py` |
+| 14 | `publish` writes and checks the manifest; R16 | Pass | `test_manifest.py` (9 tests: shape, data version equals `state.json`'s, changed-files count without the manifest, smoke test, a merge deploy mid-publish stops it with the state unchanged and the images kept, first and preview publishes); `test_publish.py` and `test_images.py` unchanged apart from the file count |
+| 15 | `status` | Pass | `test_status.py`: publish, merge deploy (no rollback), rollback to older data, code rollback, pending schema change, no manifest (exact lines). `Live data:` for R14's `Data:` is recorded (Deviations, 1) |
+| 16 | Jobs, conditions, environment, token's place | Pass | `test_workflows.py`: `test_the_check_job_is_unchanged`, `test_the_new_jobs_run_only_for_main_or_by_hand_in_this_repository`, `test_only_the_release_step_holds_the_cloudflare_credential`, `test_the_build_job_has_no_environment_and_no_credential`, `test_the_deploy_job_never_installs_the_website` |
+| 17 | Read-only, pinned, no `pull_request_target` | Pass | `test_every_workflow_is_read_only_and_pinned` (all four workflow files) |
+| 18 | Concurrency | Pass | `test_deploys_are_never_cancelled`, `test_the_website_workflow_can_be_called_without_cancelling_its_own_run` |
+| 19 | The switch | Pass | `test_the_gate_reads_the_switch`, `test_the_gate_deploys_only_when_the_switch_is_on` (the gate's script under bash: only `on` on main deploys; `On`, `off` and unset don't), `test_the_report_says_why_when_a_job_stopped` |
+| 20 | Docs | Pass | Read `deploy/README.md` (Merge deploys: what a run does, outcomes, the switch, rollbacks, setup; Rollback runbook; publish steps 4, 8, 9), `docs/static-publishing.md`, the root README against R13 and R18; `test_the_header_comment_says_what_ci_can_do_now` |
+| 21 | Secret scan, nothing committed | Pass | `gitleaks git --log-opts="origin/main..HEAD"` and `gitleaks dir .`: no leaks; the diff holds no account id or project name (only fakes in tests) |
+| 22 to 26 | Test run | Pending | Manual, after the merge, one `publish` and the setup (`deploy/README.md`, Merge deploys, Setup) |
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Lint | `uv run ruff format --check`, `uv run ruff check` (after `uv sync --locked`) | Pass |
+| Types | `uv run mypy` (45 files) | Pass |
+| Tests | `uv run pytest`: 216 passed | Pass |
+| Build | No website code changed; `website.yml` changed only in its triggers and concurrency group (criterion 18). `deploy-code build --out` against the live site: stops with "Needs a publish from the Mac: the live deployment has no data manifest.", exit 1, nothing written. With a manifest made locally from the live files and the image host's `HEAD` answered locally: 671 files, 640 combos, `Site: 785 files (7.1 MB), checked`; the folder was deleted | Pass |
+| Secret scan | `gitleaks git --log-opts="origin/main..HEAD" --no-banner --redact`, `gitleaks dir . --no-banner --redact` | Pass |
+| Public exposure | Manual review of the diff and log: only public hosts, documentation links, lock-file hashes and test fakes; all commits by shb327, one line, no trailers; `.claude/` and `CLAUDE.md` ignored and untracked | Pass |
+| Design conformance | Manual review of R1 to R18 and S1 to S8 against the code; every difference is in Implementation notes | Pass |
+
+**Findings**
+
+- (fixed, 2f7d687) `release` deployed whatever commit `plan.json` named. The workflow only releases on `main`, but a folder built by a run by hand on another branch would have gone to production if released. It now refuses a commit that is not on `origin/main` (`test_a_folder_built_from_another_branch_is_never_deployed`).
+- (fixed, 93fecc6) After a race, a failed automatic rollback only said "The Pages API refused the rollback". It now says that older data is live and which deployment to roll back to in the dashboard (`test_a_failed_rollback_after_a_race_says_older_data_is_live`).
+- (fixed, 4ac405c) The release step ran `uv run`, which may sync and build the project with the token in its environment. It now runs `uv run --no-sync`, after `uv sync --locked` in its own step (`test_only_the_release_step_holds_the_cloudflare_credential`).
+- (follow-up) If the Pages API's list lags right after a publish, the check after production could miss that publish, and `publish` itself doesn't check after its own production deploy. `status` would then show the live merge deploy on "not the data of the last publish recorded here". A check in `publish` after its production deploy, warning when it isn't live, would close it. The owner's call.
+- (follow-up) The project name is also the repository's name, so GitHub masks every occurrence of it in the run logs (for example in checkout paths), and the command masks it in what it prints. Cosmetic.
+- (follow-up) Confirm on the first run that `${{ github.workflow }}` names the caller in the called website workflow, so its concurrency group differs from its own push run. If not, the called run is cancelled and nothing deploys (safe, but no merge deploys).
+- (follow-up) Confirm on the first run that `upload-artifact` v7.0.2 and `download-artifact` v8.0.2 hand the folder over intact.
+- (follow-up) The new jobs have no `timeout-minutes`, so a hung wrangler holds the deploy group for GitHub's default of 6 hours.
+- (follow-up) `Deployment.created` raises on an empty `created_on`; in the check after production that would end in a traceback instead of a `Failed:` line. Pages always sets the field.
+- (checked) R6: `deploy-code` has no path to the image buckets, the Keychain, the local API or the database; it reads only the site, the image host (anonymous `HEAD`), git and, for `release`, the Pages API.
+- (checked) `publish` works as before apart from the manifest (one more file), the smoke test's manifest check, and reading the live deployment at the start and before production. A missing Pages token now stops a production publish before the export instead of after the image listing.
+- (pending) Criteria 22 to 26, per `deploy/README.md`, Merge deploys, Setup.
