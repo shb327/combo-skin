@@ -49,6 +49,7 @@ Only one `publish` or `prune-images` runs at a time; a second one stops and name
 8. Deploys the folder to the `preview` branch, then smoke-tests that deployment's own URL: `/` and its headers, `/data/combo-counts.json` (it must equal the export), one finish's data file, the manifest, and one screenshot from the image host.
 9. Checks the live deployment is still the one it saw at the start. If a merge deploy went live meanwhile, it stops with "A merge deploy went live during this publish; run it again." The uploaded images stay. Then it deploys the same folder to production (`main`). Pages already has every file, so nothing is uploaded again.
 10. Records the deployment, the data files and each image's last use in the state folder, and deletes images no production publish has used for 30 days (never one the live deployment uses).
+11. Between recording the deployment and pruning, checks that a merge deploy didn't go live over it. If one did (it carries older data), it rolls production back to this publish, deletes that deployment, and says to run the deploy workflow by hand on `main` to put the newer code live.
 
 A failure at any step exits 1 and leaves the live site on its previous deployment.
 
