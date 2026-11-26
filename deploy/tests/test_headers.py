@@ -59,7 +59,7 @@ def test_the_settings_have_no_originals_bucket() -> None:
     names = {field.name for field in dataclasses.fields(Settings)}
     assert not {name for name in names if "original" in name}
     found = subprocess.run(
-        ["grep", "-rniE", "original", str(DEPLOY / "src")],
+        ["grep", "-rniIE", "original", str(DEPLOY / "src")],
         capture_output=True,
         text=True,
         check=False,
