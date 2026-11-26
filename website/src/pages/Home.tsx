@@ -70,7 +70,7 @@ export function Home() {
               href={`mailto:${option.email}`}
               className="group relative p-4 md:p-8 md:py-12 bg-white/5 rounded-lg overflow-hidden transition-colors"
             >
-              <div className="absolute inset-0 bg-radial-[circle_at_center] from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+              <div className="absolute inset-0 bg-radial-[circle_at_center] from-white/10 to-transparent opacity-0 group-hover:opacity-100 in-focus-visible:opacity-100 transition-opacity duration-300 pointer-events-none" />
               <div className="flex items-center gap-2 mb-1 md:block md:mb-2">
                 <option.icon className="w-5 h-5 md:w-8 md:h-8 text-zinc-400 md:mb-4" />
                 <h3 className="text-base md:text-lg font-semibold text-white">{option.title}</h3>

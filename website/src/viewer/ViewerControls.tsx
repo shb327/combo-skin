@@ -18,7 +18,7 @@ const ACTIONS: { action: Action; label: string; hint: string; key?: string; icon
 
 const BUTTON =
   'flex items-center justify-center min-h-11 roomy:min-h-9 rounded-lg bg-white/10 text-white ' +
-  'hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-white disabled:opacity-40 disabled:cursor-default ' +
+  'hover:bg-white/20 focus-visible:bg-white/20 disabled:opacity-40 disabled:cursor-default ' +
   'cursor-pointer transition-colors'
 
 /** Whether the window offers an action: inspect unless the knife lacks it; the swings only with

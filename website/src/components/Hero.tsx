@@ -47,7 +47,7 @@ export function Hero() {
       <div className="grid grid-cols-2 gap-3 md:flex md:gap-8 md:justify-center md:items-center">
         <Link to="/gloves" className="flex flex-col items-center gap-2 md:gap-4 md:w-80 lg:w-[420px]">
           <div className="group relative w-full aspect-square bg-white/5 rounded-lg overflow-hidden cursor-pointer">
-            <div className="absolute inset-0 bg-radial-[circle_at_center] from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+            <div className="absolute inset-0 bg-radial-[circle_at_center] from-white/10 to-transparent opacity-0 group-hover:opacity-100 in-focus-visible:opacity-100 transition-opacity duration-300 pointer-events-none" />
             <Swiper
               modules={[Autoplay, Controller]}
               onSwiper={setGloveSwiper}
@@ -55,7 +55,7 @@ export function Hero() {
               autoplay={{ delay: 3000, disableOnInteraction: false }}
               {...LINK_CAROUSEL}
               loop
-              className="w-full h-full transition-transform duration-300 md:group-hover:scale-110"
+              className="w-full h-full transition-transform duration-300 md:group-hover:scale-110 md:in-focus-visible:scale-110"
             >
               {gloves.map((glove, index) => (
                 <SwiperSlide key={index}>
@@ -69,7 +69,7 @@ export function Hero() {
 
         <Link to="/knives" className="flex flex-col items-center gap-2 md:gap-4 md:w-80 lg:w-[420px]">
           <div className="group relative w-full aspect-square bg-white/5 rounded-lg overflow-hidden cursor-pointer">
-            <div className="absolute inset-0 bg-radial-[circle_at_center] from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+            <div className="absolute inset-0 bg-radial-[circle_at_center] from-white/10 to-transparent opacity-0 group-hover:opacity-100 in-focus-visible:opacity-100 transition-opacity duration-300 pointer-events-none" />
             <Swiper
               modules={[Autoplay, Controller]}
               onSwiper={setKnifeSwiper}
@@ -77,7 +77,7 @@ export function Hero() {
               autoplay={{ delay: 3000, disableOnInteraction: false }}
               {...LINK_CAROUSEL}
               loop
-              className="w-full h-full transition-transform duration-300 md:group-hover:scale-110"
+              className="w-full h-full transition-transform duration-300 md:group-hover:scale-110 md:in-focus-visible:scale-110"
             >
               {knives.map((knife, index) => (
                 <SwiperSlide key={index}>

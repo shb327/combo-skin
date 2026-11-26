@@ -127,14 +127,14 @@ export function Search() {
           {/* Mobile: icon only */}
           <button
             onClick={open}
-            className="md:hidden flex items-center justify-center w-10 h-10 text-white/70 hover:text-white transition-colors"
+            className="md:hidden flex items-center justify-center w-10 h-10 text-white/70 hover:text-white focus-visible:text-white transition-colors"
           >
             <FiSearch className="w-5 h-5" />
           </button>
           {/* Desktop: pill button */}
           <button
             onClick={open}
-            className="hidden md:flex items-center gap-3 px-6 py-2.5 w-72 text-sm text-white/50 bg-[#27272a] rounded-full hover:bg-[#323236] hover:text-white/70 transition-colors"
+            className="hidden md:flex items-center gap-3 px-6 py-2.5 w-72 text-sm text-white/50 bg-[#27272a] rounded-full hover:bg-[#323236] hover:text-white/70 focus-visible:bg-[#323236] focus-visible:text-white/70 transition-colors"
           >
             <FiSearch className="w-4 h-4" />
             <span>Search</span>
@@ -159,7 +159,7 @@ export function Search() {
                   setIsOpen(false)
                   setQuery('')
                 }}
-                className="text-white/50 hover:text-white text-sm"
+                className="text-white/50 hover:text-white focus-visible:text-white text-sm"
               >
                 Cancel
               </button>
@@ -172,7 +172,7 @@ export function Search() {
                     <li key={item.id}>
                       <button
                         onClick={() => handleItemClick(item)}
-                        className="w-full px-4 py-3.5 text-left text-base text-white/80 hover:bg-white/5 hover:text-white transition-colors border-b border-white/5 last:border-0"
+                        className="w-full px-4 py-3.5 text-left text-base text-white/80 hover:bg-white/5 hover:text-white focus-visible:bg-white/5 focus-visible:text-white transition-colors border-b border-white/5 last:border-0"
                       >
                         {item.fullName}
                         <ResultCount item={item} />
@@ -207,7 +207,7 @@ export function Search() {
                     <li key={item.id}>
                       <button
                         onClick={() => handleItemClick(item)}
-                        className="w-full px-4 py-2.5 text-left text-sm text-white/80 hover:bg-white/5 hover:text-white transition-colors"
+                        className="w-full px-4 py-2.5 text-left text-sm text-white/80 hover:bg-white/5 hover:text-white focus-visible:bg-white/5 focus-visible:text-white transition-colors"
                       >
                         {item.fullName}
                         <ResultCount item={item} />

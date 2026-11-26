@@ -130,7 +130,7 @@ export function SearchKnives() {
           <button
             type="button"
             onClick={() => setFiltered(false)}
-            className="mt-4 px-4 py-2 rounded-lg bg-white/10 text-white text-sm md:text-base hover:bg-white/20 transition-colors cursor-pointer"
+            className="mt-4 px-4 py-2 rounded-lg bg-white/10 text-white text-sm md:text-base hover:bg-white/20 focus-visible:bg-white/20 transition-colors cursor-pointer"
           >
             Show all
           </button>
