@@ -165,6 +165,15 @@ def test_deploys_are_never_cancelled(deploy: Json) -> None:
     }
 
 
+def test_every_new_job_that_runs_on_a_machine_has_a_time_limit(deploy: Json) -> None:
+    limits = {
+        name: job.get("timeout-minutes")
+        for name, job in jobs(deploy).items()
+        if name in NEW_JOBS and "runs-on" in job
+    }
+    assert limits == {"gate": 5, "build-site": 20, "deploy-site": 20, "report": 5}
+
+
 def test_the_website_workflow_can_be_called_without_cancelling_its_own_run() -> None:
     website = load(WEBSITE)
     assert "workflow_call" in triggers(website)
