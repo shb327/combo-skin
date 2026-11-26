@@ -1,10 +1,10 @@
 # Static publishing
 
-How Combo Skin is put on the internet, and why. The spec is [021](specs/021-serverless-publish.md); the command and runbooks are in [`deploy/README.md`](../deploy/README.md).
+How Combo Skin is put on the internet, and why. The specs are [021](specs/021-serverless-publish.md) (publishing) and [026](specs/026-deploy-on-merge.md) (merge deploys); the commands and runbooks are in [`deploy/README.md`](../deploy/README.md).
 
 ## The decision
 
-The public site is static files on Cloudflare: the website and its combo data on Pages at `combo.skin`, the screenshots and catalog pictures in an R2 bucket at `img.combo.skin`. The back office (admin dashboard, API, PostgreSQL, object storage and the screenshot worker) stays on one Mac and is never reachable from the internet. A publish command on that Mac turns the published combos into the next deployment.
+The public site is static files on Cloudflare: the website and its combo data on Pages at `combo.skin`, the screenshots and catalog pictures in an R2 bucket at `img.combo.skin`. The back office (admin dashboard, API, PostgreSQL, object storage and the screenshot worker) stays on one Mac and is never reachable from the internet. A publish command on that Mac turns the published combos into the next deployment. Code changes also go live by themselves: on every merge to `main`, GitHub Actions builds the website at that commit with the data the live deployment already serves, so combos still change only with a publish.
 
 The earlier plan was a small server running the API, with the dashboard behind Cloudflare Access on `admin` and `api` subdomains. It was dropped on 12 November.
 
@@ -25,16 +25,21 @@ flowchart LR
     images[("R2: img.combo.skin\nscreenshots, catalog pictures")]
     backups[("R2: private backups")]
   end
+  subgraph GitHub["GitHub Actions, on a merge to main"]
+    merge["deploy-code"]
+  end
   api -- "public routes" --> publish
   storage -- "public bucket" --> publish
   publish -- "one deployment: code and data" --> pages
   publish -- "new images only" --> images
+  pages -- "live data files" --> merge
+  merge -- "new code, same data" --> pages
   db --> backup --> backups
   visitor(["Visitor"]) --> pages
   visitor --> images
 ```
 
-A visitor's browser talks to Cloudflare only. The Mac talks to Cloudflare only when the owner publishes, and at night for the backup.
+A visitor's browser talks to Cloudflare only. The Mac talks to Cloudflare only when the owner publishes, and at night for the backup. A merge deploy reads the live data from the site itself, like a visitor, and never reaches the Mac or the image bucket.
 
 ## Why static beat a server
 
@@ -46,7 +51,9 @@ A visitor's browser talks to Cloudflare only. The Mac talks to Cloudflare only w
 
 ## Trade-offs accepted
 
-- **Changes are not live until a publish.** A combo published in the dashboard, or a merge to `main`, reaches the site on the next run of the command. `status` says how far behind the live site is.
+- **Combos are not live until a publish.** A combo published in the dashboard reaches the site on the next run of the command. A merge to `main` goes live by itself minutes later, on the live data, unless it needs data in a new shape, which then waits for a publish. `status` says how far behind the live site is and whether the next merge deploy can go out.
+- **A rollback pauses merge deploys.** After a rollback in the dashboard, merges stop going live by themselves until the next publish, so `main` can't put rolled-back code or data straight back. A run of the workflow by hand on `main` deploys anyway, when only the code was rolled back.
+- **CI holds a deploy token.** The merge deploy job has a Cloudflare token limited to Pages on one account, in a GitHub environment that only `main` can use, on a machine that never installs the website's npm packages.
 - **The Mac is a single point.** Publishing needs the Mac and its local stack. If the Mac is lost, the live site keeps running from Cloudflare; the database comes back from the off-Mac backup, and screenshots and pictures can be made again.
 - **No visitor input yet.** Votes, logins and anything else that sends data back need a backend; see Later.
 - **Deleted images linger for a while.** Images of removed combos stay in the bucket for 30 days so a rollback still finds them, unless removed at once with `prune-images --now`.

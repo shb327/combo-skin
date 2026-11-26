@@ -84,7 +84,11 @@ def test_the_build_comes_from_an_archive_of_origin_main_outside_the_checkout(rea
     assert builds[0]["catalog"] == published
     # The deploy holds exactly origin/main's finishes, and was labelled with its commit.
     deployed = ready.root / "deployments" / "dep2" / "data"
-    finishes = {p.relative_to(deployed).as_posix() for p in deployed.rglob("*.json")}
+    finishes = {
+        p.relative_to(deployed).as_posix()
+        for p in deployed.rglob("*.json")
+        if p.name != "manifest.json"
+    }
     assert "gloves/specialist/unpushed-finish.json" not in finishes
     assert "gloves/specialist/uncommitted-finish.json" not in finishes
     assert len(finishes) == 1 + sum(
@@ -383,7 +387,7 @@ def test_a_dry_run_prints_the_plan_and_uploads_and_deploys_nothing(ready: World)
         "Combos: 2 published; 2 glove finishes and 1 knife finishes with combos",
         "Data files: 7 written, 7 changed since the last production publish",
         "Images: 13 referenced, 13 to upload (0.0 MB), 0 already there, 0 waiting to be pruned",
-        "Pages: 10 files (0.0 MB), not deployed",
+        "Pages: 11 files (0.0 MB), not deployed",
         "Dry run: nothing was uploaded or deployed.",
     ]
     assert ready.public.puts == []
@@ -408,7 +412,7 @@ def test_a_real_run_prints_the_lines_in_order(ready: World) -> None:
         "Combos: 2 published; 2 glove finishes and 1 knife finishes with combos",
         "Data files: 7 written, 7 changed since the last production publish",
         "Images: 13 referenced, 13 uploaded (0.0 MB), 0 already there, 0 waiting to be pruned",
-        "Pages: 10 files; preview https://dep1.combo-test.pages.dev checked",
+        "Pages: 11 files; preview https://dep1.combo-test.pages.dev checked",
         "Live: https://combo.skin, deployment dep2",
         "Roll back: Pages dashboard > combo-test > Deployments > an earlier production deployment "
         "> Rollback to this deployment (deploy/README.md, Rollback)",

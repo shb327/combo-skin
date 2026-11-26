@@ -290,6 +290,11 @@ if args[:2] == ["pages", "deploy"]:
     number = len(list((ROOT / "deployments").glob("*"))) + 1
     deployment = f"dep{number}"
     shutil.copytree(args[2], ROOT / "deployments" / deployment)
+    (ROOT / "meta").mkdir(exist_ok=True)
+    (ROOT / "meta" / f"{deployment}.json").write_text(json.dumps({
+        "number": number, "branch": branch,
+        "commit": args[args.index("--commit-hash") + 1],
+        "message": args[args.index("--commit-message") + 1]}))
     project = args[args.index("--project-name") + 1]
     url = f"https://{deployment}.{project}.pages.dev"
     alias = f"https://{branch}.{project}.pages.dev" if branch != "main" else None
@@ -325,6 +330,8 @@ if sys.argv[1:] == ["run", "build"]:
     body = f"const images={json.dumps(images)};const viewer={json.dumps(viewer)};"
     body += (ROOT / "extra.js").read_text() if (ROOT / "extra.js").exists() else ""
     (dist / "assets" / "index-a1.js").write_text(body)
+    if (ROOT / "extra.html").exists():
+        (dist / "extra.html").write_text((ROOT / "extra.html").read_text())
 print("ok")
 """
 
@@ -416,8 +423,28 @@ class FakeHttp:
         self.override: dict[str, Response | Callable[[], Response]] = {}
         self.drop_header: str | None = None
         self.requests: list[tuple[str, dict[str, str]]] = []
+        # Called with each URL before or after it is answered, to change the world mid-run.
+        self.before: list[Callable[[str], None]] = []
+        self.after: list[Callable[[str], None]] = []
+        self.sent: list[tuple[str, str]] = []
 
     def get(self, url: str, headers: Mapping[str, str] | None = None) -> Response:
+        for hook in list(self.before):
+            hook(url)
+        answer = self._get(url, headers)
+        for hook in list(self.after):
+            hook(url)
+        return answer
+
+    def send(self, method: str, url: str, headers: Mapping[str, str] | None = None) -> Response:
+        self.requests.append((f"{method} {url}", dict(headers or {})))
+        self.sent.append((method, url))
+        if method == "HEAD":
+            answer = self._get(url, headers)
+            return Response(answer.status, b"", answer.headers)
+        return self.world.pages_send(method, url)
+
+    def _get(self, url: str, headers: Mapping[str, str] | None = None) -> Response:
         self.requests.append((url, dict(headers or {})))
         if url in self.override:
             answer = self.override[url]
@@ -444,10 +471,16 @@ class FakeHttp:
             body, kind, _ = store.store[key]
             return Response(200, body, {"content-type": kind})
         if url.startswith("https://api.cloudflare.com/"):
-            return json_response({"result": {"canonical_deployment": self.world.canonical}})
+            return self.world.pages_get(url)
         raise HttpError(f"no fake for {url}")
 
     def _deployment(self, deployment: str, path: str) -> Response:
+        if deployment == self.world.settings.pages_project:
+            # The production address serves the live deployment.
+            live = self.world.canonical_id()
+            if live is None:
+                return Response(404, b"", {})
+            deployment = live
         folder = self.world.root / "deployments" / deployment
         target = folder / (path.lstrip("/") or "index.html")
         if path == "/":
@@ -498,7 +531,11 @@ class World:
             }
         )
         self.http = FakeHttp(self)
-        self.canonical: Json = None
+        # The deployment a rollback made live, and the newest deployment number at the time:
+        # a newer production deployment goes live again, as on Pages.
+        self.rolled_back_to: str | None = None
+        self.rolled_back_at = 0
+        self.environ: dict[str, str] = {}
         self.today = TODAY
         self.now = datetime(2026, 11, 22, 3, 0, 0)
         self.temp = root / "tmp"
@@ -549,6 +586,7 @@ class World:
             now=lambda: datetime.combine(self.today, self.now.time()),
             sleep=lambda _: None,
             temp_root=self.temp,
+            environ=self.environ,
         )
 
     def run(self, *argv: str) -> Result:
@@ -578,3 +616,124 @@ class World:
     def clear_deployments(self) -> None:
         shutil.rmtree(self.root / "deployments")
         (self.root / "deployments").mkdir()
+        shutil.rmtree(self.root / "meta", ignore_errors=True)
+
+    # The Pages API, from what the fake wrangler deployed.
+
+    def pages_deployments(self, environment: str | None = None) -> list[Json]:
+        """Every deployment, newest first, as the Pages API describes it."""
+        found = []
+        for path in (self.root / "meta").glob("*.json") if (self.root / "meta").is_dir() else []:
+            meta = json.loads(path.read_text())
+            if meta.get("deleted"):
+                continue
+            deployment = path.stem
+            kind = "production" if meta["branch"] == "main" else "preview"
+            if environment is not None and kind != environment:
+                continue
+            project = self.settings.pages_project
+            found.append(
+                {
+                    "id": deployment,
+                    "short_id": deployment,
+                    "url": f"https://{deployment}.{project}.pages.dev",
+                    "environment": kind,
+                    "created_on": f"2026-11-22T03:{meta['number'] // 60:02d}:"
+                    f"{meta['number'] % 60:02d}.000000Z",
+                    "deployment_trigger": {
+                        "type": "ad_hoc",
+                        "metadata": {
+                            "branch": meta["branch"],
+                            "commit_hash": meta["commit"],
+                            "commit_message": meta["message"],
+                        },
+                    },
+                    "number": meta["number"],
+                }
+            )
+        return sorted(found, key=lambda one: -int(one["number"]))
+
+    def roll_back(self, deployment: str) -> None:
+        self.rolled_back_to = deployment
+        self.rolled_back_at = max(
+            (int(one["number"]) for one in self.pages_deployments()), default=0
+        )
+
+    def canonical_id(self) -> str | None:
+        production = self.pages_deployments("production")
+        if self.rolled_back_to is not None and not any(
+            int(one["number"]) > self.rolled_back_at for one in production
+        ):
+            return self.rolled_back_to
+        return str(production[0]["id"]) if production else None
+
+    def pages_get(self, url: str) -> Response:
+        parts = urlsplit(url)
+        project = f"/accounts/{ACCOUNT}/pages/projects/{self.settings.pages_project}"
+        path = parts.path.removeprefix("/client/v4")
+        if path == project:
+            live = self.canonical_id()
+            canonical = next((one for one in self.pages_deployments() if one["id"] == live), None)
+            return json_response({"result": {"canonical_deployment": canonical}})
+        if path == project + "/deployments":
+            query = dict(pair.split("=") for pair in parts.query.split("&") if pair)
+            listed = self.pages_deployments(query.get("env"))
+            page, per_page = int(query.get("page", "1")), int(query.get("per_page", "25"))
+            chunk = listed[(page - 1) * per_page : page * per_page]
+            return json_response(
+                {
+                    "result": chunk,
+                    "result_info": {
+                        "page": page,
+                        "per_page": per_page,
+                        "count": len(chunk),
+                        "total_count": len(listed),
+                        "total_pages": max(1, -(-len(listed) // per_page)),
+                    },
+                }
+            )
+        return json_response({"success": False}, 404)
+
+    def pages_send(self, method: str, url: str) -> Response:
+        path = urlsplit(url).path.removeprefix("/client/v4")
+        prefix = f"/accounts/{ACCOUNT}/pages/projects/{self.settings.pages_project}/deployments/"
+        if not path.startswith(prefix):
+            return json_response({"success": False}, 404)
+        rest = path.removeprefix(prefix)
+        if method == "POST" and rest.endswith("/rollback"):
+            self.roll_back(rest.removesuffix("/rollback"))
+            return json_response({"success": True, "result": {}})
+        if method == "DELETE" and "/" not in rest:
+            if rest == self.canonical_id():
+                return json_response({"success": False}, 400)
+            meta_path = self.root / "meta" / f"{rest}.json"
+            meta = json.loads(meta_path.read_text())
+            meta_path.write_text(json.dumps({**meta, "deleted": True}))
+            return json_response({"success": True, "result": None})
+        return json_response({"success": False}, 404)
+
+    def add_deployment(
+        self, branch: str, message: str, commit: str | None = None, like: str | None = None
+    ) -> str:
+        """A deployment made elsewhere (a publish on the Mac, or CI), with the files of `like`
+        (by default the newest production deployment)."""
+        number = len(list((self.root / "deployments").glob("*"))) + 1
+        deployment = f"dep{number}"
+        source = like or self.canonical_id()
+        target = self.root / "deployments" / deployment
+        if source is not None:
+            shutil.copytree(self.root / "deployments" / source, target)
+        else:
+            target.mkdir()
+        (self.root / "meta").mkdir(exist_ok=True)
+        (self.root / "meta" / f"{deployment}.json").write_text(
+            json.dumps(
+                {
+                    "number": number,
+                    "branch": branch,
+                    "commit": commit or git(self.repo, "rev-parse", "origin/main"),
+                    "message": message,
+                }
+            )
+        )
+        return deployment

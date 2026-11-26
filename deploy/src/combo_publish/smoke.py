@@ -8,7 +8,8 @@ from typing import Any
 from combo_publish.export import COUNTS_FILE, Export
 from combo_publish.headers import every_response
 from combo_publish.http import Http, HttpError, Response
-from combo_publish.settings import Settings
+from combo_publish.manifest import MANIFEST_FILE
+from combo_publish.settings import SiteOrigins
 
 TRIES = 5
 WAIT_S = 3.0
@@ -48,10 +49,11 @@ def _first_screenshot(export: Export) -> tuple[str, str] | None:
 
 def smoke_test(
     http: Http,
-    settings: Settings,
+    settings: SiteOrigins,
     url: str,
     export: Export,
     *,
+    manifest: bytes,
     noindex: bool,
     sleep: Callable[[float], None] = time.sleep,
 ) -> None:
@@ -67,6 +69,11 @@ def smoke_test(
     counts = _get(http, f"{url}/{COUNTS_FILE}", sleep)
     if counts.content_type != "application/json" or json.loads(counts.body) != export.counts:
         raise SmokeError("/data/combo-counts.json differs from the export")
+    served_manifest = _get(http, f"{url}/{MANIFEST_FILE}", sleep)
+    if served_manifest.content_type != "application/json" or json.loads(
+        served_manifest.body
+    ) != json.loads(manifest):
+        raise SmokeError(f"/{MANIFEST_FILE} differs from what was deployed")
     sample = _first_screenshot(export)
     finish = sample[0] if sample else next(path for path in export.files if path != COUNTS_FILE)
     served = _get(http, f"{url}/{finish}", sleep)

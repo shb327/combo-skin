@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from datetime import date, datetime
 from pathlib import Path
 
-from combo_publish import backup, check, prune, publish, status
+from combo_publish import backup, check, deploy_code, prune, publish, status
 from combo_publish.app import CommandError, Deps
 from combo_publish.bucket import R2Bucket
 from combo_publish.console import Console
@@ -15,6 +15,7 @@ from combo_publish.export import ExportError
 from combo_publish.http import HttpError, UrlHttp
 from combo_publish.images import ImageError
 from combo_publish.keychain import MacKeychain, MissingCredential
+from combo_publish.manifest import ManifestError
 from combo_publish.pages_api import PagesError
 from combo_publish.proc import ToolError, Tools
 from combo_publish.settings import SettingsError
@@ -38,6 +39,7 @@ STOPS = (
     ToolError,
     HttpError,
     Busy,
+    ManifestError,
 )
 
 
@@ -60,6 +62,21 @@ def parser() -> argparse.ArgumentParser:
     command.add_argument("--dry-run", action="store_true", help="list what would be deleted")
     command.add_argument("--now", metavar="COMBO_ID", help="delete one combo's images now")
     commands.add_parser("backup", help="dump the database and copy it to the backup bucket")
+    command = commands.add_parser(
+        "deploy-code", help="deploy the website's code on the live data (merge deploys)"
+    )
+    steps = command.add_subparsers(dest="step", required=True)
+    step = steps.add_parser("build", help="build and check one commit on the live data")
+    step.add_argument("--ref", help="the commit to build (default origin/main)")
+    step.add_argument("--out", type=Path, help="the folder to write the site and plan to")
+    step.add_argument("--dry-run", action="store_true", help="print the plan; write nothing")
+    step = steps.add_parser("release", help="deploy a folder made by build (needs the token)")
+    step.add_argument("folder", type=Path, help="the folder build wrote")
+    step.add_argument(
+        "--by-hand",
+        action="store_true",
+        help="the run was started by hand (deploys after a rollback)",
+    )
     return top
 
 
@@ -79,6 +96,8 @@ def main(argv: Sequence[str] | None = None, deps: Deps | None = None) -> int:
     )
     if args.settings is not None:
         deps.settings_path = args.settings
+    if args.command == "deploy-code":
+        return _deploy_code(args, deps)
     try:
         match args.command:
             case "check":
@@ -105,3 +124,29 @@ def main(argv: Sequence[str] | None = None, deps: Deps | None = None) -> int:
         )
         return 1
     return 0
+
+
+def _deploy_code(args: argparse.Namespace, deps: Deps) -> int:
+    """A merge deploy step. Whatever stops it says why on the first line of the run summary
+    (spec 026, R11)."""
+    out = deps.console
+    try:
+        if args.step == "build":
+            deploy_code.build(deps, ref=args.ref, out=args.out, dry_run=args.dry_run)
+        else:
+            lines = deploy_code.release(deps, args.folder, by_hand=args.by_hand)
+            deploy_code.write_summary(deps.environ, [out.redact(line) for line in lines])
+        return 0
+    except deploy_code.NotDeployed as reason:
+        line, kind, code = f"Not deployed: {reason}", "notice", 0
+        out.print(line)
+    except (deploy_code.NeedsPublish, deploy_code.Paused) as reason:
+        line, kind, code = str(reason), "error", 1
+        out.error(line)
+    except STOPS as error:
+        line, kind, code = f"Failed: {error}", "error", 1
+        out.error(line)
+    line = out.redact(line)
+    deploy_code.write_summary(deps.environ, [line])
+    deploy_code.annotate(deps.environ, kind, line.splitlines()[0], out.print)
+    return code

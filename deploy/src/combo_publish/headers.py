@@ -1,6 +1,6 @@
 """The site's `_headers` file for Pages, generated from the settings (spec 021, R18 to R20)."""
 
-from combo_publish.settings import Settings
+from combo_publish.settings import SiteOrigins
 
 GAME_IMAGE_ORIGIN = "https://community.akamai.steamstatic.com"
 ANALYTICS_SCRIPT = "https://static.cloudflareinsights.com"
@@ -8,7 +8,7 @@ ANALYTICS_BEACON = "https://cloudflareinsights.com"
 IMMUTABLE = "public, max-age=31536000, immutable"
 
 
-def csp(settings: Settings) -> str:
+def csp(settings: SiteOrigins) -> str:
     return "; ".join(
         [
             "default-src 'none'",
@@ -27,7 +27,7 @@ def csp(settings: Settings) -> str:
     )
 
 
-def every_response(settings: Settings) -> dict[str, str]:
+def every_response(settings: SiteOrigins) -> dict[str, str]:
     """The headers of R18, which the smoke test also checks."""
     return {
         "Content-Security-Policy": csp(settings),
@@ -41,7 +41,7 @@ def every_response(settings: Settings) -> dict[str, str]:
     }
 
 
-def generate(settings: Settings) -> str:
+def generate(settings: SiteOrigins) -> str:
     rules: list[tuple[str, dict[str, str]]] = [
         ("/*", every_response(settings)),
         # Vite's hashed files and fonts never change under the same name.

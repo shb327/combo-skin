@@ -100,6 +100,66 @@ class _Rewriter:
         return value
 
 
+def _url_errors(value: Json, image_base: str, where: str, name: str = "") -> list[str]:
+    """Every URL in a data file must be on the public image host, or the game's for a
+    fallback picture."""
+    if isinstance(value, dict):
+        return [
+            error
+            for key, item in value.items()
+            for error in _url_errors(item, image_base, f"{where}.{key}", key)
+        ]
+    if isinstance(value, list):
+        return [
+            error
+            for index, item in enumerate(value)
+            for error in _url_errors(item, image_base, f"{where}[{index}]", name)
+        ]
+    if isinstance(value, str) and URL.match(value):
+        if value.startswith(image_base + "/"):
+            return []
+        if name == "fallback_image_url" and value.startswith(GAME_IMAGE_PREFIX):
+            return []
+        return [f"{where} is a URL off the image host: {value}"]
+    return []
+
+
+def check_files(
+    files: dict[str, bytes], catalog: Json, schema: PublicSchema, image_base: str
+) -> list[str]:
+    """What is wrong with a set of data files already made: the checks of the export, for
+    data a merge deploy downloaded (spec 026, R2). The files are the counts and one file per
+    finish of the catalog."""
+    try:
+        counts = json.loads(files[COUNTS_FILE])
+    except KeyError, ValueError:
+        return [f"{COUNTS_FILE} is missing or not JSON"]
+    errors = [f"{COUNTS_FILE}: {error}" for error in schema.counts_errors(counts)]
+    if errors:
+        return errors
+    totals = {kind: 0 for kind in KINDS}
+    for kind, type_id, finish_id in catalog_finishes(catalog):
+        path = data_path(kind, type_id, finish_id)
+        try:
+            listed = json.loads(files[path])
+        except KeyError, ValueError:
+            errors.append(f"{path} is missing or not JSON")
+            continue
+        if not isinstance(listed, list):
+            errors.append(f"{path} is not a list of combos")
+            continue
+        for combo in listed:
+            errors += [f"{path}: {error}" for error in schema.combo_errors(combo)]
+        errors += _url_errors(listed, image_base, path)
+        expected = counts[kind].get(type_id, {}).get(finish_id, 0)
+        if len(listed) != expected:
+            errors.append(f"{path} lists {len(listed)} combos; the counts say {expected}")
+        totals[kind] += len(listed)
+    if totals["gloves"] != totals["knives"]:
+        errors.append("The glove-side and knife-side totals differ")
+    return errors
+
+
 def _get_json(http: Http, url: str) -> tuple[int, Json]:
     try:
         answer = http.get(url)

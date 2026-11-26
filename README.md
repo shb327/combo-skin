@@ -16,7 +16,7 @@ Monorepo for the Combo Skin project.
 
 ## How the site is published
 
-The live site has no server. The back office (the admin dashboard, the API, PostgreSQL, storage and the screenshot worker) runs on one Mac and is never on the internet. A publish command on that Mac reads the published combos from the local API, builds the website from the tip of `origin/main` with that data inside it, uploads new screenshots and pictures to a public R2 bucket at `img.combo.skin`, and deploys the site to Cloudflare Pages at `combo.skin`. A merge goes live on the next publish. See [`deploy/README.md`](deploy/README.md) for the command and runbooks, and [`docs/static-publishing.md`](docs/static-publishing.md) for why.
+The live site has no server. The back office (the admin dashboard, the API, PostgreSQL, storage and the screenshot worker) runs on one Mac and is never on the internet. A publish command on that Mac reads the published combos from the local API, builds the website from the tip of `origin/main` with that data inside it, uploads new screenshots and pictures to a public R2 bucket at `img.combo.skin`, and deploys the site to Cloudflare Pages at `combo.skin`. Code changes go live by themselves: every merge to `main` is deployed by GitHub Actions on the data that is already live, so combos still change only when the owner publishes. See [`deploy/README.md`](deploy/README.md) for the command and runbooks, and [`docs/static-publishing.md`](docs/static-publishing.md) for why.
 
 ## Running the local stack
 
