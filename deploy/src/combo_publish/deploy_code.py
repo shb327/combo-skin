@@ -30,7 +30,14 @@ from combo_publish.export import (
 from combo_publish.git import MAIN, Git
 from combo_publish.headers import generate
 from combo_publish.http import Http, HttpError
-from combo_publish.manifest import MANIFEST_FILE, Manifest, ManifestError, parse, sha256
+from combo_publish.manifest import (
+    MANIFEST_FILE,
+    Manifest,
+    ManifestError,
+    fetch,
+    parse,
+    sha256,
+)
 from combo_publish.pages_api import Deployment
 from combo_publish.proc import ToolError
 from combo_publish.schema import PublicSchema, schema_drift
@@ -323,19 +330,6 @@ def _target(deps: Deps) -> tuple[Target, str]:
     return Target(account, project), token
 
 
-def _manifest_of(http: Http, deployment: Deployment) -> Manifest | None:
-    try:
-        answer = http.get(f"{deployment.url}/{MANIFEST_FILE}")
-    except HttpError:
-        return None
-    if answer.status != 200 or answer.content_type != "application/json":
-        return None
-    try:
-        return parse(answer.body)
-    except ManifestError:
-        return None
-
-
 def _state(deps: Deps, target: Target, token: str) -> tuple[Deployment | None, Deployment | None]:
     """The live deployment L and the newest production deployment N."""
     live = pages_api.live_or_none(deps.http, target, token)
@@ -380,14 +374,14 @@ def release(deps: Deps, out: Path, *, by_hand: bool) -> list[str]:
     built = parse((folder / MANIFEST_FILE).read_bytes())
 
     live, newest = _state(deps, target, token)
-    live_manifest = _manifest_of(deps.http, live) if live else None
+    live_manifest = fetch(deps.http, live.url) if live else None
     if live is None or newest is None or live_manifest is None:
         raise NeedsPublish("the live deployment has no data manifest.")
     if not live.commit or not git.is_ancestor(live.commit, MAIN):
         raise CommandError("The live commit is not on main.")
     if git.is_ancestor(commit, live.commit):
         raise NotDeployed(f"already live in {live.commit[:12]} (deployment {live.id})")
-    newest_manifest = live_manifest if newest.id == live.id else _manifest_of(deps.http, newest)
+    newest_manifest = live_manifest if newest.id == live.id else fetch(deps.http, newest.url)
     if newest_manifest is None or newest_manifest.data_version != live_manifest.data_version:
         raise NeedsPublish(f"production is rolled back to the data of {live_manifest.exported_at}.")
     if newest.id != live.id and not by_hand:

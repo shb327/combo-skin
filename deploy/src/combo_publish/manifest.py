@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from combo_publish.http import Http, HttpError
 from combo_publish.settings import Origins, SettingsError, SiteOrigins, https_base, https_origin
 
 MANIFEST_FILE = "data/manifest.json"
@@ -134,3 +135,18 @@ def verify(manifest: Manifest, files: dict[str, bytes]) -> list[str]:
         elif sha256(body) != digest:
             problems.append(f"{path} does not match its SHA-256")
     return problems
+
+
+def fetch(http: Http, base: str) -> Manifest | None:
+    """The manifest a deployment serves at `base`, or None if it has none (a deploy made before
+    spec 026, or Pages' fallback page)."""
+    try:
+        answer = http.get(f"{base}/{MANIFEST_FILE}")
+    except HttpError:
+        return None
+    if answer.status != 200 or answer.content_type != "application/json":
+        return None
+    try:
+        return parse(answer.body)
+    except ManifestError:
+        return None
