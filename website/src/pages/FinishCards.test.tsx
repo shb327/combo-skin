@@ -12,7 +12,7 @@ import {
   json,
   type FakeApi,
 } from '@/test/fakeApi'
-import { expectNoControl, expectNoCount, finishCards } from '@/test/finishPage'
+import { expectNoCount, finishCards } from '@/test/finishPage'
 import { renderSite } from '@/test/render'
 
 const SPECIALIST = gloveTypes.find((t) => t.id === 'specialist')!
@@ -72,12 +72,11 @@ describe('finish card counts', () => {
   it.each([
     ['/gloves/specialist', 'gloves', SPECIALIST],
     ['/knives/karambit', 'knives', KARAMBIT],
-  ])('%s shows every finish, without counts or the filter, while the counts load', (path, kind, type) => {
+  ])('%s shows every finish, without counts, while the counts load', (path, kind, type) => {
     const api = fakeApi()
     api.reply(deferred().reply)
     renderSite(path, { api })
     expectEveryFinishWithoutCounts(kind, type)
-    expectNoControl()
   })
 
   it.each([
@@ -97,7 +96,6 @@ describe('finish card counts', () => {
     await waitFor(() => expect(countRequests(api)).toHaveLength(2))
     await settle()
     expectEveryFinishWithoutCounts('gloves', SPECIALIST)
-    expectNoControl()
     expect(screen.queryByText(/could not|error|try again/i)).not.toBeInTheDocument()
   })
 

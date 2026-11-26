@@ -5,9 +5,6 @@ import { useComboCounts } from '@/api/queries'
 import { copyUrl, pictureUrl } from '@/api/images'
 import { CatalogImage } from '@/components/CatalogImage'
 import { comboWord } from '@/components/comboText'
-import { HasCombosControl } from '@/components/HasCombos'
-import { useHasCombos } from '@/components/useHasCombos'
-import { Message } from '@/components/Message'
 import type { Finish } from '@/data/gloves'
 
 interface FinishGridProps {
@@ -17,37 +14,17 @@ interface FinishGridProps {
 }
 
 /** A type's finish cards, in catalog order, each with its number of combos once the counts
- * load. The "Has combos" filter, kept in the URL, applies only once they have. */
+ * load. */
 export function FinishGrid({ kind, type, subtitle }: FinishGridProps) {
   const counts = useComboCounts()
-  const { filtered, setFiltered } = useHasCombos(counts)
-  const finishes =
-    filtered && counts
-      ? type.finishes.filter((finish) => finishCount(counts, kind, type.id, finish.id) > 0)
-      : type.finishes
 
   return (
     <div className="px-4 md:px-16 lg:px-44 pt-4 md:pt-8 pb-8 md:pb-16">
       <h1 className="text-2xl md:text-3xl font-semibold text-white mb-1 md:mb-2">{type.name}</h1>
-      <div className="flex items-center justify-between gap-4 mb-4 md:mb-8">
-        <p className="text-sm md:text-base text-white/60">{subtitle}</p>
-        <HasCombosControl loaded={counts !== undefined} filtered={filtered} onChange={setFiltered} />
-      </div>
-
-      {finishes.length === 0 && (
-        <Message text={`No ${type.name} finishes have combos yet.`}>
-          <button
-            type="button"
-            onClick={() => setFiltered(false)}
-            className="mt-4 px-4 py-2 rounded-lg bg-white/10 text-white text-sm md:text-base hover:bg-white/20 focus-visible:bg-white/20 transition-colors cursor-pointer"
-          >
-            Show all finishes
-          </button>
-        </Message>
-      )}
+      <p className="text-sm md:text-base text-white/60 mb-4 md:mb-8">{subtitle}</p>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-12">
-        {finishes.map((finish) => (
+        {type.finishes.map((finish) => (
           <FinishCard
             key={finish.id}
             to={`/${kind}/${type.id}/${finish.id}/combos`}
