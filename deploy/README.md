@@ -2,7 +2,7 @@
 
 [![deploy](https://github.com/shb327/combo-skin/actions/workflows/deploy.yml/badge.svg)](https://github.com/shb327/combo-skin/actions/workflows/deploy.yml)
 
-The live site has no server. This folder holds the command that publishes it from the back office Mac, and the nightly database backup. The design is spec 021 ([`docs/specs/021-serverless-publish.md`](../docs/specs/021-serverless-publish.md)); why static publishing beat a server is in [`docs/static-publishing.md`](../docs/static-publishing.md).
+The live site has no server. This folder holds the command that publishes it from the back office Mac, the merge deploys that put each merge to `main` live from GitHub Actions on the data already live, and the nightly database backup. The designs are spec 021 ([`docs/specs/021-serverless-publish.md`](../docs/specs/021-serverless-publish.md)) and spec 026 ([`docs/specs/026-deploy-on-merge.md`](../docs/specs/026-deploy-on-merge.md)); why static publishing beat a server is in [`docs/static-publishing.md`](../docs/static-publishing.md).
 
 ```text
 Mac (never on the internet)                          Cloudflare
@@ -10,6 +10,9 @@ Mac (never on the internet)                          Cloudflare
   storage, public bucket ──────────────> new images ─┼─> R2 bucket at img.combo.skin
   origin/main ─> git archive ─> npm run build ───────┴─> Pages project at combo.skin
   PostgreSQL ──> backup ─────────────────────────────> private R2 backup bucket
+
+GitHub Actions, on a merge to main
+  live data files (from the site) + the merged commit ─> deploy-code ─> Pages project
 ```
 
 ## Commands
@@ -27,28 +30,29 @@ uv run --project deploy python -m combo_publish <command>
 | `publish --preview` | The same, but stops after the preview deployment and its smoke test. With `--ref <commit>` it builds that commit instead of `origin/main`. |
 | `publish --dry-run` | Prints the plan (combos, data files, images to upload and their size, Pages files) and uploads and deploys nothing. Without the image token it says the bucket was not checked. |
 | `publish --verify-images` | Also re-checks every image already in the bucket against its local copy (size and ETag) and uploads a differing one again. |
-| `status` | The live production deployment (id, commit, date), how many commits it is behind `origin/main`, and whether the local published combos differ from its data. Changes nothing. |
+| `status` | The live production deployment (id, commit, date, and whether it is a publish or a merge deploy), its data (version, export time and commit, and whether it is your last publish's), any rollback, how many commits it is behind `origin/main`, whether the next merge deploy can go out, and whether the local published combos differ from its data. Changes nothing. |
+| `deploy-code build --dry-run` | What a merge deploy of `origin/main` (or `--ref <commit>`) would do: downloads the live data, checks its schema against the commit's, builds and checks the site, and checks its images on the image host. Needs no credential, and writes nothing (Merge deploys). |
 | `prune-images` | Deletes public images no production publish has used for 30 days. `--dry-run` lists them. `--now <combo id>` deletes one combo's images at once (Removing content now). |
 | `backup` | Dumps the database, keeps it on the Mac and copies it to the backup bucket (Backups). |
 
-Only one `publish` or `prune-images` runs at a time; a second one stops and names the one that is running. Images are deleted only by a successful production publish or by `prune-images`.
+Only one `publish` or `prune-images` runs at a time; a second one stops and names the one that is running. Images are deleted only by a successful production publish or by `prune-images`. `deploy-code release` runs only in CI (Merge deploys).
 
 ## What a publish does
 
 1. Takes the lock, runs `git fetch`, and resolves the tip of `origin/main`. A production publish never takes `--ref`, and the checkout it runs from is not changed: files, branch, index and stash stay as they are.
 2. Writes that commit's files to a temporary folder outside the repository with `git archive`.
 3. Compares the running API's public schemas (`PublicCombo`, `ComboCounts` and everything they reference, in its `/openapi.json`) with the built commit's `api/openapi.json`, ignoring titles and descriptions. If they differ, it stops and names them: the stack was not rebuilt since a merge changed them. Rebuild it first with `docker compose up -d --wait --build`.
-4. Exports the published combos from the local API's public routes: `GET /combo-counts`, then the combos route of each finish with combos. It writes `/data/combo-counts.json` and one `/data/<kind>/<type>/<finish>.json` per finish in the built catalog (`[]` without combos), in exactly the API's shape, with image URLs moved from the local bucket to `https://img.combo.skin`. A URL anywhere else, or a field the public schema does not list, stops the publish. If a list's length differs from its count (combos edited mid-publish), it exports once more, then stops with "Combos changed while publishing; run it again."
+4. Exports the published combos from the local API's public routes: `GET /combo-counts`, then the combos route of each finish with combos. It writes `/data/combo-counts.json` and one `/data/<kind>/<type>/<finish>.json` per finish in the built catalog (`[]` without combos), in exactly the API's shape, with image URLs moved from the local bucket to `https://img.combo.skin`, and `/data/manifest.json`: the data version, when and with which commit the data was exported, the site, image and viewer origins, and the SHA-256 of every other data file. Merge deploys rely on it. A URL anywhere else, or a field the public schema does not list, stops the publish. If a list's length differs from its count (combos edited mid-publish), it exports once more, then stops with "Combos changed while publishing; run it again."
 5. Runs `npm ci` and `npm run build` in the archived `website/`, with the production settings as environment variables (no `.env` file), then adds the data files and `_headers`.
 6. Checks the folder against Pages' limits (20,000 files, 25 MiB per file, 100 `_headers` rules, 2,000 characters per header line), every data file against the public schema, and that no file holds a local address (`localhost` with a port, `127.0.0.1`, `[::1]`, or the local API or image base).
 7. Lists the public bucket once and uploads only the images it does not have, from the local public bucket, 8 at a time, each with its type and `Cache-Control: public, max-age=31536000, immutable`, comparing each returned ETag with the bytes' MD5. Keys never change for changed content, so a key that is there is up to date. A catalog copy missing locally is skipped (the site shows the game's picture); a missing screenshot stops the publish.
-8. Deploys the folder to the `preview` branch, then smoke-tests that deployment's own URL: `/` and its headers, `/data/combo-counts.json` (it must equal the export), one finish's data file, and one screenshot from the image host.
-9. Deploys the same folder to production (`main`). Pages already has every file, so nothing is uploaded again.
+8. Deploys the folder to the `preview` branch, then smoke-tests that deployment's own URL: `/` and its headers, `/data/combo-counts.json` (it must equal the export), one finish's data file, the manifest, and one screenshot from the image host.
+9. Checks the live deployment is still the one it saw at the start. If a merge deploy went live meanwhile, it stops with "A merge deploy went live during this publish; run it again." The uploaded images stay. Then it deploys the same folder to production (`main`). Pages already has every file, so nothing is uploaded again.
 10. Records the deployment, the data files and each image's last use in the state folder, and deletes images no production publish has used for 30 days (never one the live deployment uses).
 
 A failure at any step exits 1 and leaves the live site on its previous deployment.
 
-The output, in order: the commit and where it goes; published combos and finishes with combos; data files written and changed since the last production publish; images referenced, uploaded (count and MB), already there and waiting to be pruned; Pages files and the preview URL checked; the production URL and deployment id; how to roll back.
+The output, in order: the commit and where it goes; published combos and finishes with combos; data files written and changed since the last production publish (the manifest is not counted); images referenced, uploaded (count and MB), already there and waiting to be pruned; Pages files and the preview URL checked; the production URL and deployment id; how to roll back.
 
 ### Headers
 
@@ -79,6 +83,69 @@ security add-generic-password -U -s combo-skin-pages -a combo-skin -w
 ```
 
 A missing item stops the command with its service name and this command.
+
+## Merge deploys
+
+Every merge to `main` goes live by itself, a few minutes later, on the data the live deployment already serves (spec 026). Combos still change only with a `publish` from the Mac: a merge deploy never adds, edits or removes one, never touches the image bucket, and never reaches the Mac.
+
+### What a run does
+
+The `deploy` workflow ([`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)), on a push to `main` or a run by hand:
+
+1. `check` (this package's checks) and `website` (the website workflow, called) must pass. `gate` reads the switch.
+2. `build-site`, with no Cloudflare credential, runs `deploy-code build`:
+   - downloads `/data/manifest.json` from the production address and every file it lists, checking each one's SHA-256 (a publish landing mid-download starts it over once);
+   - compares the public schemas (`PublicCombo`, `ComboCounts` and what they reference) of the data's export commit with the merged commit's `api/openapi.json`, and stops if they differ;
+   - fits the data to the merged catalog: a new finish gets `[]`, an empty finish that left the catalog is dropped, and one with combos stops the run; every other file stays byte for byte;
+   - checks the data against the merged commit's schema, builds the website with the manifest's origins, adds the same `_headers` a publish would, and runs the publish's site checks;
+   - checks anonymously on the image host that every link-preview image the pages name is there (one missing stops the run) and every catalog copy (one missing is a warning: the site shows the game's picture until the next publish).
+3. `deploy-site`, on a fresh machine in the `production` environment, runs `deploy-code release` with the Pages token. It checks on Pages that the live deployment holds the built data and is the newest production deployment (or that the run was started by hand), deploys to `preview`, smoke-tests that deployment, checks nothing went live meanwhile, and deploys to production. If a publish landed during the production deploy, it rolls production back to that publish and deletes its own deployment.
+4. `report` adds one summary line when an earlier job stopped without saying why.
+
+A merge deploy's Pages commit message is `Combo Skin <commit> merge deploy, data <data version>`; a publish's is `Combo Skin <commit>`. That is how `status` tells them apart.
+
+### Outcomes
+
+The run summary's first line says what happened. Whatever stops a run leaves production as it was.
+
+| First line | Run | What to do |
+| --- | --- | --- |
+| `Live: commit …, deployment …, on the data of the publish of …` | green | Nothing. |
+| `Not deployed: merge deploys are off (repository variable MERGE_DEPLOY).` | green | Turn it on (below), if you want it on. |
+| `Not deployed: a run by hand on another branch builds and checks only; only main deploys.` | green | Nothing: a check of that branch. |
+| `Not deployed: already live in …` | green | Nothing: a newer commit, usually from a publish, is live. |
+| `Needs a publish from the Mac: …` | red | `publish`. The reason names it: a public schema change, a finish with combos leaving the catalog, missing preview images, no manifest yet, or rolled-back data. |
+| `Paused: production is rolled back to deployment …` | red | Run the workflow by hand on `main` to deploy anyway, or `publish`. |
+| `Failed: …` | red | Read the reason. "A publish went live during this run; run it again." and "A deployment went live during this run; run it again." mean a re-run is enough. |
+| `Not deployed: the website checks failed.` (or another job) | red | Fix `main`. |
+
+GitHub sends its usual email for a failed run.
+
+### Turning it off
+
+The repository variable `MERGE_DEPLOY` is the switch: GitHub › the repository › Settings › Secrets and variables › Actions › Variables. Only `on` lets a push or a run by hand on `main` deploy. Unset, or any other value, nothing is deployed and the run says so. Turning it off needs no code change.
+
+### Rollbacks and merge deploys
+
+A rollback in the dashboard works as before (Rollback). Then:
+
+- Rolled back to an older publish's data: merge deploys stop with "Needs a publish from the Mac" until the next `publish`, or a roll forward.
+- Rolled back to a deployment with the same data (bad code from a merge): pushes stop with `Paused:`. Merge the fix, then run the workflow by hand on `main` (Actions › deploy › Run workflow › main), or `publish`.
+
+A `publish` always ends the pause: its deployment becomes the live and the newest one.
+
+### Setup
+
+Once, after spec 026 is merged. Nothing in the repository changes GitHub or Cloudflare settings.
+
+1. `publish` once from the Mac, so the live deployment has a manifest. `status` then shows `Merge deploys: can deploy on this data`.
+2. **Cloudflare token for CI.** My Profile › API Tokens › Create Token › Custom token. Permissions: Account › Cloudflare Pages › Edit. Account Resources: Include › the Combo Skin account only. TTL: 12 months. No IP filter (GitHub's runners have no fixed addresses). It is a separate token from the Mac's. Copy it once.
+3. **GitHub environment.** The repository › Settings › Environments › New environment `production`. Deployment branches and tags: Selected branches and tags › `main`. No required reviewers. Environment secrets: `CLOUDFLARE_API_TOKEN` (the token) and `CLOUDFLARE_ACCOUNT_ID` (the account id).
+4. **Project name.** Settings › Secrets and variables › Actions › Secrets › New repository secret `PAGES_PROJECT`: the Pages project's name. It is a secret so that the public run logs mask it.
+5. **A check.** Actions › deploy › Run workflow, on any branch but `main`: `build-site` passes and `deploy-site` is skipped.
+6. **Turn it on.** Settings › Secrets and variables › Actions › Variables › New repository variable `MERGE_DEPLOY` = `on`.
+7. **The test run** (spec 026, criteria 22 to 26): a trivial merge goes live by itself; a run by hand on a throwaway branch with a field added to `PublicCombo` stops with "Needs a publish from the Mac"; a dashboard rollback still works, and pauses the next merge; a `publish` after merge deploys succeeds.
+8. A calendar reminder before the token expires. When it does, runs stop with `Failed:` and the Pages API's refusal; make a new one and replace the secret.
 
 ## Runbooks
 
@@ -124,7 +191,7 @@ When the owner says so, after the credits page is merged:
 
 ### Rollback
 
-Pages dashboard › the project › Deployments › an earlier production deployment › ⋯ › Rollback to this deployment (or the Pages API with the Pages token). The data rolls back with the code, since they are one deployment. Images unused by production for more than 30 days may be gone, so those combos show their catalog pictures. `status` then shows the rolled-back deployment; the next `publish` deploys the tip of `origin/main` again.
+Pages dashboard › the project › Deployments › an earlier production deployment › ⋯ › Rollback to this deployment (or the Pages API with the Pages token). The data rolls back with the code, since they are one deployment. Images unused by production for more than 30 days may be gone, so those combos show their catalog pictures. `status` then shows the rolled-back deployment; the next `publish` deploys the tip of `origin/main` again. Until then, merge deploys pause (Rollbacks and merge deploys).
 
 ### Removing content now
 
@@ -182,4 +249,4 @@ uv run ruff format --check && uv run ruff check && uv run mypy && uv run pytest
 npm ci   # the pinned wrangler, needed only to publish
 ```
 
-The tests run every command against fakes: a fake API and local bucket, fake R2 buckets, a fake Keychain, and fake `wrangler`, `npm` and `docker` programs that record their arguments and environment; `git` runs on a temporary repository with its own origin. No test can reach the real Keychain, R2 or the network. CI (`.github/workflows/deploy.yml`) runs the same checks with read-only permissions and no secrets: nothing in CI can publish.
+The tests run every command against fakes: a fake API and local bucket, fake R2 buckets, a fake Keychain, and fake `wrangler`, `npm` and `docker` programs that record their arguments and environment; `git` runs on a temporary repository with its own origin. No test can reach the real Keychain, R2 or the network. CI (`.github/workflows/deploy.yml`) runs the same checks with read-only permissions and no secrets. The merge deploy jobs in the same workflow deploy code only, on the live data (Merge deploys); only `deploy-site` holds a Cloudflare credential.
