@@ -383,7 +383,7 @@ Audited from 503e5b1. Three small defects found on the way were fixed test first
 - (follow-up) The project name is also the repository's name, so GitHub masks every occurrence of it in the run logs (for example in checkout paths), and the command masks it in what it prints. Cosmetic.
 - (follow-up) Confirm on the first run that `${{ github.workflow }}` names the caller in the called website workflow, so its concurrency group differs from its own push run. If not, the called run is cancelled and nothing deploys (safe, but no merge deploys).
 - (follow-up) Confirm on the first run that `upload-artifact` v7.0.2 and `download-artifact` v8.0.2 hand the folder over intact.
-- (follow-up) The new jobs have no `timeout-minutes`, so a hung wrangler holds the deploy group for GitHub's default of 6 hours.
+- (fixed after the audit) The new jobs had no `timeout-minutes`, so a hung wrangler held the deploy group for GitHub's default of 6 hours. The gate and report now stop after 5 minutes and the build and deploy jobs after 20 (`test_every_new_job_that_runs_on_a_machine_has_a_time_limit`).
 - (follow-up) `Deployment.created` raises on an empty `created_on`; in the check after production that would end in a traceback instead of a `Failed:` line. Pages always sets the field.
 - (checked) R6: `deploy-code` has no path to the image buckets, the Keychain, the local API or the database; it reads only the site, the image host (anonymous `HEAD`), git and, for `release`, the Pages API.
 - (checked) `publish` works as before apart from the manifest (one more file), the smoke test's manifest check, and reading the live deployment at the start and before production. A missing Pages token now stops a production publish before the export instead of after the image listing.
