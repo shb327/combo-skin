@@ -304,7 +304,11 @@ Implemented on 26 November. Test ids are `deploy/tests/<file>::<test>`.
 | 19 | `test_workflows.py`: `test_the_gate_reads_the_switch`, `test_the_gate_deploys_only_when_the_switch_is_on` (the gate's script run under bash), and `test_the_report_says_why_when_a_job_stopped` |
 | 20 | `deploy/README.md` (Merge deploys: what a run does, outcomes, the switch, rollbacks, setup; the Rollback runbook), `docs/static-publishing.md`, the root README; the comment in `deploy.yml` (`test_workflows.py::test_the_header_comment_says_what_ci_can_do_now`) |
 | 21 | `gitleaks git --no-banner --redact --log-opts="origin/main..HEAD"`: no leaks. The account id, project name and token are read only from the environment; tests use fakes |
-| 22 to 26 | **Pending the merge and the setup** (`deploy/README.md`, Merge deploys, Setup) |
+| 22 | Pass. The first `publish` (deployment `a9dd2e72`, 948 combos) wrote the manifest, and `status` then said `Live: … publish` and `Merge deploys: can deploy on this data`. The merge of PR 31, with `MERGE_DEPLOY` unset, ran the gate with an empty switch and skipped `build-site` and `deploy-site` (run 45856749845) |
+| 23 | Pass, with one difference: the trivial merge was PR 32 (time limits on the jobs), which changes no page, so the change was checked in `status` rather than on a page. Run 45883096138 built on the live data (`Data files: 671 kept, 0 added, 0 dropped`) and ended with `Live: commit 82b65d3efe2d, deployment b4cc3b95-…`; `status` said `merge deploy` with data `ba0a18739ae3`, the publish's. The sha256 of the manifest, the counts file and three finish files are equal on the publish's and the merge deploy's deployments |
+| 24 | Pass. A run by hand on a throwaway branch adding `note` to `PublicCombo` in `api/openapi.json` (with the website's types regenerated) failed in `build-site` with `Needs a publish from the Mac: the merged code expects public schemas the live data doesn't have (PublicCombo).`; `deploy-site` was skipped (run 45884270399). The branch was deleted |
+| 25 | Rollback: pass. The dashboard rollback to `a9dd2e72` worked, and `status` said `production is rolled back to deployment a9dd2e72-…` and `pushes are paused while production is rolled back`. The paused merge and the run by hand on `main`: pending |
+| 26 | Pending |
 
 ### Deviations
 
@@ -328,7 +332,7 @@ Implemented on 26 November. Test ids are `deploy/tests/<file>::<test>`.
 
 ### Follow-ups
 
-- Criteria 22 to 26, after the merge: the first `publish` (it writes the manifest), the setup in `deploy/README.md` (Merge deploys, Setup), then the test run.
+- Criteria 25 (the paused merge and the run by hand on `main`) and 26.
 - Spec 022's implementation keeps the rules in Design (Spec 022): the prerender in the shared assembly that `publish` and `deploy-code build` both call, reading only the commit, the data folder and the origins.
 - The website checks were not run here: this branch changes no website code, only `website.yml`'s triggers and concurrency group, which `test_workflows.py` reads.
 
@@ -362,7 +366,8 @@ Audited from 503e5b1. Three small defects found on the way were fixed test first
 | 19 | The switch | Pass | `test_the_gate_reads_the_switch`, `test_the_gate_deploys_only_when_the_switch_is_on` (the gate's script under bash: only `on` on main deploys; `On`, `off` and unset don't), `test_the_report_says_why_when_a_job_stopped` |
 | 20 | Docs | Pass | Read `deploy/README.md` (Merge deploys: what a run does, outcomes, the switch, rollbacks, setup; Rollback runbook; publish steps 4, 8, 9), `docs/static-publishing.md`, the root README against R13 and R18; `test_the_header_comment_says_what_ci_can_do_now` |
 | 21 | Secret scan, nothing committed | Pass | `gitleaks git --log-opts="origin/main..HEAD"` and `gitleaks dir .`: no leaks; the diff holds no account id or project name (only fakes in tests) |
-| 22 to 26 | Test run | Pending | Manual, after the merge, one `publish` and the setup (`deploy/README.md`, Merge deploys, Setup) |
+| 22 to 24 | Test run | Pass | Implementation notes, Criteria and tests |
+| 25 and 26 | Test run | Pending | Implementation notes, Criteria and tests |
 
 | Check | Command | Result |
 | --- | --- | --- |
@@ -381,10 +386,10 @@ Audited from 503e5b1. Three small defects found on the way were fixed test first
 - (fixed, 4ac405c) The release step ran `uv run`, which may sync and build the project with the token in its environment. It now runs `uv run --no-sync`, after `uv sync --locked` in its own step (`test_only_the_release_step_holds_the_cloudflare_credential`).
 - (fixed after the audit, 6ba0430, the owner's go-ahead) If the Pages API's list lags right after a publish, a merge deploy's check after production could miss that publish and leave older data live. `publish` now checks after its own production deploy and rolls back a merge deploy that went live over it (Implementation notes, Deviations, 11). Re-run: lint, `mypy` and `uv run pytest` (219 passed) pass.
 - (follow-up) The project name is also the repository's name, so GitHub masks every occurrence of it in the run logs (for example in checkout paths), and the command masks it in what it prints. Cosmetic.
-- (follow-up) Confirm on the first run that `${{ github.workflow }}` names the caller in the called website workflow, so its concurrency group differs from its own push run. If not, the called run is cancelled and nothing deploys (safe, but no merge deploys).
-- (follow-up) Confirm on the first run that `upload-artifact` v7.0.2 and `download-artifact` v8.0.2 hand the folder over intact.
+- (confirmed, run 45883096138) `${{ github.workflow }}` names the caller in the called website workflow: on the merge of PR 32 the called website build and the website's own push run both passed.
+- (confirmed, run 45883096138) `upload-artifact` v7.0.2 and `download-artifact` v8.0.2 hand the folder over intact: the downloaded artifact's sha256 equals the uploaded one's.
 - (fixed after the audit) The new jobs had no `timeout-minutes`, so a hung wrangler held the deploy group for GitHub's default of 6 hours. The gate and report now stop after 5 minutes and the build and deploy jobs after 20 (`test_every_new_job_that_runs_on_a_machine_has_a_time_limit`).
 - (follow-up) `Deployment.created` raises on an empty `created_on`; in the check after production that would end in a traceback instead of a `Failed:` line. Pages always sets the field.
 - (checked) R6: `deploy-code` has no path to the image buckets, the Keychain, the local API or the database; it reads only the site, the image host (anonymous `HEAD`), git and, for `release`, the Pages API.
 - (checked) `publish` works as before apart from the manifest (one more file), the smoke test's manifest check, and reading the live deployment at the start and before production. A missing Pages token now stops a production publish before the export instead of after the image listing.
-- (pending) Criteria 22 to 26, per `deploy/README.md`, Merge deploys, Setup.
+- Criteria 22 to 24 pass (Implementation notes, Criteria and tests); 25 and 26 are pending.
