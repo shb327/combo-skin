@@ -370,6 +370,8 @@ def release(deps: Deps, out: Path, *, by_hand: bool) -> list[str]:
         openapi = json.loads(git.show(commit, "api/openapi.json"))
     except ToolError as error:
         raise CommandError(f"The built commit {commit[:12]} is not in this repository") from error
+    if not git.is_ancestor(commit, MAIN):
+        raise CommandError(f"The built commit {commit[:12]} is not on main; only main deploys.")
     site.check(folder, LOCAL_URLS, PublicSchema(openapi))
     built = parse((folder / MANIFEST_FILE).read_bytes())
 

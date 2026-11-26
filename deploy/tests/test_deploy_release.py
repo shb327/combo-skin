@@ -342,3 +342,22 @@ def test_a_built_folder_without_a_plan_fails(ci: World, tmp_path: Path) -> None:
     assert result.code == 1
     assert summary(ci).startswith("Failed: ")
     assert "holds no plan.json from deploy-code build" in result.err
+
+
+# Audit fixes
+
+
+def test_a_folder_built_from_another_branch_is_never_deployed(ci: World) -> None:
+    git(ci.repo, "checkout", "-q", "-b", "side")
+    (ci.repo / "README.md").write_text("side\n")
+    git(ci.repo, "commit", "-q", "-am", "Side")
+    git(ci.repo, "push", "-q", "origin", "side")
+    side = git(ci.repo, "rev-parse", "HEAD")
+    out = ci.root / "side-out"
+    token = ci.environ.pop("CLOUDFLARE_API_TOKEN")
+    assert ci.run("deploy-code", "build", "--ref", side, "--out", str(out)).code == 0
+    ci.environ["CLOUDFLARE_API_TOKEN"] = token
+    result = ci.run("deploy-code", "release", str(out))
+    assert result.code == 1
+    assert f"The built commit {side[:12]} is not on main; only main deploys." in result.err
+    assert branches(ci) == ["preview", "main"]
