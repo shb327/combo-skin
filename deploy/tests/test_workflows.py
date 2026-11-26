@@ -98,6 +98,14 @@ def test_only_the_release_step_holds_the_cloudflare_credential(deploy: Json) -> 
     assert len(holding) == 1
     release = holding[0]
     assert "deploy-code release" in release["run"]
+    # Nothing is installed or built while the token is in the environment.
+    assert release["run"].startswith("uv run --no-sync python -m combo_publish deploy-code release")
+    syncs = [
+        i
+        for i, step in enumerate(found["deploy-site"]["steps"])
+        if "uv sync" in step.get("run", "")
+    ]
+    assert syncs and max(syncs) < found["deploy-site"]["steps"].index(release)
     assert release["env"]["CLOUDFLARE_API_TOKEN"] == "${{ secrets.CLOUDFLARE_API_TOKEN }}"
     assert release["env"]["CLOUDFLARE_ACCOUNT_ID"] == "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
     assert "env" not in found["deploy-site"]

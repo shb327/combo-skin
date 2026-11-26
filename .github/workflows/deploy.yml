@@ -148,7 +148,7 @@ jobs:
         with:
           name: merge-deploy
           path: ${{ runner.temp }}/merge-deploy
-      - run: uv run python -m combo_publish deploy-code release "$RUNNER_TEMP/merge-deploy" $BY_HAND
+      - run: uv run --no-sync python -m combo_publish deploy-code release "$RUNNER_TEMP/merge-deploy" $BY_HAND
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
