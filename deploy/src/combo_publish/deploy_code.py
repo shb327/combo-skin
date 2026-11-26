@@ -53,7 +53,7 @@ CHANGED = "The live data changed during the download; run it again."
 RACED_DATA = "A publish went live during this run; run it again."
 RACED_LIVE = "A deployment went live during this run; run it again."
 RACED_PRODUCTION = (
-    "A publish went live during the production deploy; production was rolled back to it."
+    "A publish went live during the production deploy; production was rolled back to it"
 )
 
 type Json = Any

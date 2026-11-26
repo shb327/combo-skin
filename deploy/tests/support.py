@@ -423,11 +423,14 @@ class FakeHttp:
         self.override: dict[str, Response | Callable[[], Response]] = {}
         self.drop_header: str | None = None
         self.requests: list[tuple[str, dict[str, str]]] = []
-        # Called with each URL after it is answered, to change the world mid-run.
+        # Called with each URL before or after it is answered, to change the world mid-run.
+        self.before: list[Callable[[str], None]] = []
         self.after: list[Callable[[str], None]] = []
         self.sent: list[tuple[str, str]] = []
 
     def get(self, url: str, headers: Mapping[str, str] | None = None) -> Response:
+        for hook in list(self.before):
+            hook(url)
         answer = self._get(url, headers)
         for hook in list(self.after):
             hook(url)
