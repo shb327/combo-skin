@@ -307,8 +307,8 @@ Implemented on 26 November. Test ids are `deploy/tests/<file>::<test>`.
 | 22 | Pass. The first `publish` (deployment `a9dd2e72`, 948 combos) wrote the manifest, and `status` then said `Live: … publish` and `Merge deploys: can deploy on this data`. The merge of PR 31, with `MERGE_DEPLOY` unset, ran the gate with an empty switch and skipped `build-site` and `deploy-site` (run 45856749845) |
 | 23 | Pass, with one difference: the trivial merge was PR 32 (time limits on the jobs), which changes no page, so the change was checked in `status` rather than on a page. Run 45883096138 built on the live data (`Data files: 671 kept, 0 added, 0 dropped`) and ended with `Live: commit 82b65d3efe2d, deployment b4cc3b95-…`; `status` said `merge deploy` with data `ba0a18739ae3`, the publish's. The sha256 of the manifest, the counts file and three finish files are equal on the publish's and the merge deploy's deployments |
 | 24 | Pass. A run by hand on a throwaway branch adding `note` to `PublicCombo` in `api/openapi.json` (with the website's types regenerated) failed in `build-site` with `Needs a publish from the Mac: the merged code expects public schemas the live data doesn't have (PublicCombo).`; `deploy-site` was skipped (run 45884270399). The branch was deleted |
-| 25 | Rollback: pass. The dashboard rollback to `a9dd2e72` worked, and `status` said `production is rolled back to deployment a9dd2e72-…` and `pushes are paused while production is rolled back`. The paused merge and the run by hand on `main`: pending |
-| 26 | Pending |
+| 25 | Rollback: pass. The dashboard rollback to `a9dd2e72` worked, and `status` said `production is rolled back to deployment a9dd2e72-…` and `pushes are paused while production is rolled back`. The merge of PR 33 then stopped in `deploy-site` with `Paused: production is rolled back to deployment a9dd2e72-…` and left the rollback live (run 45889072901). A run by hand on `main` deployed it: `Data files: 671 kept, 0 added, 0 dropped`, preview checked, `Live: commit 66afa9dc5dae, deployment a223ec16-…` on the publish's data, and `status` said `merge deploy`, `Rollback: none` (run 45889477927) |
+| 26 | Pass. A `publish` after the merge deploys went live as deployment `1eab2a12` (1,061 combos, 104 data files changed, 402 images uploaded, preview checked), and `status` said `Live: … publish`, `Rollback: none`, `Merge deploys: can deploy on this data`, with the new data version `e2351818be66` in the manifest |
 
 ### Deviations
 
@@ -332,7 +332,6 @@ Implemented on 26 November. Test ids are `deploy/tests/<file>::<test>`.
 
 ### Follow-ups
 
-- Criteria 25 (the paused merge and the run by hand on `main`) and 26.
 - Spec 022's implementation keeps the rules in Design (Spec 022): the prerender in the shared assembly that `publish` and `deploy-code build` both call, reading only the commit, the data folder and the origins.
 - The website checks were not run here: this branch changes no website code, only `website.yml`'s triggers and concurrency group, which `test_workflows.py` reads.
 
@@ -366,8 +365,7 @@ Audited from 503e5b1. Three small defects found on the way were fixed test first
 | 19 | The switch | Pass | `test_the_gate_reads_the_switch`, `test_the_gate_deploys_only_when_the_switch_is_on` (the gate's script under bash: only `on` on main deploys; `On`, `off` and unset don't), `test_the_report_says_why_when_a_job_stopped` |
 | 20 | Docs | Pass | Read `deploy/README.md` (Merge deploys: what a run does, outcomes, the switch, rollbacks, setup; Rollback runbook; publish steps 4, 8, 9), `docs/static-publishing.md`, the root README against R13 and R18; `test_the_header_comment_says_what_ci_can_do_now` |
 | 21 | Secret scan, nothing committed | Pass | `gitleaks git --log-opts="origin/main..HEAD"` and `gitleaks dir .`: no leaks; the diff holds no account id or project name (only fakes in tests) |
-| 22 to 24 | Test run | Pass | Implementation notes, Criteria and tests |
-| 25 and 26 | Test run | Pending | Implementation notes, Criteria and tests |
+| 22 to 26 | Test run | Pass | Implementation notes, Criteria and tests (23: checked in `status`, since the merge changed no page) |
 
 | Check | Command | Result |
 | --- | --- | --- |
@@ -392,4 +390,4 @@ Audited from 503e5b1. Three small defects found on the way were fixed test first
 - (follow-up) `Deployment.created` raises on an empty `created_on`; in the check after production that would end in a traceback instead of a `Failed:` line. Pages always sets the field.
 - (checked) R6: `deploy-code` has no path to the image buckets, the Keychain, the local API or the database; it reads only the site, the image host (anonymous `HEAD`), git and, for `release`, the Pages API.
 - (checked) `publish` works as before apart from the manifest (one more file), the smoke test's manifest check, and reading the live deployment at the start and before production. A missing Pages token now stops a production publish before the export instead of after the image listing.
-- Criteria 22 to 24 pass (Implementation notes, Criteria and tests); 25 and 26 are pending.
+- Criteria 22 to 26 pass (Implementation notes, Criteria and tests).
