@@ -10,7 +10,7 @@ In Counter-Strike 2, players equip cosmetic gloves and knives, each available in
 
 - **Browse gloves**: pick one of 8 glove types, then one of its finishes (94 in total).
 - **Browse knives**: pick one of 20 knife types, then one of its finishes (576 in total).
-- **See where the combos are before clicking**: type cards show how many combos each type has, finish cards how many each finish has, and a "Has combos" filter hides the finishes without any. The filter is kept in the page's URL (`?has=combos`), so a shared link keeps it.
+- **See where the combos are before clicking**: type cards show how many combos each type has, and finish cards how many each finish has. Every type and finish is listed.
 - **See combos for a glove or knife finish**: the knives that suit a glove finish, or the gloves that suit a knife finish, best rated first, each with a rating, both finish pictures, the pattern seeds and float ranges that suit it ("Any" where any will do), and sometimes a short description.
 - **View a combo in 3D**: "View in 3D" on a card opens the combo in first person in a window over the page, with the game's inspect and knife swings and a choice of map and agent (see View in 3D).
 - **Search** gloves and knives by name from the top bar.
@@ -42,9 +42,9 @@ The viewer and its message contract live in their own public repository; see its
 
 ![Home page with the "Find your perfect combo" heading and search-by-gloves and search-by-knives cards](docs/screenshots/home.png)
 
-![Search by gloves: a grid of the glove types, each with its number of finishes and of combos, and a "Has combos" filter](docs/screenshots/search-gloves.png)
+![Search by gloves: a grid of the glove types, each with its number of finishes and of combos](docs/screenshots/search-gloves.png)
 
-![Specialist Gloves: a grid of its finishes with their pictures, "18 combos" on Crimson Kimono, and a "Has combos" filter](docs/screenshots/glove-finishes.png)
+![Specialist Gloves: a grid of its finishes with their pictures, "18 combos" on Crimson Kimono](docs/screenshots/glove-finishes.png)
 
 ![Combos for Specialist Gloves | Crimson Kimono: "18 combos" under the finish name, then cards for Karambit and M9 Bayonet | Doppler (Ruby), each with its in-game screenshot, "View in 3D", a score, and glove and knife pattern and float rows reading "Any"](docs/screenshots/combos.png)
 
@@ -60,7 +60,7 @@ npm run dev
 
 Open the local address Vite prints (port 5173 by default). No `.env` file is needed; see Configuration for the optional settings.
 
-The dev server answers the site's data files (`/data/...`) from the API at `http://localhost:8000` by default, so combos pages show the dashboard's published combos live. To see combos, start the API with Docker Compose as described in [`api/README.md`](../api/README.md); combos appear once they are published in the admin dashboard. Without the API, every other page works, type and finish cards show no combo counts and no filter, and a combos page says "Combos could not be loaded." with a "Try again" button.
+The dev server answers the site's data files (`/data/...`) from the API at `http://localhost:8000` by default, so combos pages show the dashboard's published combos live. To see combos, start the API with Docker Compose as described in [`api/README.md`](../api/README.md); combos appear once they are published in the admin dashboard. Without the API, every other page works, type and finish cards show no combo counts, and a combos page says "Combos could not be loaded." with a "Try again" button.
 
 ## Scripts
 
