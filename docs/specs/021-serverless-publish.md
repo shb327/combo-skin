@@ -360,7 +360,7 @@ Implemented on 22 November. Test ids are `deploy/tests/<file>::<test>` and `webs
 **Date:** 2026-11-22 · **Branch:** 021-serverless-publish · **Commit:** 07a87d1
 **Verdict:** Pass with follow-ups
 
-Re-audit. The first audit (commit 5cf6006) failed on two findings, both fixed since: `prune-images` could delete the live site's images after a lost state (fixed in `deploy/src/combo_publish/prune.py`, Deviations 4), and criterion 4's test did not show the build uses the commit's files. Criteria 22, 25 and 26 are manual and wait for the Cloudflare setup.
+Re-audit. The first audit (commit 5cf6006) failed on two findings, both fixed since: `prune-images` could delete the live site's images after a lost state (fixed in `deploy/src/combo_publish/prune.py`, Deviations 4), and criterion 4's test did not show the build uses the commit's files. Criteria 22, 25 and 26 are manual; they passed after the Cloudflare setup, with the evidence of 24 to 27 November in the table.
 
 Test ids are `deploy/tests/<file>::<test>`; pytest ran with `uv run pytest`, Vitest with `npm test`.
 
@@ -387,11 +387,11 @@ Test ids are `deploy/tests/<file>::<test>`; pytest ran with `uv run pytest`, Vit
 | 19 | Stale chunk reload | Pass | `website/src/staleChunks.test.ts` |
 | 20 | `nginx.toml`, `VITE_API_BASE_URL` | Pass | File gone; the grep printed nothing |
 | 21 | Backup | Pass | `test_backup.py` (5 tests), `test_launch_agent.py` |
-| 22 | Backup on the Mac | Pending | Manual, after the backup bucket exists (runbook: `deploy/README.md`, Backups) |
+| 22 | Backup on the Mac | Pass | 24 November: the first dump off the Mac went to the private backup bucket at 13:39, and the new LaunchAgent replaced the old 03:00 job the same afternoon. Its log shows a dump checked with `pg_restore --list` and uploaded each night since (24 November at 16:08, then 25, 26 and 27 November around 03:00), with a copy kept in the bucket and on the Mac |
 | 23 | Docs and CI | Pass | The design note, `deploy/README.md`, the example settings and both READMEs match R39 and R40; `deploy.yml` has `contents: read` and no secrets. Its first run waits for the push; its commands pass locally from a clean install |
 | 24 | Secrets and hashes | Pass | gitleaks clean; the 32-hex grep finds only test fakes and the example's zeros in `deploy/`; no `publish.toml` tracked |
-| 25 | Test run | Pending | Manual, after the Cloudflare setup |
-| 26 | Rollback rehearsal | Pending | Manual, after the Cloudflare setup |
+| 25 | Test run | Pass | 24 November. The first `publish --preview` uploaded 2,593 images (220 MB); the image host served them, the second request from Cloudflare's cache; home, the gloves page, a glove type, a combos page with screenshots, the headers (CSP, HSTS, `nosniff`, `noindex`) and "View in 3D" worked. It found two bugs, fixed in PR 28 (Deviations, 14 and 15): Cloudflare refused the smoke test as Python's default client, and the CSP blocked an inlined `data:` image. The second `publish --preview` uploaded 0 images, its smoke test passed, and the console had no errors. A production `publish` to the test address also uploaded 0 images, with the smoke test passing |
+| 26 | Rollback rehearsal | Pass | 24 November, on the test address. A second production `publish` added 20 combos, uploading 60 images and changing 22 of 671 data files. A dashboard rollback to the first deployment brought back its data (the changed glove at 20 combos, the new knife finish gone), and its screenshots still loaded; `status` reported the rolled-back deployment as live, 22 data files behind. A further `publish` restored the newest data, uploading nothing, and `status` then matched |
 
 | Check | Command | Result |
 | --- | --- | --- |
@@ -415,5 +415,5 @@ Test ids are `deploy/tests/<file>::<test>`; pytest ran with `uv run pytest`, Vit
 - (follow-up) R19 and rollback: `/assets/*` is immutable, so Pages' HTML fallback for a missing old chunk could be cached under that chunk's name, and rolling back to the deployment that has it would leave those browsers on the error page after one reload.
 - (follow-up) The `OutsideOriginError` guard in `website/src/api/client.ts` can't be reached by any test; slugs are refused first. `state_dir` and `backup_dir` are not checked to be outside the repository.
 - (follow-up) `deploy.yml` has not run yet; check its first run after the push.
-- (pending) Criteria 22, 25 and 26, per the runbooks in `deploy/README.md`. Criterion 25 also confirms that R2 accepts boto3's default upload checksums.
+- (done, 24 to 27 November) Criteria 22, 25 and 26 pass, per the runbooks in `deploy/README.md` (table). The first preview publish's 2,593 uploads confirm that R2 accepts boto3's default upload checksums.
 - (checked) Pages keeps `_headers` values as set: `combo.skin`'s coming-soon page sends one `X-Content-Type-Options` and one `Referrer-Policy`, so the smoke test's exact match holds.
