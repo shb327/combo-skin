@@ -115,6 +115,35 @@
       ]
     },
     {
+      "slug": "blaze-pattern",
+      "name": "Blaze Pattern",
+      "kind": "knife",
+      "finish": "case-hardened",
+      "seeds": {
+        "bayonet": 111,
+        "bowie": 396,
+        "butterfly": 396,
+        "classic": 946,
+        "falchion": 800,
+        "flip": 9,
+        "gut": 734,
+        "huntsman": 98,
+        "karambit": 822,
+        "kukri": 800,
+        "m9-bayonet": 354,
+        "navaja": 396,
+        "nomad": 140,
+        "paracord": 946,
+        "shadow-daggers": 50,
+        "skeleton": 140,
+        "stiletto": 643,
+        "survival": 946,
+        "talon": 559,
+        "ursus": 800
+      },
+      "sources": []
+    },
+    {
       "slug": "full-mesh",
       "name": "Full Mesh",
       "kind": "knife",

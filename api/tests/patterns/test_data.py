@@ -1,4 +1,4 @@
-"""The committed groups file: the owner's 13 groups, valid against the committed catalog."""
+"""The committed groups file: the owner's 14 groups, valid against the committed catalog."""
 
 import json
 from typing import Any
@@ -23,6 +23,7 @@ EXPECTED = [
     ("black-gem", "Black Gem", "scorched"),
     ("gold-gem", "Gold Gem", "case-hardened"),
     ("blue-gem", "Blue Gem", "case-hardened"),
+    ("blaze-pattern", "Blaze Pattern", "case-hardened"),
     ("full-mesh", "Full Mesh", "safari-mesh"),
     ("full-fade", "Full Fade", "fade"),
     ("mango-fade", "Mango Fade", "fade"),
@@ -142,9 +143,52 @@ def test_the_owners_own_picks() -> None:
     assert len(mango_fade.seeds) == 17
 
 
+def test_blaze_pattern_is_the_owners() -> None:
+    """Spec 027: the owner's seed for each of the 20 knives, and no sources."""
+    blaze = {g.slug: g for g in load_groups().groups}["blaze-pattern"]
+    assert blaze.seeds == {
+        "bayonet": 111,
+        "bowie": 396,
+        "butterfly": 396,
+        "classic": 946,
+        "falchion": 800,
+        "flip": 9,
+        "gut": 734,
+        "huntsman": 98,
+        "karambit": 822,
+        "kukri": 800,
+        "m9-bayonet": 354,
+        "navaja": 396,
+        "nomad": 140,
+        "paracord": 946,
+        "shadow-daggers": 50,
+        "skeleton": 140,
+        "stiletto": 643,
+        "survival": 946,
+        "talon": 559,
+        "ursus": 800,
+    }
+    assert blaze.sources == []
+
+
 @pytest.mark.anyio
 async def test_the_committed_file_imports(catalog: AsyncSession) -> None:
     counts = await import_groups(catalog, load_groups())
     assert counts.inserted == len(load_groups().groups)
     again = await import_groups(catalog, load_groups())
+    assert (again.inserted, again.updated) == (0, 0)
+
+
+@pytest.mark.anyio
+async def test_blaze_pattern_imports_over_the_first_13(catalog: AsyncSession) -> None:
+    """Spec 027: a database holding the 13 groups before Blaze Pattern takes the file. The ten
+    groups after it move down one place, and nothing frozen changes."""
+    groups = load_groups()
+    before = groups.model_copy(
+        update={"groups": [g for g in groups.groups if g.slug != "blaze-pattern"]}
+    )
+    await import_groups(catalog, before)
+    counts = await import_groups(catalog, groups)
+    assert (counts.inserted, counts.updated, counts.unchanged) == (1, 10, 3)
+    again = await import_groups(catalog, groups)
     assert (again.inserted, again.updated) == (0, 0)
