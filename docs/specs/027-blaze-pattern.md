@@ -1,6 +1,6 @@
 # 027: Blaze Pattern on Case Hardened
 
-**Status:** Implemented
+**Status:** Audited
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api
@@ -126,4 +126,32 @@ None. The owner gave the name and every seed on 2026-11-27.
 
 ## Audit
 
-_Filled in by the audit._
+**Date:** 2026-11-27 · **Branch:** 027-blaze-pattern · **Commit:** e54b1e2
+**Verdict:** Pass with follow-ups
+
+| # | Criterion | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | Blaze Pattern after Blue Gem, R1's 20 seeds, no sources | Pass | `api/tests/patterns/test_data.py::test_the_file_holds_the_owners_groups`, `::test_blaze_pattern_is_the_owners`; the file's seeds also compared by hand with the owner's list of 2026-11-27: all 20 equal |
+| 2 | Valid against the catalog; no other group changes | Pass | `test_data.py::test_the_file_is_valid_against_the_catalog`; `git diff main -- api/src/combo_api/patterns/groups.json` adds 29 lines and removes none |
+| 3 | Over the first 13: 1 inserted, 10 updated, 3 unchanged; then nothing | Pass | `test_data.py::test_blaze_pattern_imports_over_the_first_13` (in `test_data.py`, recorded in Implementation notes) |
+| 4 | `import --check` and `import` on a stack with main's groups | Pass | Implementation notes, criterion 4: same counts, second run 14 unchanged, Blaze Pattern 4th with 20 seeds |
+| 5 | API commands exit 0 | Pass | Table below |
+| 6 | Spec 020 records the group | Pass | `docs/specs/020-pattern-groups.md`: The groups row; Owner's changes, 2026-11-27 |
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Install | `uv sync --frozen` in `api/`, after removing `.venv` | Pass |
+| Format | `uv run ruff format --check .` | Pass (exit 0) |
+| Lint | `uv run ruff check .` | Pass (exit 0) |
+| Types | `uv run mypy` | Pass (exit 0) |
+| Tests | `uv run pytest` | Pass (577 passed) |
+| Generated files | `openapi --check`, `catalog export-website --check`, `patterns export-website --check` | Pass (exit 0) |
+| Secret scan | `gitleaks git` over the branch's commits; `gitleaks dir .` | Pass (no leaks) |
+| Public exposure | manual review of the diff and log: six commits by shb327, one line, no trailers; `.claude/` and `CLAUDE.md` ignored and untracked; no `.env` tracked | Pass |
+| Design conformance | manual review of `groups.json` against Design and API / data model | Pass |
+
+**Findings**
+
+- (follow-up) The import freezes the name and seeds. "Blaze Pattern" makes the website read "Knife Pattern: Blaze Pattern · 396", unlike "Blue Gem · 387"; it is the owner's choice (Design), but any change must come before the owner's database imports it.
+- (follow-up) No review pictures were drawn (Design), so the seeds are checked only against the owner's list, not in the viewer.
+- (follow-up) Spec 020, Design, Admin route, still says "13 rows"; there are now 14.
