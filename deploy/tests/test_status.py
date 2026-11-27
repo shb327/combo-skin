@@ -2,7 +2,18 @@
 
 import json
 
-from tests.support import ACCOUNT, PAGES_TOKEN, SECRETS, World, combo, git
+import pytest
+
+from tests.support import (
+    ACCOUNT,
+    BAD_DATES,
+    PAGES_TOKEN,
+    SECRETS,
+    World,
+    bad_date,
+    combo,
+    git,
+)
 
 
 def publish(world: World) -> str:
@@ -158,3 +169,24 @@ def test_status_without_the_pages_token_says_how_to_add_it(world: World) -> None
     result = world.run("status")
     assert result.code == 1
     assert "security add-generic-password -U -s combo-skin-pages" in result.err
+
+
+@pytest.mark.parametrize(("given", "said"), BAD_DATES)
+def test_a_live_deployment_without_a_readable_date_stops_status(
+    world: World, given: str | None, said: str
+) -> None:
+    publish(world)
+    world.created["dep2"] = given
+    result = world.run("status")
+    assert result.code == 1
+    assert result.err.strip() == bad_date("dep2", said)
+    assert result.out == ""
+
+
+def test_an_older_deployment_without_a_date_is_named(world: World) -> None:
+    publish(world)
+    assert world.run("publish").code == 0
+    world.created["dep2"] = ""
+    result = world.run("status")
+    assert result.code == 1
+    assert result.err.strip() == bad_date("dep2", BAD_DATES[1][1])

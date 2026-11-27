@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.support import ACCOUNT, SECRETS, World, combo, git
+from tests.support import ACCOUNT, BAD_DATES, SECRETS, World, bad_date, combo, git
 
 TOKEN = "fake-ci-pages-token-value-0987654321"
 LIST = "/deployments?env=production"
@@ -277,7 +277,7 @@ def test_a_merge_deploy_says_so_in_its_commit_message(ci: World) -> None:
 # Criterion 12
 
 
-def test_no_secret_or_project_name_appears_anywhere(ci: World) -> None:
+def test_no_secret_appears_anywhere(ci: World) -> None:
     code, out, err = release(ci)
     assert code == 0, err
     places = [out, err, summary(ci), (ci.root / "out" / "plan.json").read_text()]
@@ -286,7 +286,7 @@ def test_no_secret_or_project_name_appears_anywhere(ci: World) -> None:
         for path in (ci.root / "out" / "site").rglob("*")
         if path.is_file()
     ]
-    for value in (TOKEN, ACCOUNT, "combo-test", *SECRETS):
+    for value in (TOKEN, ACCOUNT, *SECRETS):
         assert all(value not in place for place in places), value
     for call in ci.deploys()[2:]:
         env = call["env"]
@@ -386,3 +386,28 @@ def test_a_failed_rollback_after_a_race_says_older_data_is_live(ci: World) -> No
     )
     assert ci.canonical_id() == "dep5"
     assert not [sent for sent in ci.http.sent if sent[0] == "DELETE"]
+
+
+# A date the Pages API gave that is not one
+
+
+@pytest.mark.parametrize(("given", "said"), BAD_DATES)
+def test_a_live_deployment_without_a_readable_date_fails_before_any_deploy(
+    ci: World, given: str | None, said: str
+) -> None:
+    ci.created["dep2"] = given
+    code, _, err = release(ci)
+    assert code == 1
+    line = "Failed: " + bad_date("dep2", said)
+    assert err.strip() == line
+    assert summary(ci).splitlines()[0] == line
+    assert len(ci.deploys()) == 2
+
+
+def test_its_own_deployment_without_a_date_fails_after_production(ci: World) -> None:
+    # dep3 is the preview, dep4 production.
+    ci.created["dep4"] = ""
+    code, _, err = release(ci)
+    assert code == 1
+    assert err.strip() == "Failed: " + bad_date("dep4", BAD_DATES[1][1])
+    assert branches(ci)[-1] == "main"

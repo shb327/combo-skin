@@ -10,11 +10,13 @@ import pytest
 from combo_publish import state
 from tests.support import (
     ACCOUNT,
+    BAD_DATES,
     IMAGES_KEY,
     IMAGES_SECRET,
     PAGES_TOKEN,
     SECRETS,
     World,
+    bad_date,
     combo,
     git,
 )
@@ -436,3 +438,67 @@ def test_schema_drift_stops_the_publish_before_the_export(ready: World) -> None:
     assert "/combo-counts" not in ready.api.requests
     assert ready.calls("npm") == []
     assert ready.public.puts == []
+
+
+# The address it deployed to (Deviations, 16)
+
+NOT_ATTACHED = (
+    "Live: https://combo-test.pages.dev, deployment dep2; "
+    "combo.skin is not attached to this project yet"
+)
+
+
+def test_the_pages_address_is_named_until_the_site_is_attached(ready: World) -> None:
+    ready.domains = []
+    result = ready.run("publish")
+    assert result.code == 0, result.err
+    assert NOT_ATTACHED in result.out.splitlines()
+    assert "https://combo.skin" not in result.out
+
+
+def test_another_attached_domain_is_not_the_site(ready: World) -> None:
+    ready.domains = ["www.combo.skin", "combo.skin.example"]
+    result = ready.run("publish")
+    assert result.code == 0, result.err
+    assert NOT_ATTACHED in result.out.splitlines()
+
+
+def test_the_attached_site_is_found_whatever_its_case(ready: World) -> None:
+    ready.domains = ["www.combo.skin", "Combo.Skin"]
+    result = ready.run("publish")
+    assert result.code == 0, result.err
+    assert "Live: https://combo.skin, deployment dep2" in result.out.splitlines()
+
+
+def test_without_a_subdomain_the_deployment_address_is_named(ready: World) -> None:
+    ready.domains = []
+    ready.subdomain = None
+    result = ready.run("publish")
+    assert result.code == 0, result.err
+    assert (
+        "Live: https://dep2.combo-test.pages.dev, deployment dep2; "
+        "combo.skin is not attached to this project yet"
+    ) in result.out.splitlines()
+
+
+def test_a_preview_publish_does_not_look_up_the_domains(ready: World) -> None:
+    ready.domains = []
+    result = ready.run("publish", "--preview")
+    assert result.code == 0, result.err
+    assert "not attached" not in result.out
+
+
+# A date the Pages API gave that is not one
+
+
+@pytest.mark.parametrize(("given", "said"), BAD_DATES)
+def test_a_deployment_without_a_readable_date_stops_after_production(
+    ready: World, given: str | None, said: str
+) -> None:
+    ready.created["dep2"] = given
+    result = ready.run("publish")
+    assert result.code == 1
+    assert result.err.strip() == bad_date("dep2", said)
+    assert "Live: https://combo.skin, deployment dep2" in result.out.splitlines()
+    # The publish is recorded, so its images stay protected.
+    assert ready.state()["live"]["deployment"] == "dep2"

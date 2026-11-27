@@ -42,6 +42,21 @@ TODAY = date(2026, 11, 22)
 
 type Json = Any
 
+# `created_on` values the Pages API could give that are not a date, and what the stop says.
+BAD_DATES = [
+    (None, "no creation date (created_on missing or empty)"),
+    ("", "no creation date (created_on missing or empty)"),
+    ("yesterday", "an unreadable creation date (created_on 'yesterday')"),
+    (
+        "2026-11-22T03:00:02",
+        "a creation date with no time zone (created_on '2026-11-22T03:00:02')",
+    ),
+]
+
+
+def bad_date(deployment: str, said: str) -> str:
+    return f"The Pages API gave deployment {deployment} {said}"
+
 
 def key_of(name: str) -> str:
     return f"catalog/{hashlib.md5(name.encode(), usedforsecurity=False).hexdigest()}.png"
@@ -535,6 +550,12 @@ class World:
         # a newer production deployment goes live again, as on Pages.
         self.rolled_back_to: str | None = None
         self.rolled_back_at = 0
+        # The project's custom domains, as the Pages API lists them: the site's own domain is
+        # attached unless a test detaches it.
+        self.domains: list[str] = ["combo.skin"]
+        self.subdomain: str | None = f"{self.settings.pages_project}.pages.dev"
+        # A deployment's `created_on` as the Pages API gives it, by id; None leaves it out.
+        self.created: dict[str, str | None] = {}
         self.environ: dict[str, str] = {}
         self.today = TODAY
         self.now = datetime(2026, 11, 22, 3, 0, 0)
@@ -651,6 +672,12 @@ class World:
                     "number": meta["number"],
                 }
             )
+            if deployment in self.created:
+                given = self.created[deployment]
+                if given is None:
+                    del found[-1]["created_on"]
+                else:
+                    found[-1]["created_on"] = given
         return sorted(found, key=lambda one: -int(one["number"]))
 
     def roll_back(self, deployment: str) -> None:
@@ -674,7 +701,10 @@ class World:
         if path == project:
             live = self.canonical_id()
             canonical = next((one for one in self.pages_deployments() if one["id"] == live), None)
-            return json_response({"result": {"canonical_deployment": canonical}})
+            result: Json = {"canonical_deployment": canonical, "domains": self.domains}
+            if self.subdomain is not None:
+                result["subdomain"] = self.subdomain
+            return json_response({"result": result})
         if path == project + "/deployments":
             query = dict(pair.split("=") for pair in parts.query.split("&") if pair)
             listed = self.pages_deployments(query.get("env"))

@@ -22,6 +22,8 @@ def run(deps: Deps) -> None:
     out = deps.console
     token = deps.secret(settings.pages_token_service)
     live = pages_api.live(deps.http, settings, token)
+    # Printed as Pages gave it, once it is known to be a date.
+    _ = live.created
     newest = next(iter(pages_api.production(deps.http, settings, token)), live)
     kind = "merge deploy" if live.merge_deploy else "publish"
     out.print(

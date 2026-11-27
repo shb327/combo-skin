@@ -53,7 +53,7 @@ Only one `publish` or `prune-images` runs at a time; a second one stops and name
 
 A failure at any step exits 1 and leaves the live site on its previous deployment.
 
-The output, in order: the commit and where it goes; published combos and finishes with combos; data files written and changed since the last production publish (the manifest is not counted); images referenced, uploaded (count and MB), already there and waiting to be pruned; Pages files and the preview URL checked; the production URL and deployment id; how to roll back.
+The output, in order: the commit and where it goes; published combos and finishes with combos; data files written and changed since the last production publish (the manifest is not counted); images referenced, uploaded (count and MB), already there and waiting to be pruned; Pages files and the preview URL checked; where production is served and the deployment id; how to roll back. Production is served at the site's address once its domain is attached to the Pages project; until then the line names the project's `pages.dev` address and says the site's domain is not attached to this project yet.
 
 ### Headers
 
@@ -142,7 +142,7 @@ Once, after spec 026 is merged. Nothing in the repository changes GitHub or Clou
 1. `publish` once from the Mac, so the live deployment has a manifest. `status` then shows `Merge deploys: can deploy on this data`.
 2. **Cloudflare token for CI.** My Profile › API Tokens › Create Token › Custom token. Permissions: Account › Cloudflare Pages › Edit. Account Resources: Include › the Combo Skin account only. TTL: 12 months. No IP filter (GitHub's runners have no fixed addresses). It is a separate token from the Mac's. Copy it once.
 3. **GitHub environment.** The repository › Settings › Environments › New environment `production`. Deployment branches and tags: Selected branches and tags › `main`. No required reviewers. Environment secrets: `CLOUDFLARE_API_TOKEN` (the token) and `CLOUDFLARE_ACCOUNT_ID` (the account id).
-4. **Project name.** Settings › Secrets and variables › Actions › Secrets › New repository secret `PAGES_PROJECT`: the Pages project's name. It is a secret so that the public run logs mask it.
+4. **Project name.** Settings › Secrets and variables › Actions › Variables › New repository variable `PAGES_PROJECT`: the Pages project's name. It is not a secret (its `pages.dev` address is public), so the run logs show it as it is.
 5. **A check.** Actions › deploy › Run workflow, on any branch but `main`: `build-site` passes and `deploy-site` is skipped.
 6. **Turn it on.** Settings › Secrets and variables › Actions › Variables › New repository variable `MERGE_DEPLOY` = `on`.
 7. **The test run** (spec 026, criteria 22 to 26): a trivial merge goes live by itself; a run by hand on a throwaway branch with a field added to `PublicCombo` stops with "Needs a publish from the Mac"; a dashboard rollback still works, and pauses the next merge; a `publish` after merge deploys succeeds.
