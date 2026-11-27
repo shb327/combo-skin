@@ -1,6 +1,6 @@
 # 027: Blaze Pattern on Case Hardened
 
-**Status:** Approved
+**Status:** Implemented
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api
@@ -110,7 +110,19 @@ None. The owner gave the name and every seed on 2026-11-27.
 
 ## Implementation notes
 
-_Filled in during implementation._
+| Criterion | Covered by |
+| --- | --- |
+| 1 | `api/tests/patterns/test_data.py`: `test_the_file_holds_the_owners_groups` (`EXPECTED`, Blaze Pattern after Blue Gem), `test_blaze_pattern_is_the_owners` (the 20 seeds, no sources) |
+| 2 | `test_data.py::test_the_file_is_valid_against_the_catalog`; R2 by `git diff main -- api/src/combo_api/patterns/groups.json`, which adds lines only |
+| 3 | `test_data.py::test_blaze_pattern_imports_over_the_first_13` |
+| 4 | Manual, 2026-11-27, below |
+| 5 | The commands below |
+| 6 | Spec 020: a Blaze Pattern row in The groups, and "2026-11-27: Blaze Pattern added" in Owner's changes |
+
+- The import test for criterion 3 is in `test_data.py`, not `test_import.py` as the Test plan says: it imports the committed file, as `test_the_committed_file_imports` there does, while `test_import.py` uses small made-up files.
+- Criterion 4, 2026-11-27, on a separate Compose project: main's file imported first (13 inserted); on this branch `import --check` printed "1 inserted, 10 updated, 3 unchanged (check only: nothing written)", `import` the same, and a second `import` "0 inserted, 0 updated, 14 unchanged". The database then lists Blaze Pattern 4th with 20 seeds.
+- Commands, from `api/`, all exit 0: `ruff format --check .`, `ruff check .`, `mypy`, `pytest` (577 passed), `openapi --check`, `catalog export-website --check`, `patterns export-website --check`.
+- No review pictures were drawn (Design, Review pictures).
 
 ## Audit
 
