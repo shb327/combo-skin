@@ -108,6 +108,7 @@ def test_only_the_release_step_holds_the_cloudflare_credential(deploy: Json) -> 
     assert syncs and max(syncs) < found["deploy-site"]["steps"].index(release)
     assert release["env"]["CLOUDFLARE_API_TOKEN"] == "${{ secrets.CLOUDFLARE_API_TOKEN }}"
     assert release["env"]["CLOUDFLARE_ACCOUNT_ID"] == "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
+    assert release["env"]["PAGES_PROJECT"] == "${{ vars.PAGES_PROJECT }}"
     assert "env" not in found["deploy-site"]
 
 
@@ -119,7 +120,7 @@ def test_the_build_job_has_no_environment_and_no_credential(deploy: Json) -> Non
     assert "CLOUDFLARE" not in text
     builds = [step for step in build["steps"] if "deploy-code build" in step.get("run", "")]
     assert len(builds) == 1
-    assert builds[0]["env"] == {"PAGES_PROJECT": "${{ secrets.PAGES_PROJECT }}"}
+    assert builds[0]["env"] == {"PAGES_PROJECT": "${{ vars.PAGES_PROJECT }}"}
 
 
 def test_the_deploy_job_never_installs_the_website(deploy: Json) -> None:
@@ -262,3 +263,9 @@ def test_the_header_comment_says_what_ci_can_do_now() -> None:
     header = text.split("permissions:")[0]
     assert "The check job is read-only, with no secrets." in header
     assert "Only deploy-site holds a Cloudflare credential" in header
+
+
+def test_the_project_name_is_a_variable_not_a_secret() -> None:
+    text = DEPLOY.read_text()
+    assert "secrets.PAGES_PROJECT" not in text
+    assert text.count("${{ vars.PAGES_PROJECT }}") == 2

@@ -110,7 +110,7 @@ jobs:
       - run: uv sync --locked
       - run: uv run python -m combo_publish deploy-code build --ref "$GITHUB_SHA" --out "$RUNNER_TEMP/merge-deploy"
         env:
-          PAGES_PROJECT: ${{ secrets.PAGES_PROJECT }}
+          PAGES_PROJECT: ${{ vars.PAGES_PROJECT }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: merge-deploy
@@ -155,7 +155,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          PAGES_PROJECT: ${{ secrets.PAGES_PROJECT }}
+          PAGES_PROJECT: ${{ vars.PAGES_PROJECT }}
           BY_HAND: ${{ github.event_name == 'workflow_dispatch' && '--by-hand' || '' }}
 
   # One summary line when an earlier job stopped without saying why itself.

@@ -338,7 +338,10 @@ def test_a_dry_run_prints_the_plan_and_writes_nothing(live: World) -> None:
 def test_the_project_comes_from_the_environment_in_ci(live: World) -> None:
     live.settings_path.unlink()
     live.environ["PAGES_PROJECT"] = "combo-test"
-    code, out, err, _ = build(live)
-    assert code == 0, err
-    # The project name is masked wherever the build prints it.
-    assert "combo-test" not in out + err
+    folder = live.root / "combo-test"
+    result = live.run("deploy-code", "build", "--out", str(folder))
+    assert result.code == 0, result.err
+    # The project name is not a secret (spec 026, Deviations, 12): a path holding the same
+    # word is printed as it is.
+    assert f"Built: {folder}" in result.out.splitlines()
+    assert "***" not in result.out + result.err

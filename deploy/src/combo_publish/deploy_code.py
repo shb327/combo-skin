@@ -100,7 +100,7 @@ def _project(deps: Deps) -> str:
             raise CommandError(f"Set {PROJECT}, or fill in deploy/publish.toml: {error}") from error
     if not NAME.fullmatch(project):
         raise CommandError(f"{PROJECT} must be lower-case letters, digits and hyphens")
-    return deps.console.secret(project)
+    return project
 
 
 def _print(deps: Deps, line: str) -> None:
@@ -326,7 +326,6 @@ def _target(deps: Deps) -> tuple[Target, str]:
     project = env.get(PROJECT, "")
     if not NAME.fullmatch(project):
         raise CommandError(f"{PROJECT} must be lower-case letters, digits and hyphens")
-    deps.console.secret(project)
     return Target(account, project), token
 
 

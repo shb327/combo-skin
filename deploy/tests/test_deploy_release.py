@@ -277,7 +277,7 @@ def test_a_merge_deploy_says_so_in_its_commit_message(ci: World) -> None:
 # Criterion 12
 
 
-def test_no_secret_or_project_name_appears_anywhere(ci: World) -> None:
+def test_no_secret_appears_anywhere(ci: World) -> None:
     code, out, err = release(ci)
     assert code == 0, err
     places = [out, err, summary(ci), (ci.root / "out" / "plan.json").read_text()]
@@ -286,7 +286,7 @@ def test_no_secret_or_project_name_appears_anywhere(ci: World) -> None:
         for path in (ci.root / "out" / "site").rglob("*")
         if path.is_file()
     ]
-    for value in (TOKEN, ACCOUNT, "combo-test", *SECRETS):
+    for value in (TOKEN, ACCOUNT, *SECRETS):
         assert all(value not in place for place in places), value
     for call in ci.deploys()[2:]:
         env = call["env"]
