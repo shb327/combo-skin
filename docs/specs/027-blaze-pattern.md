@@ -1,6 +1,6 @@
 # 027: Blaze Pattern on Case Hardened
 
-**Status:** Draft
+**Status:** Approved
 <!-- Lifecycle: Draft → Approved → Implemented → Audited -->
 
 **Section:** api
