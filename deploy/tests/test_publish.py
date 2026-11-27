@@ -10,11 +10,13 @@ import pytest
 from combo_publish import state
 from tests.support import (
     ACCOUNT,
+    BAD_DATES,
     IMAGES_KEY,
     IMAGES_SECRET,
     PAGES_TOKEN,
     SECRETS,
     World,
+    bad_date,
     combo,
     git,
 )
@@ -436,3 +438,19 @@ def test_schema_drift_stops_the_publish_before_the_export(ready: World) -> None:
     assert "/combo-counts" not in ready.api.requests
     assert ready.calls("npm") == []
     assert ready.public.puts == []
+
+
+# A date the Pages API gave that is not one
+
+
+@pytest.mark.parametrize(("given", "said"), BAD_DATES)
+def test_a_deployment_without_a_readable_date_stops_after_production(
+    ready: World, given: str | None, said: str
+) -> None:
+    ready.created["dep2"] = given
+    result = ready.run("publish")
+    assert result.code == 1
+    assert result.err.strip() == bad_date("dep2", said)
+    assert "Live: https://combo.skin, deployment dep2" in result.out.splitlines()
+    # The publish is recorded, so its images stay protected.
+    assert ready.state()["live"]["deployment"] == "dep2"

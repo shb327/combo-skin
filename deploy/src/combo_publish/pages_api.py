@@ -43,7 +43,22 @@ class Deployment:
 
     @property
     def created(self) -> datetime:
-        return datetime.fromisoformat(self.created_on)
+        """When Pages made it. A date that is missing or can't be read stops the command
+        instead of being guessed."""
+        said = f"The Pages API gave deployment {self.id}"
+        if not self.created_on:
+            raise PagesError(f"{said} no creation date (created_on missing or empty)")
+        try:
+            created = datetime.fromisoformat(self.created_on)
+        except ValueError:
+            raise PagesError(
+                f"{said} an unreadable creation date (created_on {self.created_on!r})"
+            ) from None
+        if created.tzinfo is None:
+            raise PagesError(
+                f"{said} a creation date with no time zone (created_on {self.created_on!r})"
+            )
+        return created
 
 
 def _project(target: PagesTarget) -> str:
