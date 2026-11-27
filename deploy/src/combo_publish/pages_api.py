@@ -61,6 +61,16 @@ class Deployment:
         return created
 
 
+@dataclass(frozen=True)
+class Project:
+    """The project's addresses and its live deployment. `domains` are the custom domains
+    attached to it, lower-case and without a scheme; `subdomain` is its `pages.dev` host."""
+
+    subdomain: str
+    domains: tuple[str, ...]
+    canonical: Deployment | None
+
+
 def _project(target: PagesTarget) -> str:
     return f"{API}/accounts/{target.account_id}/pages/projects/{target.pages_project}"
 
@@ -87,15 +97,23 @@ def _deployment(raw: Any) -> Deployment:
     )
 
 
-def live_or_none(http: Http, target: PagesTarget, token: str) -> Deployment | None:
-    """The live deployment, or None when the project has none yet."""
+def project(http: Http, target: PagesTarget, token: str) -> Project:
     try:
         answer = http.get(_project(target), _auth(token))
     except HttpError as error:
         raise PagesError(f"The Pages API did not answer: {error}") from error
     result = _json(answer).get("result") or {}
     canonical = result.get("canonical_deployment")
-    return _deployment(canonical) if canonical else None
+    return Project(
+        subdomain=str(result.get("subdomain") or ""),
+        domains=tuple(str(one).lower() for one in result.get("domains") or []),
+        canonical=_deployment(canonical) if canonical else None,
+    )
+
+
+def live_or_none(http: Http, target: PagesTarget, token: str) -> Deployment | None:
+    """The live deployment, or None when the project has none yet."""
+    return project(http, target, token).canonical
 
 
 def live(http: Http, target: PagesTarget, token: str) -> Deployment:

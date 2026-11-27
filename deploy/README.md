@@ -53,7 +53,7 @@ Only one `publish` or `prune-images` runs at a time; a second one stops and name
 
 A failure at any step exits 1 and leaves the live site on its previous deployment.
 
-The output, in order: the commit and where it goes; published combos and finishes with combos; data files written and changed since the last production publish (the manifest is not counted); images referenced, uploaded (count and MB), already there and waiting to be pruned; Pages files and the preview URL checked; the production URL and deployment id; how to roll back.
+The output, in order: the commit and where it goes; published combos and finishes with combos; data files written and changed since the last production publish (the manifest is not counted); images referenced, uploaded (count and MB), already there and waiting to be pruned; Pages files and the preview URL checked; where production is served and the deployment id; how to roll back. Production is served at the site's address once its domain is attached to the Pages project; until then the line names the project's `pages.dev` address and says the site's domain is not attached to this project yet.
 
 ### Headers
 

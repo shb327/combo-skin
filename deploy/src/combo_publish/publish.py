@@ -4,6 +4,7 @@ only missing images uploaded (spec 021, R2 to R11)."""
 import json
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from combo_publish import images, manifest, pages_api, site, state, wrangler
 from combo_publish.app import CommandError, Deps, megabytes
@@ -208,7 +209,7 @@ def _publish(
         after = {**listing, **{key: ObjectInfo(0, "") for key in plan.missing}}
         due = images.due(current, after, today)
         state.save(settings.state_dir, current)
-        out.print(f"Live: {settings.site_origin}, deployment {live.id}")
+        out.print(_live_line(deps, settings, token, live))
         out.print(ROLLBACK.format(project=settings.pages_project))
         overwritten = _merge_deploy_over(deps, settings, token, live.id)
         if overwritten:
@@ -220,6 +221,17 @@ def _publish(
         out.print(
             f"Pruned: {len(due)} images unused by production for {images.PRUNE_AFTER_DAYS} days"
         )
+
+
+def _live_line(deps: Deps, settings: Settings, token: str, live: wrangler.Deployment) -> str:
+    """Where production is served: the site, once its domain is attached to the Pages
+    project; until then, the project's own `pages.dev` address (spec 021, Deviations, 16)."""
+    project = pages_api.project(deps.http, settings, token)
+    host = (urlsplit(settings.site_origin).hostname or "").lower()
+    if host in project.domains:
+        return f"Live: {settings.site_origin}, deployment {live.id}"
+    where = f"https://{project.subdomain}" if project.subdomain else live.url
+    return f"Live: {where}, deployment {live.id}; {host} is not attached to this project yet"
 
 
 def _live_id(deps: Deps, settings: Settings, token: str | None) -> str | None:

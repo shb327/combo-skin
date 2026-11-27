@@ -550,6 +550,10 @@ class World:
         # a newer production deployment goes live again, as on Pages.
         self.rolled_back_to: str | None = None
         self.rolled_back_at = 0
+        # The project's custom domains, as the Pages API lists them: the site's own domain is
+        # attached unless a test detaches it.
+        self.domains: list[str] = ["combo.skin"]
+        self.subdomain: str | None = f"{self.settings.pages_project}.pages.dev"
         # A deployment's `created_on` as the Pages API gives it, by id; None leaves it out.
         self.created: dict[str, str | None] = {}
         self.environ: dict[str, str] = {}
@@ -697,7 +701,10 @@ class World:
         if path == project:
             live = self.canonical_id()
             canonical = next((one for one in self.pages_deployments() if one["id"] == live), None)
-            return json_response({"result": {"canonical_deployment": canonical}})
+            result: Json = {"canonical_deployment": canonical, "domains": self.domains}
+            if self.subdomain is not None:
+                result["subdomain"] = self.subdomain
+            return json_response({"result": result})
         if path == project + "/deployments":
             query = dict(pair.split("=") for pair in parts.query.split("&") if pair)
             listed = self.pages_deployments(query.get("env"))

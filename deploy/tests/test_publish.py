@@ -440,6 +440,54 @@ def test_schema_drift_stops_the_publish_before_the_export(ready: World) -> None:
     assert ready.public.puts == []
 
 
+# The address it deployed to (Deviations, 16)
+
+NOT_ATTACHED = (
+    "Live: https://combo-test.pages.dev, deployment dep2; "
+    "combo.skin is not attached to this project yet"
+)
+
+
+def test_the_pages_address_is_named_until_the_site_is_attached(ready: World) -> None:
+    ready.domains = []
+    result = ready.run("publish")
+    assert result.code == 0, result.err
+    assert NOT_ATTACHED in result.out.splitlines()
+    assert "https://combo.skin" not in result.out
+
+
+def test_another_attached_domain_is_not_the_site(ready: World) -> None:
+    ready.domains = ["www.combo.skin", "combo.skin.example"]
+    result = ready.run("publish")
+    assert result.code == 0, result.err
+    assert NOT_ATTACHED in result.out.splitlines()
+
+
+def test_the_attached_site_is_found_whatever_its_case(ready: World) -> None:
+    ready.domains = ["www.combo.skin", "Combo.Skin"]
+    result = ready.run("publish")
+    assert result.code == 0, result.err
+    assert "Live: https://combo.skin, deployment dep2" in result.out.splitlines()
+
+
+def test_without_a_subdomain_the_deployment_address_is_named(ready: World) -> None:
+    ready.domains = []
+    ready.subdomain = None
+    result = ready.run("publish")
+    assert result.code == 0, result.err
+    assert (
+        "Live: https://dep2.combo-test.pages.dev, deployment dep2; "
+        "combo.skin is not attached to this project yet"
+    ) in result.out.splitlines()
+
+
+def test_a_preview_publish_does_not_look_up_the_domains(ready: World) -> None:
+    ready.domains = []
+    result = ready.run("publish", "--preview")
+    assert result.code == 0, result.err
+    assert "not attached" not in result.out
+
+
 # A date the Pages API gave that is not one
 
 
