@@ -28,7 +28,7 @@ from combo_api.combos.models import Combo, ScreenshotSettings
 from combo_api.screenshots.models import ComboScreenshot, ScreenshotJob
 
 # Raised when the viewer changes how combos look: every combo is then due.
-RENDER_REVISION = 1
+RENDER_REVISION = 2
 # Failed attempts for the same render inputs after which a combo is failed.
 MAX_ATTEMPTS = 3
 
